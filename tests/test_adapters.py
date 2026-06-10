@@ -2,6 +2,10 @@
 
 import pytest
 
+# DRF is optional; skip the whole module (incl. the serializer import below) if
+# it isn't installed, so the core suite still passes without rest_framework.
+pytest.importorskip("rest_framework")
+
 from theia_ng.adapters import AdapterValidationError, resolve_adapter
 from theia_ng.adapters.drf import DRFAdapter, enrich_fields_from_serializer
 from theia_ng.adapters.generic import GenericAdapter
