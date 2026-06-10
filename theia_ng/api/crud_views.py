@@ -105,6 +105,10 @@ class DataListView(_BaseModelView):
                 qs = qs.order_by(*ordering.split(","))
             elif self.admin.ordering:
                 qs = qs.order_by(*self.admin.ordering)
+            else:
+                # Stable default so pagination is consistent (e.g. the relation
+                # combobox loading pages as you scroll thousands of rows).
+                qs = qs.order_by("pk")
 
             paginator = Paginator(qs, self.admin.list_per_page)
             page = paginator.get_page(request.GET.get("page", 1))

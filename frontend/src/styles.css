@@ -97,3 +97,44 @@ body {
 .actions button { padding: 0.45rem 0.9rem; border-radius: 6px; cursor: pointer; }
 
 .errors { color: #e03131; font-size: 0.8rem; margin: -0.5rem 0 0.75rem; max-width: 480px; }
+
+/* sidebar user box */
+.user-box { margin-top: auto; padding-top: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.username { font-size: 0.8rem; color: var(--muted); }
+.link-btn { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 0.85rem; text-align: left; }
+.sidebar { display: flex; flex-direction: column; }
+
+/* login */
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 2rem; width: 320px; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+.login-card h1 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+.login-card .btn { margin-top: 0.5rem; }
+
+/* relation combobox */
+.rel { position: relative; }
+.rel-trigger {
+  display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;
+  min-height: 2.1rem; padding: 0.3rem 0.5rem; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+.rel-trigger .placeholder { color: var(--muted); }
+.rel-trigger .caret { margin-left: auto; color: var(--muted); }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: #eef1ff; color: var(--accent); border-radius: 12px;
+  padding: 0.1rem 0.5rem; font-size: 0.8rem;
+}
+.chip button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 0; }
+.rel-backdrop { position: fixed; inset: 0; z-index: 10; }
+.rel-panel {
+  position: absolute; z-index: 11; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden;
+}
+.rel-panel .rel-search { width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 0.5rem; }
+.rel-options { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.rel-options li { padding: 0.45rem 0.6rem; cursor: pointer; font-size: 0.9rem; }
+.rel-options li:hover { background: #f0f3ff; }
+.rel-options li.sel { background: #eef1ff; font-weight: 600; }
+.rel-options li.muted { color: var(--muted); cursor: default; }
+.rel-foot { padding: 0.3rem 0.6rem; font-size: 0.72rem; color: var(--muted); border-top: 1px solid var(--border); }

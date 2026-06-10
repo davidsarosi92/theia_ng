@@ -1,16 +1,14 @@
-import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, Input } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 
-import { ApiService } from './api.service';
-import { Choice, FieldSpec } from './models';
+import { FieldSpec, RelationValue } from './models';
+import { RelationSelectComponent } from './relation-select.component';
 import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
 
 @Component({
   selector: 'theia-field',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RelationSelectComponent],
   template: `
     <label class="field">
       <span class="field-label">
@@ -33,22 +31,7 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
           </select>
         }
         @case ('relation') {
-          @if (field.relation?.searchable) {
-            <input
-              type="text"
-              class="rel-search"
-              placeholder="Search…"
-              (input)="search$.next($any($event.target).value)"
-            />
-          }
-          <select [formControl]="control" [multiple]="field.type === 'm2m'">
-            @if (field.type === 'fk') {
-              <option [ngValue]="null">—</option>
-            }
-            @for (o of options(); track o.id) {
-              <option [ngValue]="o.id">{{ o.label }}</option>
-            }
-          </select>
+          <theia-relation-select [field]="field" [control]="control" [initial]="initial" />
         }
         @default {
           <input [type]="inputType()" [formControl]="control" />
@@ -61,34 +44,10 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
     </label>
   `,
 })
-export class FieldInputComponent implements OnInit {
+export class FieldInputComponent {
   @Input({ required: true }) field!: FieldSpec;
   @Input({ required: true }) control!: FormControl;
-
-  private api = inject(ApiService);
-  private destroyRef = inject(DestroyRef);
-  options = signal<{ id: number | string; label: string }[]>([]);
-  search$ = new Subject<string>();
-
-  ngOnInit(): void {
-    const rel = this.field.relation;
-    if (!rel) {
-      return;
-    }
-    // Live, debounced autocomplete against the relation's options endpoint.
-    this.search$
-      .pipe(
-        debounceTime(250),
-        distinctUntilChanged(),
-        switchMap((term) => this.api.options(rel.options_endpoint, term)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((resp) => this.setOptions(resp.results, rel.display_field));
-    // Initial population.
-    this.api.options(rel.options_endpoint, '').subscribe((resp) =>
-      this.setOptions(resp.results, rel.display_field),
-    );
-  }
+  @Input() initial: RelationValue | RelationValue[] | null = null;
 
   widgetType(): WidgetKind {
     return widgetFor(this.field.type);
@@ -96,19 +55,5 @@ export class FieldInputComponent implements OnInit {
 
   inputType(): string {
     return inputTypeFor(this.field.type);
-  }
-
-  private setOptions(rows: Record<string, unknown>[], displayField: string): void {
-    this.options.set(
-      rows.map((r) => ({ id: r['pk'] as number | string, label: this.displayOf(r, displayField) })),
-    );
-  }
-
-  private displayOf(row: Record<string, unknown>, displayField: string): string {
-    const value = row[displayField];
-    if (value && typeof value === 'object' && 'label' in (value as object)) {
-      return String((value as Choice).label);
-    }
-    return value != null ? String(value) : String(row['pk']);
   }
 }

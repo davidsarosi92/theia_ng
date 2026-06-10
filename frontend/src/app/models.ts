@@ -84,3 +84,9 @@ export interface ListResponse {
   num_pages: number;
   results: Record<string, unknown>[];
 }
+
+export interface AuthState {
+  authenticated: boolean;
+  username: string | null;
+  can_access: boolean;
+}

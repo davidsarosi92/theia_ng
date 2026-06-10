@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { ListResponse, ModelSchema, Registry } from './models';
+import { AuthState, ListResponse, ModelSchema, Registry } from './models';
 import { getConfig } from './theia-config';
 
 @Injectable({ providedIn: 'root' })
@@ -12,6 +12,19 @@ export class ApiService {
 
   private url(path: string): string {
     return this.apiBase + path;
+  }
+
+  // --- auth ---
+  me(): Observable<AuthState> {
+    return this.http.get<AuthState>(this.url('me/'));
+  }
+
+  login(username: string, password: string): Observable<AuthState> {
+    return this.http.post<AuthState>(this.url('login/'), { username, password });
+  }
+
+  logout(): Observable<AuthState> {
+    return this.http.post<AuthState>(this.url('logout/'), {});
   }
 
   getRegistry(): Observable<Registry> {
@@ -48,9 +61,9 @@ export class ApiService {
     return this.http.delete(this.url(`data/${key}/${pk}/`));
   }
 
-  /** Fetch relation options. `endpoint` is the IR's options_endpoint (relative to apiBase). */
-  options(endpoint: string, search: string): Observable<ListResponse> {
-    let params = new HttpParams();
+  /** Fetch a page of relation options. `endpoint` is the IR's options_endpoint. */
+  options(endpoint: string, search: string, page = 1): Observable<ListResponse> {
+    let params = new HttpParams().set('page', String(page));
     if (search) {
       params = params.set('search', search);
     }

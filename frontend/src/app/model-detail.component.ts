@@ -22,7 +22,7 @@ import { FieldSpec, ModelSchema, RelationValue } from './models';
 
       <form [formGroup]="form" (ngSubmit)="save()">
         @for (field of editableFields(); track field.name) {
-          <theia-field [field]="field" [control]="controlFor(field.name)" />
+          <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" />
           @if (errors()[field.name]; as fieldErrors) {
             <div class="errors">{{ fieldErrors.join(' ') }}</div>
           }
@@ -48,6 +48,7 @@ export class ModelDetailComponent implements OnInit {
   pk = '';
   isNew = true;
   schema = signal<ModelSchema | null>(null);
+  record = signal<Record<string, unknown> | null>(null);
   form = new FormGroup({});
   errors = signal<Record<string, string[]>>({});
   saving = signal(false);
@@ -75,6 +76,14 @@ export class ModelDetailComponent implements OnInit {
     return this.form.get(name) as FormControl;
   }
 
+  /** The loaded record's relation value (with labels) for the combobox. */
+  relationInitial(field: FieldSpec): RelationValue | RelationValue[] | null {
+    if (field.type !== 'fk' && field.type !== 'm2m') {
+      return null;
+    }
+    return (this.record()?.[field.name] as RelationValue | RelationValue[] | null) ?? null;
+  }
+
   private buildForm(s: ModelSchema): void {
     const group: Record<string, FormControl> = {};
     for (const field of s.fields) {
@@ -87,6 +96,7 @@ export class ModelDetailComponent implements OnInit {
   }
 
   private populate(data: Record<string, unknown>): void {
+    this.record.set(data);
     for (const field of this.editableFields()) {
       const raw = data[field.name];
       let value: unknown = raw;

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from django.urls import include, path, re_path
 
-from theia_ng.api import schema_views
+from theia_ng.api import auth_views, schema_views
 from theia_ng.api.crud_views import ActionView, DataDetailView, DataListView
 from theia_ng.views import spa
 
@@ -23,6 +23,9 @@ app_name = "theia_ng"
 _KEY = r"(?P<model_key>[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)"
 
 api_patterns = [
+    path("me/", auth_views.me, name="me"),
+    path("login/", auth_views.login_view, name="login"),
+    path("logout/", auth_views.logout_view, name="logout"),
     path("schema/", schema_views.schema_registry, name="schema-registry"),
     re_path(rf"^schema/{_KEY}/$", schema_views.schema_model, name="schema-model"),
     re_path(rf"^data/{_KEY}/$", DataListView.as_view(), name="data-list"),
