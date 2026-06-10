@@ -145,11 +145,11 @@ def _field_descriptor(field: Field) -> dict[str, Any]:
 def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     """User-independent model descriptor (cacheable; excludes ``perms``)."""
     key = _model_key(model)
-    fields = [
-        _field_descriptor(f)
-        for f in model._meta.get_fields()
-        if getattr(f, "concrete", False) or f.many_to_many
-    ]
+    # Forward fields only: concrete_fields (scalars + FK) + the declared M2M
+    # fields. Using get_fields() here would also yield reverse relations
+    # (ManyToManyRel/ManyToOneRel), which have no .blank/.editable.
+    field_objs = [*model._meta.concrete_fields, *model._meta.many_to_many]
+    fields = [_field_descriptor(f) for f in field_objs]
 
     # Optional, layered enrichment (model-derived specs stay the base).
     if admin.serializer_class is not None:

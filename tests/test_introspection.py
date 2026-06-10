@@ -55,3 +55,6 @@ def test_model_detail_includes_fields_and_relation(admin_request):
     assert fields["is_active"]["default"] is True
     assert fields["status"]["default"] == "draft"
     assert fields["name"]["default"] is None
+
+    # reverse relations (Bundle.stocks -> Stock.bundles) must NOT appear as fields
+    assert "bundles" not in fields

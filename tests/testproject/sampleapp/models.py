@@ -11,6 +11,19 @@ class Category(models.Model):
         return self.name
 
 
+class Bundle(models.Model):
+    """Targets Stock via M2M -> gives Stock a reverse M2M relation.
+
+    Regression guard: builder must not treat reverse relations as fields.
+    """
+
+    name = models.CharField(max_length=100)
+    stocks = models.ManyToManyField("Stock", related_name="bundles", blank=True)
+
+    class Meta:
+        app_label = "sampleapp"
+
+
 class Stock(models.Model):
     STATUS_CHOICES = [("draft", "Draft"), ("active", "Active")]
 
