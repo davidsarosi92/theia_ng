@@ -1,10 +1,16 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { LoginComponent } from './login.component';
 import { RegistryModel } from './models';
 import { getConfig } from './theia-config';
+
+interface AppGroup {
+  appLabel: string;
+  appName: string;
+  models: RegistryModel[];
+}
 
 @Component({
   selector: 'theia-root',
@@ -13,23 +19,30 @@ import { getConfig } from './theia-config';
   template: `
     @if (ready()) {
       @if (canAccess()) {
-        <div class="layout">
-          <aside class="sidebar">
-            <h1 class="brand">{{ siteTitle }}</h1>
-            <nav>
-              <a routerLink="/" class="nav-home">Home</a>
-              @for (m of models(); track m.key) {
-                <a [routerLink]="['/', m.key]">{{ m.verbose_name_plural }}</a>
-              }
-            </nav>
-            <div class="user-box">
+        <div class="shell">
+          <header class="topbar">
+            <span class="topbar-title">{{ siteTitle }}</span>
+            <div class="topbar-right">
               <span class="username">{{ username() }}</span>
               <button class="link-btn" (click)="logout()">Sign out</button>
             </div>
-          </aside>
-          <main class="content">
-            <router-outlet />
-          </main>
+          </header>
+          <div class="layout">
+            <aside class="sidebar">
+              <a routerLink="/" class="nav-home">Home</a>
+              @for (g of groups(); track g.appLabel) {
+                <div class="nav-group">
+                  <div class="nav-group-title">{{ g.appName }}</div>
+                  @for (m of g.models; track m.key) {
+                    <a [routerLink]="['/', m.key]">{{ m.verbose_name_plural }}</a>
+                  }
+                </div>
+              }
+            </aside>
+            <main class="content">
+              <router-outlet />
+            </main>
+          </div>
         </div>
       } @else {
         <theia-login (loggedIn)="onLoggedIn()" />
@@ -44,6 +57,20 @@ export class AppComponent implements OnInit {
   ready = signal(false);
   canAccess = signal(false);
   username = signal<string | null>(null);
+
+  /** Models grouped by Django app, preserving registration order. */
+  groups = computed<AppGroup[]>(() => {
+    const map = new Map<string, AppGroup>();
+    for (const m of this.models()) {
+      let group = map.get(m.app_label);
+      if (!group) {
+        group = { appLabel: m.app_label, appName: m.app_verbose_name, models: [] };
+        map.set(m.app_label, group);
+      }
+      group.models.push(m);
+    }
+    return [...map.values()];
+  });
 
   ngOnInit(): void {
     // Seeds the CSRF cookie and tells us whether we're already signed in.

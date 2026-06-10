@@ -34,6 +34,23 @@ def test_registry_lists_registered_models(admin_request):
     assert "sampleapp.stock" in keys
     assert "sampleapp.category" in keys
     assert payload["schema_version"] == "1.0"
+    # entries carry app grouping info
+    stock = next(m for m in payload["models"] if m["key"] == "sampleapp.stock")
+    assert stock["app_label"] == "sampleapp"
+    assert "app_verbose_name" in stock
+
+
+def test_readonly_fields_marked_non_editable_in_ir():
+    from theia_ng.introspection.builder import _model_structure
+    from theia_ng.options import ModelAdmin
+
+    class RoAdmin(ModelAdmin):
+        readonly_fields = ["name"]
+
+    structure = _model_structure(Stock, RoAdmin(Stock, None))
+    name = next(f for f in structure["fields"] if f["name"] == "name")
+    assert name["read_only"] is True
+    assert name["editable"] is False
 
 
 def test_model_detail_includes_fields_and_relation(admin_request):

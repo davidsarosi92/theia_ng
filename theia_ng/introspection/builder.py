@@ -46,6 +46,8 @@ def _registry_structure(site: TheiaSite) -> list[dict[str, Any]]:
             "key": _model_key(model),
             "verbose_name": str(model._meta.verbose_name),
             "verbose_name_plural": str(model._meta.verbose_name_plural),
+            "app_label": model._meta.app_label,
+            "app_verbose_name": str(model._meta.app_config.verbose_name),
         }
         for model in site.registry
     ]
@@ -150,6 +152,13 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     # (ManyToManyRel/ManyToOneRel), which have no .blank/.editable.
     field_objs = [*model._meta.concrete_fields, *model._meta.many_to_many]
     fields = [_field_descriptor(f) for f in field_objs]
+
+    # ModelAdmin.readonly_fields are non-editable in the IR (and thus the form).
+    readonly = set(admin.readonly_fields)
+    for field in fields:
+        if field["name"] in readonly:
+            field["read_only"] = True
+            field["editable"] = False
 
     # Optional, layered enrichment (model-derived specs stay the base).
     if admin.serializer_class is not None:

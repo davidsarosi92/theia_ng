@@ -16,6 +16,8 @@ export interface RegistryModel {
   key: string;
   verbose_name: string;
   verbose_name_plural: string;
+  app_label: string;
+  app_verbose_name: string;
   perms: Perms;
 }
 
