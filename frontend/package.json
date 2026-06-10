@@ -1,0 +1,28 @@
+{
+  "name": "theia-ng-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Angular SPA for Theia NG. Built into theia_ng/static/theia_ng/ for the wheel.",
+  "scripts": {
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "build": "ng build --configuration production",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@angular/common": "^22.0.0",
+    "@angular/compiler": "^22.0.0",
+    "@angular/core": "^22.0.0",
+    "@angular/forms": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0",
+    "@angular/router": "^22.0.0",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.6.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^22.0.0",
+    "@angular/cli": "^22.0.0",
+    "@angular/compiler-cli": "^22.0.0",
+    "typescript": "~6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
