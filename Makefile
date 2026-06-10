@@ -17,7 +17,7 @@ frontend:
 	cd frontend && npm ci && npm run build
 	rm -rf theia_ng/static/theia_ng
 	mkdir -p theia_ng/static/theia_ng
-	cp -R frontend/dist/theia-ng/browser/. theia_ng/static/theia_ng/
+	cp -R frontend/dist/theia_ng/browser/. theia_ng/static/theia_ng/
 
 # Fast dev loop: Angular dev server with a proxy to the Django backend.
 frontend-dev:

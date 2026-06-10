@@ -20,7 +20,7 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 ROOT = Path(__file__).parent
 FRONTEND = ROOT / "frontend"
-DIST = FRONTEND / "dist" / "theia-ng" / "browser"  # Angular default output
+DIST = FRONTEND / "dist" / "theia_ng" / "browser"  # Angular build output
 TARGET = ROOT / "theia_ng" / "static" / "theia_ng"
 
 

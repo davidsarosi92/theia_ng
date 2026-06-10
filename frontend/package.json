@@ -1,5 +1,5 @@
 {
-  "name": "theia-ng-frontend",
+  "name": "theia_ng-frontend",
   "version": "0.0.1",
   "private": true,
   "description": "Angular SPA for Theia NG. Built into theia_ng/static/theia_ng/ for the wheel.",

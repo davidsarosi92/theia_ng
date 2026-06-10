@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "theia-ng"
+name = "theia_ng"
 version = "0.0.1"
 description = "Theia NG — a dynamic Angular admin for Django, generated from your models."
 readme = "README.md"
@@ -36,8 +36,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/davidsarosi/theia-ng"
-Issues = "https://github.com/davidsarosi/theia-ng/issues"
+Homepage = "https://github.com/davidsarosi92/theia_ng"
+Issues = "https://github.com/davidsarosi92/theia_ng/issues"
 
 # ---------------------------------------------------------------------------
 # Packaging

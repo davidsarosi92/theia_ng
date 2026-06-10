@@ -15,7 +15,7 @@ are intentional and load-bearing:
   Django at serve time. This is what makes the built bundle prefix-independent.
 - **`proxy.conf.json`** — dev-server proxy so `npm start` talks to a Django
   backend on `localhost:8000`.
-- **`package.json` `build` script** — outputs to `dist/theia-ng/browser/`, which
+- **`package.json` `build` script** — outputs to `dist/theia_ng/browser/`, which
   the Python build hook (`hatch_build.py`) copies into
   `theia_ng/static/theia_ng/`.
 

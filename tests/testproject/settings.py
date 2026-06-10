@@ -1,6 +1,6 @@
 """Minimal Django settings for the Theia NG test suite."""
 
-SECRET_KEY = "theia-ng-test-key"
+SECRET_KEY = "theia_ng-test-key"
 DEBUG = True
 
 INSTALLED_APPS = [
