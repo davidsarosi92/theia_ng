@@ -38,6 +38,7 @@ body {
   display: flex; flex-direction: column; gap: 0.1rem;
 }
 .sidebar a {
+  display: block;
   text-decoration: none;
   color: var(--text);
   padding: 0.4rem 0.6rem;
@@ -55,6 +56,29 @@ body {
 .content { flex: 1; padding: 1.5rem 2rem; }
 
 .list-header { display: flex; align-items: center; justify-content: space-between; }
+.list-actions { display: flex; gap: 0.5rem; }
+.btn.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+
+/* active filters */
+.filters-table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 0.75rem; }
+.filters-table td { padding: 0.3rem 0.6rem; border: 1px solid var(--border); font-size: 0.82rem; background: var(--panel); }
+.filters-table .f-key { font-weight: 600; width: 30%; }
+.filters-table .f-remove { width: 1%; text-align: center; }
+.filters-table .f-remove button { background: none; border: none; color: #e03131; cursor: pointer; font-size: 1rem; line-height: 1; }
+
+/* sortable column headers */
+.grid th.sortable { cursor: pointer; user-select: none; }
+.grid th.sortable:hover { color: var(--text); }
+.grid th .sort { color: var(--accent); margin-left: 0.2rem; }
+
+/* generic dialog */
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 30; }
+.dialog {
+  position: fixed; z-index: 31; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #fff; border-radius: 10px; padding: 1.5rem; width: 360px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.dialog h3 { margin: 0 0 1rem; font-size: 1rem; }
 
 .btn {
   background: var(--accent);

@@ -44,6 +44,38 @@ def test_create_and_retrieve(admin_client, category):
     assert got.json()["name"] == "Beer"
 
 
+def test_list_with_boolean_filter(admin_client, category):
+    Stock.objects.create(name="Beer", category=category, is_active=True)
+    Stock.objects.create(name="Wine", category=category, is_active=False)
+
+    # 'is_active' is in StockAdmin.list_filter; boolean string is coerced
+    resp = admin_client.get(LIST, {"is_active": "false"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["count"] == 1
+    assert body["results"][0]["name"] == "Wine"
+
+
+def test_list_with_fk_filter(admin_client, category):
+    other = Category.objects.create(name="Food")
+    Stock.objects.create(name="Beer", category=category)
+    Stock.objects.create(name="Bread", category=other)
+
+    resp = admin_client.get(LIST, {"category": other.pk})
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 1
+    assert resp.json()["results"][0]["name"] == "Bread"
+
+
+def test_list_ordering(admin_client, category):
+    Stock.objects.create(name="Beer", category=category)
+    Stock.objects.create(name="Wine", category=category)
+
+    resp = admin_client.get(LIST, {"ordering": "-name"})
+    names = [r["name"] for r in resp.json()["results"]]
+    assert names == ["Wine", "Beer"]
+
+
 def test_list_with_search(admin_client, category):
     Stock.objects.create(name="Beer", category=category)
     Stock.objects.create(name="Wine", category=category)

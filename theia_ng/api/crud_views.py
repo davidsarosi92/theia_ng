@@ -28,8 +28,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from django.core.exceptions import FieldError
+from django.core.exceptions import FieldDoesNotExist, FieldError
 from django.core.paginator import Paginator
+from django.db import models
 from django.db.models import Q
 from django.http import Http404, HttpRequest, JsonResponse
 from django.views import View
@@ -97,7 +98,14 @@ class DataListView(_BaseModelView):
         try:
             for name in self.admin.list_filter:
                 if name in request.GET:
-                    qs = qs.filter(**{name: request.GET[name]})
+                    value: object = request.GET[name]
+                    try:
+                        field = self.model._meta.get_field(name)
+                        if isinstance(field, models.BooleanField):
+                            value = str(value).lower() in ("true", "1", "yes", "on")
+                    except FieldDoesNotExist:
+                        pass
+                    qs = qs.filter(**{name: value})
 
             # ordering
             ordering = request.GET.get("ordering")
