@@ -60,6 +60,30 @@ def _validation_response(exc: AdapterValidationError) -> JsonResponse:
     return JsonResponse({"errors": exc.errors}, status=400)
 
 
+def _jsonable(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
+    """Add computed ``list_display`` columns (admin methods / model attrs) to a
+    serialized row. Real model fields are already present from the adapter."""
+    for name in admin.list_display:
+        method = getattr(admin, name, None)
+        if callable(method):  # ModelAdmin method: method(obj)
+            try:
+                representation[name] = _jsonable(method(obj))
+            except Exception:
+                representation[name] = None
+        elif name not in representation:  # model property / method / attribute
+            attr = getattr(obj, name, None)
+            try:
+                representation[name] = _jsonable(attr() if callable(attr) else attr)
+            except Exception:
+                representation[name] = None
+
+
 class _BaseModelView(View):
     """Resolves the model + admin (+ data adapter) and enforces the access gate."""
 
@@ -84,7 +108,7 @@ class DataListView(_BaseModelView):
             return _forbidden()
 
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
-        qs = self.adapter.get_queryset()
+        qs = self.admin.get_queryset(request)
         if fk_names:
             qs = qs.select_related(*fk_names)
         if m2m_names:
@@ -124,7 +148,11 @@ class DataListView(_BaseModelView):
 
             paginator = Paginator(qs, self.admin.list_per_page)
             page = paginator.get_page(request.GET.get("page", 1))
-            results = [self.adapter.to_representation(obj) for obj in page]
+            results = []
+            for obj in page:
+                rep = self.adapter.to_representation(obj)
+                _apply_list_display(self.admin, obj, rep)
+                results.append(rep)
         except (FieldError, ValueError) as exc:
             return JsonResponse({"detail": str(exc)}, status=400)
 
@@ -151,25 +179,27 @@ class DataListView(_BaseModelView):
 
 
 class DataDetailView(_BaseModelView):
-    def _get_object(self, pk):
+    def _get_object(self, request: HttpRequest, pk):
+        # Through the admin's queryset, so row scoping (e.g. tenant) also hides
+        # objects from detail/update/delete, not just the list.
         try:
-            return self.model._default_manager.get(pk=pk)
+            return self.admin.get_queryset(request).get(pk=pk)
         except self.model.DoesNotExist:
             raise Http404(f"{self.model._meta.object_name} {pk!r} not found")
 
     def get(self, request: HttpRequest, model_key: str, pk: str):
-        if not self.admin.has_view_permission(request):
+        instance = self._get_object(request, pk)
+        if not self.admin.has_view_permission(request, instance):
             return _forbidden()
-        instance = self._get_object(pk)
         return JsonResponse(self.adapter.to_representation(instance))
 
     def patch(self, request: HttpRequest, model_key: str, pk: str):
-        if not self.admin.has_change_permission(request):
+        instance = self._get_object(request, pk)
+        if not self.admin.has_change_permission(request, instance):
             return _forbidden()
         data = _json_body(request)
         if data is None:
             return JsonResponse({"detail": "Invalid JSON body"}, status=400)
-        instance = self._get_object(pk)
         try:
             instance = self.adapter.save(instance, data, partial=True)
         except AdapterValidationError as exc:
@@ -177,9 +207,9 @@ class DataDetailView(_BaseModelView):
         return JsonResponse(self.adapter.to_representation(instance))
 
     def delete(self, request: HttpRequest, model_key: str, pk: str):
-        if not self.admin.has_delete_permission(request):
+        instance = self._get_object(request, pk)
+        if not self.admin.has_delete_permission(request, instance):
             return _forbidden()
-        instance = self._get_object(pk)
         instance.delete()
         return JsonResponse({}, status=204)
 
@@ -248,7 +278,7 @@ class RelationOptionsView(View):
             per_page = target_admin.list_per_page if target_admin else 50
             paginator = Paginator(qs, per_page)
             page = paginator.get_page(request.GET.get("page", 1))
-            results = [serialize_instance(obj, fields) for obj in page]
+            results = [serialize_instance(obj, fields, target_admin) for obj in page]
         except (FieldError, ValueError) as exc:
             return JsonResponse({"detail": str(exc)}, status=400)
 

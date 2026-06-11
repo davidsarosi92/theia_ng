@@ -10,10 +10,12 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { ApiService } from './api.service';
-import { Choice, FieldSpec, ListResponse, RelationValue } from './models';
+import { Choice, FieldSpec, ListResponse, Perms, RelationValue } from './models';
+import { keyToSlug } from './util';
 
 interface Option {
   id: number | string;
@@ -27,21 +29,62 @@ const key = (id: unknown): string => String(id);
   standalone: true,
   template: `
     <div class="rel">
-      <div class="rel-trigger" (click)="toggle($event)">
-        @if (multi) {
-          @for (s of selectedItems(); track key(s.id)) {
-            <span class="chip">{{ s.label }}</span>
-          }
-          @if (!selectedItems().length) { <span class="placeholder">Select…</span> }
-        } @else {
-          @if (selectedItems()[0]; as s) {
-            <span>{{ s.label }}</span>
-          } @else {
-            <span class="placeholder">Select…</span>
-          }
+      <!-- M2M: selected rows shown as a table above the picker. -->
+      @if (multi && selectedItems().length) {
+        <table class="rel-table">
+          <tbody>
+            @for (s of selectedItems(); track key(s.id)) {
+              <tr>
+                <td class="rel-table-label">{{ s.label }}</td>
+                <td class="rel-table-actions">
+                  @if (!isReadonly()) {
+                    @if (targetPerms()?.view) {
+                      <button type="button" class="rel-act" (click)="openView(s, $event)">View</button>
+                    }
+                    @if (targetPerms()?.change) {
+                      <button type="button" class="rel-act" (click)="openEdit(s, $event)">Edit</button>
+                    }
+                    <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">Delete</button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      @if (isReadonly()) {
+        <!-- Read-only FK: just the value (M2M shows its table above). -->
+        @if (!multi) {
+          <div class="rel-readonly">{{ selectedItems().length ? selectedItems()[0].label : '—' }}</div>
         }
-        <span class="caret">▾</span>
-      </div>
+      } @else {
+        <div class="rel-row">
+          <!-- The selected value lives in the (clickable) trigger, like a combobox. -->
+          <div class="rel-trigger" (click)="toggle($event)">
+            @if (multi) {
+              <span class="placeholder">Add…</span>
+            } @else if (selectedItems()[0]; as s) {
+              <span>{{ s.label }}</span>
+            } @else {
+              <span class="placeholder">Select…</span>
+            }
+            <span class="caret">▾</span>
+          </div>
+          <!-- FK actions sit beside the trigger (M2M actions are per table row). -->
+          @if (!multi && selectedItems()[0]; as s) {
+            <div class="rel-fk-actions">
+              @if (targetPerms()?.view) {
+                <button type="button" class="rel-act" (click)="openView(s, $event)">View</button>
+              }
+              @if (targetPerms()?.change) {
+                <button type="button" class="rel-act" (click)="openEdit(s, $event)">Edit</button>
+              }
+              <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">Delete</button>
+            </div>
+          }
+        </div>
+      }
 
       @if (open()) {
         <div class="rel-panel">
@@ -69,18 +112,50 @@ const key = (id: unknown): string => String(id);
           </div>
         </div>
       }
+
+      @if (pendingDelete(); as item) {
+        <div class="confirm-backdrop" (click)="cancelDelete()">
+          <div class="confirm-card" (click)="$event.stopPropagation()">
+            <p>Remove <strong>{{ item.label }}</strong> <span class="muted">#{{ item.id }}</span>?</p>
+            <div class="confirm-actions">
+              <button type="button" class="btn secondary" (click)="unlink(item)">Remove link</button>
+              @if (targetPerms()?.delete) {
+                <button type="button" class="btn danger" (click)="deleteEntity(item)">Delete entity</button>
+              }
+              <button type="button" (click)="cancelDelete()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
 })
 export class RelationSelectComponent implements OnInit {
   @Input({ required: true }) field!: FieldSpec;
   @Input({ required: true }) control!: FormControl;
-  /** Initial selection from the loaded record (carries labels). */
-  @Input() initial: RelationValue | RelationValue[] | null = null;
+  /** Initial selection from the loaded record (carries labels). The record loads
+   *  asynchronously (after this component is created), so seed labels via the
+   *  setter on every assignment — not once in ngOnInit, which would miss it. */
+  @Input() set initial(value: RelationValue | RelationValue[] | null) {
+    const seed = (r: RelationValue | null) => {
+      if (r) {
+        this.labels.set(key(r.id), r.label);
+      }
+    };
+    if (Array.isArray(value)) {
+      value.forEach(seed);
+    } else {
+      seed(value);
+    }
+    this.rev.update((n) => n + 1);
+  }
   /** Parent form, used to read sibling values for dependent options. */
   @Input() form?: FormGroup;
+  /** Forbid interaction (unregistered M2M target): show items read-only, no add. */
+  @Input() locked = false;
 
   private api = inject(ApiService);
+  private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private host = inject(ElementRef<HTMLElement>);
 
@@ -93,6 +168,10 @@ export class RelationSelectComponent implements OnInit {
   numPages = signal(1);
   count = signal(0);
   loading = signal(false);
+  /** Current user's permissions on the relation's target model. */
+  targetPerms = signal<Perms | undefined>(undefined);
+  /** The row awaiting a remove-link / delete-entity / cancel choice. */
+  pendingDelete = signal<Option | null>(null);
   /** Bumped when the control value / label cache changes, to drive CD. */
   private rev = signal(0);
 
@@ -112,11 +191,14 @@ export class RelationSelectComponent implements OnInit {
 
   ngOnInit(): void {
     this.multi = this.field.type === 'm2m';
-    const seed = (r: RelationValue) => this.labels.set(key(r.id), r.label);
-    if (Array.isArray(this.initial)) {
-      this.initial.forEach(seed);
-    } else if (this.initial) {
-      seed(this.initial);
+
+    // Target perms drive the per-row View/Edit/Delete buttons (FK and M2M alike).
+    const target = this.field.relation?.target;
+    if (target && this.field.relation?.registered !== false) {
+      this.api
+        .permsFor(target)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((perms) => this.targetPerms.set(perms));
     }
 
     this.search$
@@ -183,6 +265,11 @@ export class RelationSelectComponent implements OnInit {
     return this.selectedIds().some((v) => key(v) === key(id));
   }
 
+  /** No interaction: view mode (disabled control) or a locked (unregistered) field. */
+  isReadonly(): boolean {
+    return this.control.disabled || this.locked;
+  }
+
   /** Toggle an option. For M2M the panel stays open so you can pick several. */
   choose(opt: Option, event: Event): void {
     event.stopPropagation();
@@ -201,10 +288,71 @@ export class RelationSelectComponent implements OnInit {
     this.rev.update((n) => n + 1);
   }
 
+  // --- M2M row actions -----------------------------------------------------
+
+  private get target(): string {
+    return this.field.relation!.target;
+  }
+
+  /** Navigate to the related record's page (read-only); remember where to return. */
+  openView(item: Option, event: Event): void {
+    event.stopPropagation();
+    this.navigateToTarget(item, 'view');
+  }
+
+  openEdit(item: Option, event: Event): void {
+    event.stopPropagation();
+    this.navigateToTarget(item, 'edit');
+  }
+
+  private navigateToTarget(item: Option, mode: 'view' | 'edit'): void {
+    const queryParams: Record<string, string> = { ret: this.router.url };
+    if (mode === 'view') {
+      queryParams['mode'] = 'view';
+    }
+    this.router.navigate(['/', keyToSlug(this.target), item.id], { queryParams });
+    window.scrollTo({ top: 0 });
+  }
+
+  askDelete(item: Option, event: Event): void {
+    event.stopPropagation();
+    this.pendingDelete.set(item);
+  }
+
+  cancelDelete(): void {
+    this.pendingDelete.set(null);
+  }
+
+  /** Remove the row from this relation only; the target record is untouched. */
+  unlink(item: Option): void {
+    if (this.multi) {
+      this.control.setValue(this.selectedIds().filter((v) => key(v) !== key(item.id)));
+    } else {
+      this.control.setValue(null);
+    }
+    this.control.markAsDirty();
+    this.rev.update((n) => n + 1);
+    this.pendingDelete.set(null);
+  }
+
+  /** Delete the target record, then drop it from the selection. */
+  deleteEntity(item: Option): void {
+    this.api.remove(this.target, key(item.id)).subscribe({
+      next: () => this.unlink(item),
+      error: () => {
+        alert('Could not delete this record.');
+        this.pendingDelete.set(null);
+      },
+    });
+  }
+
   // --- options list --------------------------------------------------------
 
   toggle(event: Event): void {
     event.stopPropagation();
+    if (this.isReadonly()) {
+      return;
+    }
     this.open.update((v) => !v);
     if (this.open() && this.options().length === 0) {
       this.loadPage(1, true);
@@ -232,9 +380,8 @@ export class RelationSelectComponent implements OnInit {
   }
 
   private apply(resp: ListResponse, replace: boolean): void {
-    const display = this.field.relation!.display_field;
     const mapped: Option[] = resp.results.map((r) => {
-      const label = this.displayOf(r, display);
+      const label = this.labelOf(r);
       const id = r['pk'] as number | string;
       this.labels.set(key(id), label);
       return { id, label };
@@ -247,8 +394,9 @@ export class RelationSelectComponent implements OnInit {
     this.rev.update((n) => n + 1);
   }
 
-  private displayOf(row: Record<string, unknown>, displayField: string): string {
-    const value = row[displayField];
+  /** Pull the configured display value out of a result/record row. */
+  private labelOf(row: Record<string, unknown>): string {
+    const value = row[this.field.relation!.display_field];
     if (value && typeof value === 'object' && 'label' in (value as object)) {
       return String((value as Choice).label);
     }

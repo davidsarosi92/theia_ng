@@ -10,7 +10,10 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
   standalone: true,
   imports: [ReactiveFormsModule, RelationSelectComponent],
   template: `
-    <label class="field">
+    <!-- A plain <div>, NOT a <label>: a <label> forwards clicks on non-control
+         areas (e.g. the relation trigger) to its first form control — which for
+         the relation widget is the View button, causing accidental navigation. -->
+    <div class="field">
       <span class="field-label">
         {{ field.label }}@if (field.required) {<em class="req">*</em>}
       </span>
@@ -31,7 +34,29 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
           </select>
         }
         @case ('relation') {
-          <theia-relation-select [field]="field" [control]="control" [initial]="initial" [form]="form" />
+          @if (rawInput()) {
+            <!-- raw_id_fields, or an unregistered FK target: plain id input(s)
+                 instead of a picker. M2M takes comma-separated ids. -->
+            @if (field.type === 'm2m') {
+              <input
+                type="text"
+                placeholder="comma-separated ids"
+                [value]="m2mText()"
+                [disabled]="control.disabled"
+                (input)="onM2mInput($any($event.target).value)"
+              />
+            } @else {
+              <input type="text" [formControl]="control" />
+            }
+          } @else {
+            <theia-relation-select
+              [field]="field"
+              [control]="control"
+              [initial]="initial"
+              [form]="form"
+              [locked]="field.relation?.registered === false"
+            />
+          }
         }
         @default {
           <input [type]="inputType()" [formControl]="control" />
@@ -41,7 +66,7 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
       @if (field.help_text) {
         <small class="help">{{ field.help_text }}</small>
       }
-    </label>
+    </div>
   `,
 })
 export class FieldInputComponent {
@@ -56,5 +81,28 @@ export class FieldInputComponent {
 
   inputType(): string {
     return inputTypeFor(this.field.type);
+  }
+
+  /** Render the relation as a plain id input: explicit raw_id_fields, or an
+   *  unregistered FK target (which has no picker endpoint). */
+  rawInput(): boolean {
+    const r = this.field.relation;
+    return !!r && (r.raw === true || (this.field.type === 'fk' && r.registered === false));
+  }
+
+  /** M2M raw value (array of ids) <-> comma-separated text. */
+  m2mText(): string {
+    const v = this.control.value;
+    return Array.isArray(v) ? v.join(', ') : '';
+  }
+
+  onM2mInput(text: string): void {
+    const ids = text
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => (/^\d+$/.test(s) ? Number(s) : s));
+    this.control.setValue(ids);
+    this.control.markAsDirty();
   }
 }

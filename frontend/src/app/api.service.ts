@@ -1,14 +1,16 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map, shareReplay } from 'rxjs';
 
-import { AuthState, ListResponse, ModelSchema, Registry } from './models';
+import { AuthState, ListResponse, ModelSchema, Perms, Registry } from './models';
 import { getConfig } from './theia-config';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
   private apiBase = getConfig().apiBase;
+  /** Cached registry, shared by every relation widget that needs target perms. */
+  private registry$?: Observable<Registry>;
 
   private url(path: string): string {
     return this.apiBase + path;
@@ -29,6 +31,17 @@ export class ApiService {
 
   getRegistry(): Observable<Registry> {
     return this.http.get<Registry>(this.url('schema/'));
+  }
+
+  /** Registry fetched once and replayed — used to resolve a relation target's perms. */
+  private registry(): Observable<Registry> {
+    this.registry$ ??= this.getRegistry().pipe(shareReplay(1));
+    return this.registry$;
+  }
+
+  /** Permissions the current user has on a model (by registry key). */
+  permsFor(modelKey: string): Observable<Perms | undefined> {
+    return this.registry().pipe(map((r) => r.models.find((m) => m.key === modelKey)?.perms));
   }
 
   getSchema(key: string): Observable<ModelSchema> {

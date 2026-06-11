@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { FieldSpec, ModelSchema } from './models';
+import { cap, slugToKey } from './util';
 
 @Component({
   selector: 'theia-model-list',
@@ -11,14 +12,20 @@ import { FieldSpec, ModelSchema } from './models';
   imports: [RouterLink, FilterDialogComponent],
   template: `
     @if (schema(); as s) {
+      <nav class="breadcrumb">
+        <a routerLink="/">Home</a>
+        <span class="sep">/</span>
+        <span>{{ cap(s.verbose_name) }}</span>
+      </nav>
+
       <header class="list-header">
-        <h2>{{ s.verbose_name }}</h2>
+        <h2>{{ cap(s.verbose_name) }}</h2>
         <div class="list-actions">
           @if (s.list.filters.length) {
             <button class="btn secondary" (click)="showFilter.set(true)">+ Filter</button>
           }
           @if (s.perms.add) {
-            <a class="btn" [routerLink]="['/', modelKey, 'new']">+ Add</a>
+            <a class="btn" [routerLink]="['/', slug, 'new']">+ Add</a>
           }
         </div>
       </header>
@@ -55,7 +62,7 @@ import { FieldSpec, ModelSchema } from './models';
                 [class.sortable]="isSortable(col)"
                 (click)="onSort(col)"
               >
-                {{ col }}<span class="sort">{{ sortIndicator(col) }}</span>
+                {{ colLabel(col) }}<span class="sort">{{ sortIndicator(col) }}</span>
               </th>
             }
           </tr>
@@ -64,7 +71,17 @@ import { FieldSpec, ModelSchema } from './models';
           @for (row of rows(); track row['pk']) {
             <tr class="clickable" (click)="open(row['pk'])">
               @for (col of columns(); track col) {
-                <td>{{ cell(row[col]) }}</td>
+                <td>
+                  @if (isBool(col)) {
+                    @if (row[col] === true) {
+                      <span class="bool bool-true">✓</span>
+                    } @else if (row[col] === false) {
+                      <span class="bool bool-false">✕</span>
+                    }
+                  } @else {
+                    {{ cell(row[col]) }}
+                  }
+                </td>
               }
             </tr>
           } @empty {
@@ -95,6 +112,9 @@ export class ModelListComponent implements OnInit {
   private router = inject(Router);
 
   modelKey = '';
+  /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
+  slug = '';
+  cap = cap;
   schema = signal<ModelSchema | null>(null);
   rows = signal<Record<string, unknown>[]>([]);
   count = signal(0);
@@ -107,15 +127,39 @@ export class ModelListComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
-      this.modelKey = params.get('modelKey') ?? '';
-      this.page.set(1);
-      this.searchTerm.set('');
-      this.ordering.set(null);
-      this.filters.set([]);
+      this.slug = params.get('modelKey') ?? '';
+      this.modelKey = slugToKey(this.slug);
+      this.restoreFromUrl();
       this.api.getSchema(this.modelKey).subscribe((s) => {
         this.schema.set(s);
         this.load();
       });
+    });
+  }
+
+  /** Restore list view state (search/sort/page/filters) from the URL query, so
+   *  returning from a detail page shows the same filtered view. */
+  private restoreFromUrl(): void {
+    const q = this.route.snapshot.queryParamMap;
+    this.searchTerm.set(q.get('q') ?? '');
+    this.ordering.set(q.get('o'));
+    this.page.set(Number(q.get('p')) || 1);
+    const raw = q.get('filters');
+    this.filters.set(raw ? (JSON.parse(raw) as AppliedFilter[]) : []);
+  }
+
+  /** Mirror the current state into the URL (replaceUrl: no extra history entry). */
+  private syncUrl(): void {
+    const queryParams: Record<string, string | null> = {
+      q: this.searchTerm() || null,
+      o: this.ordering() || null,
+      p: this.page() > 1 ? String(this.page()) : null,
+      filters: this.filters().length ? JSON.stringify(this.filters()) : null,
+    };
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams,
+      replaceUrl: true,
     });
   }
 
@@ -131,6 +175,14 @@ export class ModelListComponent implements OnInit {
   isSortable(col: string): boolean {
     const f = this.fieldByName(col);
     return !!f && f.type !== 'fk' && f.type !== 'm2m';
+  }
+
+  isBool(col: string): boolean {
+    return this.fieldByName(col)?.type === 'boolean';
+  }
+
+  colLabel(col: string): string {
+    return this.schema()?.list.labels?.[col] ?? col;
   }
 
   sortIndicator(col: string): string {
@@ -151,6 +203,7 @@ export class ModelListComponent implements OnInit {
   }
 
   private load(): void {
+    this.syncUrl();
     const params: Record<string, string | number> = { page: this.page() };
     if (this.searchTerm()) {
       params['search'] = this.searchTerm();
@@ -194,7 +247,8 @@ export class ModelListComponent implements OnInit {
   }
 
   open(pk: unknown): void {
-    this.router.navigate(['/', this.modelKey, pk]);
+    // Carry the current (filtered) list URL so the detail's Back returns here.
+    this.router.navigate(['/', this.slug, pk], { queryParams: { ret: this.router.url } });
   }
 
   cell(value: unknown): string {

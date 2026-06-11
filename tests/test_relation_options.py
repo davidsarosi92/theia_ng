@@ -34,6 +34,9 @@ def test_options_filtered_by_sibling_value(admin_client, houses):
     body = resp.json()
     assert body["count"] == 2
     assert {r["name"] for r in body["results"]} == {"S1a", "S1b"}
+    # Every option carries a __str__ label so pickers can show the object,
+    # not just one column (defaults to the model's __str__).
+    assert all(r["__str__"] == str(r["name"]) for r in body["results"])
 
 
 def test_other_house_returns_only_its_spaces(admin_client, houses):

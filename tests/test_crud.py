@@ -135,3 +135,49 @@ def test_access_denied_for_user_without_permission(db, category):
     client.force_login(User.objects.get(username="nobody"))
     resp = client.get(LIST)
     assert resp.status_code == 403
+
+
+def _stock_admin():
+    from theia_ng.registry import site
+
+    return site.registry[Stock]
+
+
+def test_get_queryset_override_scopes_list(admin_client, category, monkeypatch):
+    Stock.objects.create(name="Beer", category=category)
+    Stock.objects.create(name="Wine", category=category)
+    monkeypatch.setattr(
+        _stock_admin(), "get_queryset", lambda request: Stock.objects.filter(name="Wine")
+    )
+    resp = admin_client.get(LIST)
+    assert {r["name"] for r in resp.json()["results"]} == {"Wine"}
+
+
+def test_get_queryset_override_hides_detail(admin_client, category, monkeypatch):
+    hidden = Stock.objects.create(name="Beer", category=category)
+    monkeypatch.setattr(_stock_admin(), "get_queryset", lambda request: Stock.objects.none())
+    resp = admin_client.get(DETAIL.format(pk=hidden.pk))
+    assert resp.status_code == 404
+
+
+def test_object_level_permission_denies_update(admin_client, category, monkeypatch):
+    stock = Stock.objects.create(name="Beer", category=category)
+    # Allow model-level (obj is None) but deny the specific object.
+    monkeypatch.setattr(
+        _stock_admin(), "has_change_permission", lambda request, obj=None: obj is None
+    )
+    resp = admin_client.patch(
+        DETAIL.format(pk=stock.pk),
+        data=json.dumps({"name": "Renamed"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 403
+
+
+def test_computed_list_display_column(admin_client, category, monkeypatch):
+    Stock.objects.create(name="Beer", category=category)
+    admin = _stock_admin()
+    monkeypatch.setattr(admin, "shouty", lambda obj: obj.name.upper(), raising=False)
+    monkeypatch.setattr(admin, "list_display", [*admin.list_display, "shouty"])
+    resp = admin_client.get(LIST)
+    assert resp.json()["results"][0]["shouty"] == "BEER"

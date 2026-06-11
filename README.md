@@ -31,10 +31,16 @@ ships inside the wheel.
 
 - Auto-CRUD: list with **search, filtering, sorting, pagination**; create /
   update / delete; custom server-side actions
-- `ModelAdmin`-style config: `list_display`, `list_filter`, `search_fields`,
-  `ordering`, `readonly_fields`, `actions`
+- `ModelAdmin`-style config: `list_display` (incl. **computed columns**),
+  `list_filter`, `search_fields`, `ordering`, `readonly_fields`, `exclude`,
+  `raw_id_fields`, `actions`, `relation_filters`
 - Searchable, paginated relation pickers (FK single, M2M multi) that load options
-  on demand — fine for tables with thousands of rows
+  on demand — fine for tables with thousands of rows. Related rows carry
+  **View / Edit / Delete** actions (permission-aware) and navigate to the record
+- M2M selections shown as a **table** above the picker; breadcrumbs + Back so you
+  always know where you are
+- `get_queryset` and **object-level permissions** hooks for row scoping
+- Per-model display control: `display_field` / `display()` for relation labels
 - Session login built into the SPA, gated by the `theia_ng.access` permission
 - Sidebar grouped by Django app; sticky top bar with sign-out
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
@@ -83,11 +89,15 @@ from myapp.models import Article, Category
 
 @theia_ng.register(Article)
 class ArticleAdmin(theia_ng.ModelAdmin):
-    list_display = ["title", "category", "published", "created"]
+    list_display = ["title", "category", "published", "byline"]
     list_filter = ["published", "category"]
     search_fields = ["title"]
     ordering = ["-created"]
-    readonly_fields = ["created", "modified"]
+    readonly_fields = ["created", "modified"]   # shown, but not editable
+
+    @theia_ng.display(description="Byline")      # computed list_display column
+    def byline(self, obj):
+        return f"{obj.author} · {obj.created:%Y-%m-%d}"
 
 
 @theia_ng.register(Category)
@@ -131,8 +141,43 @@ production so all workers agree.
 - Entry is gated by the `theia_ng.access` permission — **not** `is_staff`, so it
   never collides with the Django admin.
 - Per-model access uses the standard `view/add/change/delete` permissions.
-  Override `has_*_permission(self, request)` on your `ModelAdmin` to plug in a
-  custom scheme.
+  Override `has_*_permission(self, request, obj=None)` on your `ModelAdmin` to
+  plug in a custom scheme. On detail endpoints `obj` is the target instance, so
+  you can enforce **object-level** rules:
+
+  ```python
+  def has_change_permission(self, request, obj=None):
+      if obj is not None:
+          return obj.owner_id == request.user.id
+      return super().has_change_permission(request)
+  ```
+
+## Customizing the form & columns
+
+```python
+@theia_ng.register(Article)
+class ArticleAdmin(theia_ng.ModelAdmin):
+    readonly_fields = ["created_by"]   # shown in the form, but disabled
+    exclude = ["internal_notes"]       # dropped from the form entirely
+    raw_id_fields = ["author"]         # plain id input instead of a picker
+```
+
+- **`readonly_fields`** — rendered in the form, disabled (good for audit fields).
+- **`exclude`** — removed from the form (still usable in `list_display`).
+- **`raw_id_fields`** — render an FK/M2M as a plain id input rather than the
+  searchable picker. Relations whose target model isn't registered fall back to
+  this automatically.
+
+## Scoping rows: `get_queryset`
+
+Override the base queryset for both the list and detail (e.g. multi-tenant
+scoping, annotations, or `select_related`). Rows it excludes are hidden from
+detail/update/delete too, not just the list:
+
+```python
+def get_queryset(self, request):
+    return super().get_queryset(request).filter(company=request.user.company)
+```
 
 ## Dependent relation options
 

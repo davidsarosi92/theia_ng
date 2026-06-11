@@ -5,6 +5,7 @@ import { ApiService } from './api.service';
 import { LoginComponent } from './login.component';
 import { RegistryModel } from './models';
 import { getConfig } from './theia-config';
+import { cap, keyToSlug } from './util';
 
 interface AppGroup {
   appLabel: string;
@@ -32,9 +33,9 @@ interface AppGroup {
               <a routerLink="/" class="nav-home">Home</a>
               @for (g of groups(); track g.appLabel) {
                 <div class="nav-group">
-                  <div class="nav-group-title">{{ g.appName }}</div>
+                  <div class="nav-group-title">{{ cap(g.appName) }}</div>
                   @for (m of g.models; track m.key) {
-                    <a [routerLink]="['/', m.key]">{{ m.verbose_name_plural }}</a>
+                    <a [routerLink]="['/', slug(m.key)]">{{ cap(m.verbose_name_plural) }}</a>
                   }
                 </div>
               }
@@ -53,6 +54,8 @@ interface AppGroup {
 export class AppComponent implements OnInit {
   private api = inject(ApiService);
   siteTitle = getConfig().siteTitle;
+  cap = cap;
+  slug = keyToSlug;
   models = signal<RegistryModel[]>([]);
   ready = signal(false);
   canAccess = signal(false);

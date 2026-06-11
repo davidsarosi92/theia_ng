@@ -51,6 +51,53 @@ def test_readonly_fields_marked_non_editable_in_ir():
     name = next(f for f in structure["fields"] if f["name"] == "name")
     assert name["read_only"] is True
     assert name["editable"] is False
+    # A plain editable field is not read_only just because some are.
+    quantity = next(f for f in structure["fields"] if f["name"] == "quantity")
+    assert quantity["read_only"] is False
+
+
+def test_exclude_drops_field_from_form():
+    from theia_ng.introspection.builder import _model_structure
+    from theia_ng.options import ModelAdmin
+
+    class ExAdmin(ModelAdmin):
+        exclude = ["name"]
+
+    structure = _model_structure(Stock, ExAdmin(Stock, None))
+    name = next(f for f in structure["fields"] if f["name"] == "name")
+    # hidden from the form (editable False) but NOT shown read-only
+    assert name["editable"] is False
+    assert name["read_only"] is False
+
+
+def test_list_display_labels():
+    import theia_ng
+    from theia_ng.introspection.builder import _model_structure
+
+    class LabelAdmin(theia_ng.ModelAdmin):
+        list_display = ["is_active", "shouty"]
+
+        @theia_ng.display(description="Shouty name")
+        def shouty(self, obj):
+            return obj.name.upper()
+
+    structure = _model_structure(Stock, LabelAdmin(Stock, None))
+    labels = structure["list"]["labels"]
+    assert labels["is_active"] == "Is Active"  # field, humanized
+    assert labels["shouty"] == "Shouty name"  # computed column, short_description
+
+
+def test_raw_id_fields_marks_relation_raw():
+    from theia_ng.introspection.builder import _model_structure
+    from theia_ng.options import ModelAdmin
+
+    class RawAdmin(ModelAdmin):
+        raw_id_fields = ["category"]
+
+    structure = _model_structure(Stock, RawAdmin(Stock, None))
+    fields = {f["name"]: f for f in structure["fields"]}
+    assert fields["category"]["relation"]["raw"] is True
+    assert fields["spaces"]["relation"]["raw"] is False
 
 
 def test_model_detail_includes_fields_and_relation(admin_request):
@@ -64,8 +111,14 @@ def test_model_detail_includes_fields_and_relation(admin_request):
     ]
     assert fields["category"]["type"] == "fk"
     assert fields["category"]["relation"]["target"] == "sampleapp.category"
-    # display_field derived from Category's ModelAdmin (search_fields=['name'])
+    # Category sets display_field explicitly -> that field labels the relation
     assert fields["category"]["relation"]["display_field"] == "name"
+    # Space has no display_field -> defaults to the object's __str__
+    assert fields["spaces"]["relation"]["display_field"] == "__str__"
+    # registered targets get a picker; the flag tells the SPA so
+    assert fields["category"]["relation"]["registered"] is True
+    # auto-derived verbose_name is title-cased: is_active -> "Is Active"
+    assert fields["is_active"]["label"] == "Is Active"
     assert detail["list"]["display"] == ["name", "category", "quantity", "is_active"]
 
     # static defaults serialized; callable/no-default -> None

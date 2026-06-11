@@ -38,6 +38,10 @@ export interface Relation {
   display_field: string;
   options_endpoint: string;
   searchable: boolean;
+  /** Whether the target model is registered with Theia (has picker/CRUD endpoints). */
+  registered: boolean;
+  /** raw_id_fields: render as a plain id input instead of a picker. */
+  raw?: boolean;
   /** Sibling field names whose values narrow this relation's options. */
   depends_on?: string[];
 }
@@ -59,6 +63,8 @@ export interface FieldSpec {
 
 export interface ListConfig {
   display: string[];
+  /** Column name -> header label (fields humanized, computed columns' short_description). */
+  labels: Record<string, string>;
   filters: string[];
   search_fields: string[];
   ordering: string[];

@@ -28,7 +28,8 @@
             },
             "development": {
               "optimization": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "baseHref": "/theia/"
             }
           },
           "defaultConfiguration": "production"

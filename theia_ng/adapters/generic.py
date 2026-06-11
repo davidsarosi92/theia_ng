@@ -32,7 +32,7 @@ class GenericAdapter(DataAdapter):
         return self.model._default_manager.all()
 
     def to_representation(self, instance: Model) -> dict[str, Any]:
-        return serialize_instance(instance, self._fields)
+        return serialize_instance(instance, self._fields, self.admin)
 
     def save(self, instance: Model, data: dict[str, Any], partial: bool = False) -> Model:
         with transaction.atomic():

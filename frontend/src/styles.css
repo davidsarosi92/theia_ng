@@ -178,3 +178,64 @@ body {
 .rel-options li .check { margin-right: 0.4rem; color: var(--accent); }
 .rel-options li.sel .check { color: var(--accent); }
 .rel-foot { padding: 0.3rem 0.6rem; font-size: 0.72rem; color: var(--muted); border-top: 1px solid var(--border); }
+
+.rel-trigger.disabled { background: var(--bg); cursor: default; }
+
+/* FK: clickable trigger (the value) + action icons clearly set apart */
+.rel-row { display: flex; align-items: center; gap: 0.5rem; }
+.rel-row .rel-trigger { flex: 1; }
+.rel-fk-actions {
+  display: flex; gap: 0.3rem; white-space: nowrap;
+  padding-left: 0.5rem; border-left: 1px solid var(--border);
+}
+.rel-fk-actions .rel-act { margin-left: 0; }
+.rel-readonly {
+  padding: 0.3rem 0.5rem; min-height: 2.1rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+  font-size: 0.9rem; display: flex; align-items: center;
+}
+
+/* M2M selection shown as a table above the picker */
+.rel-table {
+  width: 100%; border-collapse: collapse; margin-bottom: 0.4rem;
+  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.rel-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.rel-table tr:last-child td { border-bottom: none; }
+.rel-table-label { width: 100%; }
+.rel-table-actions { white-space: nowrap; text-align: right; }
+.rel-act {
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  color: var(--accent); cursor: pointer; font-size: 0.78rem;
+  padding: 0.15rem 0.45rem; margin-left: 0.25rem;
+}
+.rel-act:hover { background: #f0f3ff; }
+.rel-act.danger { color: #e03131; border-color: #f3b1b1; }
+.rel-act.danger:hover { background: #fdedec; }
+
+/* M2M delete confirm popup */
+.confirm-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  padding: 4rem 1rem; overflow-y: auto;
+}
+.confirm-card {
+  background: var(--panel); border-radius: 10px; padding: 1.2rem;
+  width: 360px; max-width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  align-self: center;
+}
+.confirm-card p { margin: 0 0 1rem; }
+.confirm-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.confirm-actions button { padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
+
+/* breadcrumb */
+.breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.6rem; }
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb .sep { color: var(--border); }
+
+/* boolean cells in list */
+.bool { font-weight: 700; }
+.bool-true { color: #2f9e44; }
+.bool-false { color: #e03131; }

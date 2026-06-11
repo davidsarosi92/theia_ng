@@ -35,3 +35,4 @@ class SpaceAdmin(theia_ng.ModelAdmin):
 class CategoryAdmin(theia_ng.ModelAdmin):
     list_display = ["name"]
     search_fields = ["name"]
+    display_field = "name"  # label relations by this field instead of __str__

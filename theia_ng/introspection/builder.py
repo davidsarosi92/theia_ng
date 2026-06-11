@@ -76,33 +76,41 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
 
 
 def _relation_display_field(target: type[Model]) -> str:
-    """Pick a human-readable field for a relation target from its ModelAdmin.
+    """Pick the field carrying a relation target's option label.
 
-    Prefers the first ``search_fields`` entry (so the option label matches what
-    search filters on), then ``list_display``; falls back to ``__str__``.
+    Defaults to ``"__str__"`` (the target's ``__str__`` / ModelAdmin ``display()``)
+    so labels read like the object, not a single column. A target ModelAdmin can
+    set ``display_field`` to render one concrete field instead.
     """
     from theia_ng.registry import site
 
     resolved = site.get_model(_model_key(target))
     if resolved is not None:
         _, target_admin = resolved
-        if target_admin.search_fields:
-            return target_admin.search_fields[0]
-        if target_admin.list_display:
-            return target_admin.list_display[0]
+        if target_admin.display_field:
+            return target_admin.display_field
     return "__str__"
 
 
 def _relation_descriptor(
     field: Field, ftype: FieldType, source: type[Model], admin: ModelAdmin
 ) -> dict[str, Any]:
+    from theia_ng.registry import site
+
     target = field.related_model
+    target_key = _model_key(target)
     desc: dict[str, Any] = {
         "kind": "m2m" if ftype is FieldType.M2M else "fk",
-        "target": _model_key(target),
+        "target": target_key,
         "display_field": _relation_display_field(target),
-        "options_endpoint": f"data/{_model_key(target)}/",
+        "options_endpoint": f"data/{target_key}/",
         "searchable": True,
+        # Whether the target model is registered with Theia. Unregistered targets
+        # have no options/CRUD endpoint, so the SPA renders a raw FK input (or a
+        # locked M2M) rather than a picker.
+        "registered": site.get_model(target_key) is not None,
+        # raw_id_fields: render as a plain id input instead of a picker.
+        "raw": field.name in (admin.raw_id_fields or []),
     }
     # Dependent options: route to the context-aware endpoint + declare which
     # sibling fields the options depend on (so the SPA re-fetches on change).
@@ -129,15 +137,51 @@ def _serialize_default(field: Field) -> Any:
     return None  # non-scalar default (e.g. list/dict) — let the form start empty
 
 
+def _titleize(name: str) -> str:
+    """`full_name` -> `Full Name` (label for a computed list_display column)."""
+    return name.replace("_", " ").title()
+
+
+def _column_label(model: type[Model], admin: ModelAdmin, name: str) -> str:
+    """Header label for a list_display column (field, property, or admin method).
+    Honours a ``short_description`` (set by ``@theia_ng.display`` or directly)."""
+    from django.core.exceptions import FieldDoesNotExist
+
+    method = getattr(admin, name, None)
+    if callable(method):
+        return str(getattr(method, "short_description", None) or _titleize(name))
+    try:
+        return _humanize_label(model._meta.get_field(name))
+    except FieldDoesNotExist:
+        pass
+    attr = getattr(model, name, None)
+    if attr is not None:
+        return str(getattr(attr, "short_description", None) or _titleize(name))
+    return _titleize(name)
+
+
+def _humanize_label(field: Field) -> str:
+    """Human field label. Django auto-derives ``verbose_name`` from the field
+    name (``is_active`` -> ``is active``); title-case those so multi-word labels
+    read as ``Is Active``. An explicitly-set ``verbose_name`` is left untouched."""
+    verbose = str(getattr(field, "verbose_name", "") or field.name)
+    if verbose == field.name.replace("_", " "):
+        return verbose.title()
+    return verbose
+
+
 def _field_descriptor(field: Field, source: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     ftype = resolve_field_type(field)
     out: dict[str, Any] = {
         "name": field.name,
-        "label": str(getattr(field, "verbose_name", field.name)),
+        "label": _humanize_label(field),
         "type": ftype.value,
         "required": not field.blank,
         "editable": field.editable,
-        "read_only": not field.editable,
+        # read_only = "show in the form but disabled" (set for readonly_fields).
+        # Plain non-editable fields (auto pk/timestamps) just stay out of the form
+        # via editable=False; only readonly_fields opt them back in, read-only.
+        "read_only": False,
         "help_text": str(getattr(field, "help_text", "")),
         "default": _serialize_default(field),
         "widget": None,
@@ -169,6 +213,14 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
             field["read_only"] = True
             field["editable"] = False
 
+    # ModelAdmin.exclude drops fields from the form (kept in the IR so they can
+    # still appear in list_display). exclude wins over readonly.
+    excluded = set(admin.exclude)
+    for field in fields:
+        if field["name"] in excluded:
+            field["editable"] = False
+            field["read_only"] = False
+
     # Optional, layered enrichment (model-derived specs stay the base).
     if admin.serializer_class is not None:
         from theia_ng.adapters.drf import enrich_fields_from_serializer
@@ -189,6 +241,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         },
         "list": {
             "display": list(admin.list_display),
+            "labels": {name: _column_label(model, admin, name) for name in admin.list_display},
             "filters": list(admin.list_filter),
             "search_fields": list(admin.search_fields),
             "ordering": list(admin.ordering),

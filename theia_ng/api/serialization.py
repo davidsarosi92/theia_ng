@@ -32,14 +32,14 @@ def serializable_fields(model: type[models.Model]) -> list[models.Field]:
 
 
 def editable_fields(model: type[models.Model], admin: ModelAdmin) -> list[models.Field]:
-    """Fields a client may write: editable, not read-only, not auto."""
-    readonly = set(admin.readonly_fields)
+    """Fields a client may write: editable, not read-only, not excluded, not auto."""
+    skip = set(admin.readonly_fields) | set(admin.exclude)
     out: list[models.Field] = []
     for field in model._meta.get_fields():
         if isinstance(field, models.ManyToManyField):
-            if field.editable and field.name not in readonly:
+            if field.editable and field.name not in skip:
                 out.append(field)
-        elif getattr(field, "concrete", False) and field.editable and field.name not in readonly:
+        elif getattr(field, "concrete", False) and field.editable and field.name not in skip:
             out.append(field)
     return out
 
@@ -73,8 +73,16 @@ def _serialize_value(field: models.Field, instance: models.Model) -> Any:
     return value
 
 
-def serialize_instance(instance: models.Model, fields: list[models.Field]) -> dict[str, Any]:
-    data: dict[str, Any] = {"pk": instance.pk}
+def serialize_instance(
+    instance: models.Model,
+    fields: list[models.Field],
+    admin: ModelAdmin | None = None,
+) -> dict[str, Any]:
+    # ``__str__`` carries the human label (the model's ``__str__`` or the
+    # admin's ``display()``), so relation pickers can show it without a real
+    # field. The key can never collide with a concrete field name.
+    label = admin.display(instance) if admin is not None else str(instance)
+    data: dict[str, Any] = {"pk": instance.pk, "__str__": label}
     for field in fields:
         data[field.name] = _serialize_value(field, instance)
     return data
