@@ -24,6 +24,27 @@ class Bundle(models.Model):
         app_label = "sampleapp"
 
 
+class House(models.Model):
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        app_label = "sampleapp"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Space(models.Model):
+    name = models.CharField(max_length=100)
+    house = models.ForeignKey(House, on_delete=models.CASCADE, related_name="spaces")
+
+    class Meta:
+        app_label = "sampleapp"
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Stock(models.Model):
     STATUS_CHOICES = [("draft", "Draft"), ("active", "Active")]
 
@@ -33,6 +54,9 @@ class Stock(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
+    house = models.ForeignKey(House, on_delete=models.SET_NULL, null=True, blank=True)
+    # Should only allow Spaces belonging to the Stock's house (relation_filters).
+    spaces = models.ManyToManyField(Space, blank=True)
 
     class Meta:
         app_label = "sampleapp"

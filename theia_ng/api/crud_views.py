@@ -36,7 +36,11 @@ from django.http import Http404, HttpRequest, JsonResponse
 from django.views import View
 
 from theia_ng.adapters import AdapterValidationError, resolve_adapter
-from theia_ng.api.serialization import relation_field_names, serializable_fields
+from theia_ng.api.serialization import (
+    relation_field_names,
+    serializable_fields,
+    serialize_instance,
+)
 from theia_ng.permissions import has_access
 from theia_ng.registry import site
 
@@ -178,6 +182,84 @@ class DataDetailView(_BaseModelView):
         instance = self._get_object(pk)
         instance.delete()
         return JsonResponse({}, status=204)
+
+
+class RelationOptionsView(View):
+    """Options for a relation field, narrowed by the source admin's
+    ``relation_filters`` using sibling values supplied by the client.
+
+    The filter lookups are SERVER-defined (from the source ModelAdmin); the
+    client only supplies the sibling field values. If a declared sibling value
+    is missing, no options are returned (the dependency must be satisfied first).
+    Response shape matches the list endpoint, so the combobox consumes it as-is.
+    """
+
+    def get(self, request: HttpRequest, model_key: str, field: str):
+        if not has_access(request):
+            return _forbidden()
+        resolved = site.get_model(model_key)
+        if resolved is None:
+            raise Http404(f"Model {model_key!r} is not registered")
+        model, admin = resolved
+        if not admin.has_view_permission(request):
+            return _forbidden()
+
+        spec = (admin.relation_filters or {}).get(field)
+        if not spec:
+            raise Http404(f"No relation filter declared for {field!r}")
+        try:
+            rel_field = model._meta.get_field(field)
+        except FieldDoesNotExist:
+            raise Http404(f"Unknown field {field!r}")
+        target = rel_field.related_model
+
+        filter_kwargs: dict[str, object] = {}
+        missing = False
+        for target_lookup, source_field in spec.items():
+            value = request.GET.get(source_field)
+            if value in (None, ""):
+                missing = True
+                break
+            filter_kwargs[target_lookup] = value
+
+        fields = serializable_fields(target)
+        if missing:
+            qs = target._default_manager.none()
+        else:
+            qs = target._default_manager.filter(**filter_kwargs)
+            fk_names, m2m_names = relation_field_names(fields)
+            if fk_names:
+                qs = qs.select_related(*fk_names)
+            if m2m_names:
+                qs = qs.prefetch_related(*m2m_names)
+
+        target_resolved = site.get_model(f"{target._meta.app_label}.{target._meta.model_name}")
+        target_admin = target_resolved[1] if target_resolved else None
+
+        search = request.GET.get("search")
+        if search and target_admin and target_admin.search_fields:
+            q = Q()
+            for name in target_admin.search_fields:
+                q |= Q(**{f"{name}__icontains": search})
+            qs = qs.filter(q)
+
+        try:
+            qs = qs.order_by("pk")
+            per_page = target_admin.list_per_page if target_admin else 50
+            paginator = Paginator(qs, per_page)
+            page = paginator.get_page(request.GET.get("page", 1))
+            results = [serialize_instance(obj, fields) for obj in page]
+        except (FieldError, ValueError) as exc:
+            return JsonResponse({"detail": str(exc)}, status=400)
+
+        return JsonResponse(
+            {
+                "count": paginator.count,
+                "page": page.number,
+                "num_pages": paginator.num_pages,
+                "results": results,
+            }
+        )
 
 
 class ActionView(_BaseModelView):

@@ -38,6 +38,8 @@ export interface Relation {
   display_field: string;
   options_endpoint: string;
   searchable: boolean;
+  /** Sibling field names whose values narrow this relation's options. */
+  depends_on?: string[];
 }
 
 export interface FieldSpec {

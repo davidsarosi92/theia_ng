@@ -61,11 +61,20 @@ export class ApiService {
     return this.http.delete(this.url(`data/${key}/${pk}/`));
   }
 
-  /** Fetch a page of relation options. `endpoint` is the IR's options_endpoint. */
-  options(endpoint: string, search: string, page = 1): Observable<ListResponse> {
+  /** Fetch a page of relation options. `endpoint` is the IR's options_endpoint.
+   *  `extra` carries dependent-filter sibling values (depends_on). */
+  options(
+    endpoint: string,
+    search: string,
+    page = 1,
+    extra: Record<string, string> = {},
+  ): Observable<ListResponse> {
     let params = new HttpParams().set('page', String(page));
     if (search) {
       params = params.set('search', search);
+    }
+    for (const [k, v] of Object.entries(extra)) {
+      params = params.set(k, v);
     }
     return this.http.get<ListResponse>(this.apiBase + endpoint, { params });
   }

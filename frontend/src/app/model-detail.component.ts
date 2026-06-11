@@ -22,7 +22,7 @@ import { FieldSpec, ModelSchema, RelationValue } from './models';
 
       <form [formGroup]="form" (ngSubmit)="save()">
         @for (field of editableFields(); track field.name) {
-          <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" />
+          <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" [form]="form" />
           @if (errors()[field.name]; as fieldErrors) {
             <div class="errors">{{ fieldErrors.join(' ') }}</div>
           }

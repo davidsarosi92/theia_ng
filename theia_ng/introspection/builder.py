@@ -93,15 +93,24 @@ def _relation_display_field(target: type[Model]) -> str:
     return "__str__"
 
 
-def _relation_descriptor(field: Field, ftype: FieldType) -> dict[str, Any]:
+def _relation_descriptor(
+    field: Field, ftype: FieldType, source: type[Model], admin: ModelAdmin
+) -> dict[str, Any]:
     target = field.related_model
-    return {
+    desc: dict[str, Any] = {
         "kind": "m2m" if ftype is FieldType.M2M else "fk",
         "target": _model_key(target),
         "display_field": _relation_display_field(target),
         "options_endpoint": f"data/{_model_key(target)}/",
         "searchable": True,
     }
+    # Dependent options: route to the context-aware endpoint + declare which
+    # sibling fields the options depend on (so the SPA re-fetches on change).
+    spec = (admin.relation_filters or {}).get(field.name)
+    if spec:
+        desc["options_endpoint"] = f"relation-options/{_model_key(source)}/{field.name}/"
+        desc["depends_on"] = list(spec.values())
+    return desc
 
 
 def _serialize_default(field: Field) -> Any:
@@ -120,7 +129,7 @@ def _serialize_default(field: Field) -> Any:
     return None  # non-scalar default (e.g. list/dict) — let the form start empty
 
 
-def _field_descriptor(field: Field) -> dict[str, Any]:
+def _field_descriptor(field: Field, source: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     ftype = resolve_field_type(field)
     out: dict[str, Any] = {
         "name": field.name,
@@ -138,7 +147,7 @@ def _field_descriptor(field: Field) -> dict[str, Any]:
             {"value": value, "label": str(label)} for value, label in field.choices
         ]
     if ftype in (FieldType.FK, FieldType.M2M):
-        out["relation"] = _relation_descriptor(field, ftype)
+        out["relation"] = _relation_descriptor(field, ftype, source, admin)
     if max_length := getattr(field, "max_length", None):
         out["constraints"] = {"max_length": max_length}
     return out
@@ -151,7 +160,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     # fields. Using get_fields() here would also yield reverse relations
     # (ManyToManyRel/ManyToOneRel), which have no .blank/.editable.
     field_objs = [*model._meta.concrete_fields, *model._meta.many_to_many]
-    fields = [_field_descriptor(f) for f in field_objs]
+    fields = [_field_descriptor(f, model, admin) for f in field_objs]
 
     # ModelAdmin.readonly_fields are non-editable in the IR (and thus the form).
     readonly = set(admin.readonly_fields)

@@ -134,6 +134,25 @@ production so all workers agree.
   Override `has_*_permission(self, request)` on your `ModelAdmin` to plug in a
   custom scheme.
 
+## Dependent relation options
+
+Narrow a relation field's options by the **current values of sibling fields** on
+the record being edited — e.g. only show `Space`s that belong to the `Stock`'s
+selected `house`:
+
+```python
+@theia_ng.register(Stock)
+class StockAdmin(theia_ng.ModelAdmin):
+    relation_filters = {
+        "spaces": {"house": "house"},   # {target_lookup: source_field}
+    }
+```
+
+This loads `Space.objects.filter(house=<the form's current house value>)`. The
+picker re-fetches when `house` changes, and shows nothing until it is set. The
+filter lookups are **server-defined** (the client only sends the sibling
+values), so it can't be used to query arbitrary fields.
+
 ## Optional: DRF delegation
 
 If a model already has a DRF serializer, let Theia NG defer to it for

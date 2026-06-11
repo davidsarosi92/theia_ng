@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import { FieldSpec, RelationValue } from './models';
 import { RelationSelectComponent } from './relation-select.component';
@@ -31,7 +31,7 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
           </select>
         }
         @case ('relation') {
-          <theia-relation-select [field]="field" [control]="control" [initial]="initial" />
+          <theia-relation-select [field]="field" [control]="control" [initial]="initial" [form]="form" />
         }
         @default {
           <input [type]="inputType()" [formControl]="control" />
@@ -48,6 +48,7 @@ export class FieldInputComponent {
   @Input({ required: true }) field!: FieldSpec;
   @Input({ required: true }) control!: FormControl;
   @Input() initial: RelationValue | RelationValue[] | null = null;
+  @Input() form?: FormGroup;
 
   widgetType(): WidgetKind {
     return widgetFor(this.field.type);

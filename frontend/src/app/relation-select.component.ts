@@ -9,8 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl } from '@angular/forms';
-import { Subject, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { FormControl, FormGroup } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { ApiService } from './api.service';
 import { Choice, FieldSpec, ListResponse, RelationValue } from './models';
@@ -77,6 +77,8 @@ export class RelationSelectComponent implements OnInit {
   @Input({ required: true }) control!: FormControl;
   /** Initial selection from the loaded record (carries labels). */
   @Input() initial: RelationValue | RelationValue[] | null = null;
+  /** Parent form, used to read sibling values for dependent options. */
+  @Input() form?: FormGroup;
 
   private api = inject(ApiService);
   private destroyRef = inject(DestroyRef);
@@ -123,11 +125,39 @@ export class RelationSelectComponent implements OnInit {
         distinctUntilChanged(),
         switchMap((term) => {
           this.loading.set(true);
-          return this.api.options(this.endpoint, term, 1);
+          return this.api.options(this.endpoint, term, 1, this.extraParams());
         }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((resp) => this.apply(resp, true));
+
+    // Reload options when a dependency (sibling field) changes.
+    const deps = this.field.relation?.depends_on ?? [];
+    if (deps.length && this.form) {
+      this.form.valueChanges
+        .pipe(
+          map(() => JSON.stringify(this.extraParams())),
+          distinctUntilChanged(),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe(() => {
+          this.options.set([]);
+          this.page.set(1);
+          if (this.open()) {
+            this.loadPage(1, true);
+          }
+        });
+    }
+  }
+
+  /** Sibling values that narrow this relation's options (depends_on). */
+  private extraParams(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const dep of this.field.relation?.depends_on ?? []) {
+      const v = this.form?.get(dep)?.value;
+      out[dep] = v === null || v === undefined ? '' : String(v);
+    }
+    return out;
   }
 
   private get endpoint(): string {
@@ -196,7 +226,7 @@ export class RelationSelectComponent implements OnInit {
 
   private loadPage(page: number, replace: boolean): void {
     this.loading.set(true);
-    this.api.options(this.endpoint, this.searchTerm(), page).subscribe((resp) =>
+    this.api.options(this.endpoint, this.searchTerm(), page, this.extraParams()).subscribe((resp) =>
       this.apply(resp, replace),
     );
   }

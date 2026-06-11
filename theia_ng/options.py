@@ -40,6 +40,14 @@ class ModelAdmin:
     # --- custom actions (server-side) -------------------------------------
     actions: list[str] = []
 
+    # --- dependent relation options --------------------------------------
+    # Limit a relation field's options by sibling field values of the record
+    # being edited. Maps relation field name -> {target_lookup: source_field}.
+    # e.g. {"spaces": {"house": "house"}} loads only Spaces whose house equals
+    # the form's current `house` value. The filter lookups are server-defined
+    # (the client only supplies the sibling values), so this is safe.
+    relation_filters: dict[str, dict[str, str]] = {}
+
     # --- optional adapters (delegation / enrichment) ----------------------
     # If set, data ops defer to this DRF serializer (validation/save/IR flags).
     serializer_class: type | None = None
