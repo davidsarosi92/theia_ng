@@ -2,17 +2,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { AppGroup, groupByApp } from './grouping';
 import { LoginComponent } from './login.component';
 import { RegistryModel } from './models';
 import { getConfig } from './theia-config';
 import { cap, keyToSlug } from './util';
 import { ViewService } from './view.service';
-
-interface AppGroup {
-  appLabel: string;
-  appName: string;
-  models: RegistryModel[];
-}
 
 @Component({
   selector: 'theia-root',
@@ -75,19 +70,9 @@ export class AppComponent implements OnInit {
   canAccess = signal(false);
   username = signal<string | null>(null);
 
-  /** Visible models (permitted set, narrowed by the active view) grouped by app. */
-  groups = computed<AppGroup[]>(() => {
-    const map = new Map<string, AppGroup>();
-    for (const m of this.vs.filterModels(this.models())) {
-      let group = map.get(m.app_label);
-      if (!group) {
-        group = { appLabel: m.app_label, appName: m.app_verbose_name, models: [] };
-        map.set(m.app_label, group);
-      }
-      group.models.push(m);
-    }
-    return [...map.values()];
-  });
+  /** Visible models (permitted set, narrowed by the active view) grouped by app,
+   *  apps sorted by name and models by name within each. */
+  groups = computed<AppGroup[]>(() => groupByApp(this.vs.filterModels(this.models())));
 
   ngOnInit(): void {
     // Seeds the CSRF cookie and tells us whether we're already signed in.

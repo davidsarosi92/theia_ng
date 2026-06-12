@@ -259,3 +259,20 @@ body {
 .mfs-group { border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; }
 .mfs-title { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.3rem; }
 .mfs-group .ms-opt { font-size: 0.85rem; }
+
+/* home: app groups + model cards */
+.home-group { margin: 1.25rem 0; }
+.home-group-title {
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); font-weight: 700; margin: 0 0 0.6rem;
+}
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;
+}
+.model-card {
+  display: block; padding: 1rem 1.1rem; border-radius: 10px;
+  border: 1px solid var(--border); text-decoration: none; color: var(--text);
+  font-weight: 600; font-size: 0.95rem;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.model-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
