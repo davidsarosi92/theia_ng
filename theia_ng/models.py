@@ -47,6 +47,48 @@ class MenuView(models.Model):
         return self.name
 
 
+class LogEntry(models.Model):
+    """An audit record of a single write through Theia NG.
+
+    One row per create / update / delete / custom action. ``changes`` holds the
+    field-level diff (``{field: [old, new]}``) for create/update. ``username`` is
+    snapshotted so the trail survives the user being deleted.
+    """
+
+    CREATE, UPDATE, DELETE, ACTION = "create", "update", "delete", "action"
+    ACTIONS = [
+        (CREATE, "Create"),
+        (UPDATE, "Update"),
+        (DELETE, "Delete"),
+        (ACTION, "Action"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="theia_ng_logs",
+    )
+    username = models.CharField(max_length=255, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    action = models.CharField(max_length=16, choices=ACTIONS)
+    model_key = models.CharField(max_length=120, db_index=True)
+    object_pk = models.CharField(max_length=64, blank=True)
+    object_repr = models.CharField(max_length=255, blank=True)
+    # Field-level diff {field: [old, new]}, or action metadata.
+    changes = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Log entry"
+        verbose_name_plural = "Log entries"
+        indexes = [models.Index(fields=["user", "-timestamp"])]
+
+    def __str__(self) -> str:
+        return f"{self.action} {self.model_key} #{self.object_pk} by {self.username}"
+
+
 class Favorite(models.Model):
     """A user's favorite models for the home page, stored as an ordered list of
     ``app_label.model_name`` keys. One row per user (a personal shortcut list;

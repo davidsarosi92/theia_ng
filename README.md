@@ -35,6 +35,11 @@ ships inside the wheel.
   `list_filter` (field filters + **custom filters**), `search_fields`,
   `ordering`, `readonly_fields`, `exclude`, `raw_id_fields`, `actions`,
   `relation_filters`
+- **Parameterized actions** — actions that pop a form (text, choices, relation
+  pickers, …) and run server-side; `selection="none"` for global actions like a
+  broadcast
+- **Audit log** — every write (create / update / delete / action) is recorded
+  with a field-level diff; users see their own trail, superusers see everyone's
 - Searchable, paginated relation pickers (FK single, M2M multi) that load options
   on demand — fine for tables with thousands of rows. Related rows carry
   **View / Edit / Delete** actions (permission-aware) and navigate to the record
@@ -53,7 +58,8 @@ ships inside the wheel.
 - Session login built into the SPA, gated by the `theia_ng.access` permission
 - **Responsive** throughout: collapsible sidebar (full → compact initials rail →
   off-canvas drawer on mobile), scrollable tables; a per-user greeting in the bar
-- Sidebar grouped by Django app; sticky top bar with sign-out
+- Sidebar grouped by Django app; **app names link to a per-app landing page** of
+  their model cards; sticky top bar with sign-out
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
   both lazy, so the core never imports DRF
 
@@ -294,6 +300,56 @@ of children stays fast. Each row carries permission-aware **View / Edit /
 Delete** actions, and a child group is hidden entirely if the user can't view
 that model. `tree_children` uses Django's reverse accessor names (the
 `related_name`, or the default `<model>_set`).
+
+## Parameterized actions
+
+A plain action runs over a selection: `method(request, queryset)`. A
+*parameterized* action also pops a small form — declare it with
+`@theia_ng.action` and it receives the collected values as a third `params`
+dict. `selection` controls whether it needs selected rows: `"required"`
+(default), `"optional"`, or `"none"` (a global action, e.g. a broadcast):
+
+```python
+@theia_ng.register(Message)
+class MessageAdmin(theia_ng.ModelAdmin):
+    actions = ["broadcast"]
+
+    @theia_ng.action(
+        label="Broadcast message",
+        selection="none",                       # ignores row selection
+        fields=[
+            theia_ng.ActionField("body", "text", label="Message", required=True),
+            theia_ng.ActionField("to_all", "boolean", label="All active users"),
+            theia_ng.ActionField("recipients", "m2m", relation="users.customuser"),
+            theia_ng.ActionField("send_push", "boolean", label="Send push"),
+        ],
+    )
+    def broadcast(self, request, queryset, params):
+        recipients = (
+            User.objects.filter(is_active=True) if params["to_all"]
+            else User.objects.filter(pk__in=params["recipients"], is_active=True)
+        )
+        Message.objects.bulk_create([...])
+        return {"sent": recipients.count()}
+```
+
+`ActionField` types reuse the IR field types (`string`, `text`, `integer`,
+`decimal`, `boolean`, `choice`, plus `fk` / `m2m` with `relation="app.model"`
+for a searchable picker). The SPA renders the form with the same widgets as the
+record form, validates `required` fields server-side, and shows toolbar buttons
+for `none` / `optional` actions on the list page.
+
+## Audit log
+
+Every write through Theia NG (create / update / delete / action) is recorded as
+a `LogEntry`: who, when, which model + object, and — for create/update — a
+field-level diff (`{field: [old, new]}`, audit-noise fields excluded). It is
+best-effort, so logging never breaks the operation it records.
+
+The **Activity** page (linked from the sidebar and the home "Theia NG Admin"
+section) lists the entries, filterable by action and model. Regular users see
+only their own trail; superusers see everyone's and can filter by user. No
+configuration needed — it follows from `migrate`.
 
 ## Optional: DRF delegation
 

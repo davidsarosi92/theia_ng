@@ -27,6 +27,7 @@ def test_login_then_me_then_logout(client, db):
         "authenticated": True,
         "username": "root",
         "first_name": "Ada",
+        "is_superuser": True,
         "can_access": True,
     }
 

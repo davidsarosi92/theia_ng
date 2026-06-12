@@ -6,3 +6,12 @@ export const slugToKey = (slug: string): string => slug.replace('-', '.');
 
 /** Capitalize the first letter — used for menu and breadcrumb labels. */
 export const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** A stable light pastel per key, so each home/app card gets its own colour. */
+export const cardColor = (key: string): string => {
+  let hue = 0;
+  for (let i = 0; i < key.length; i++) {
+    hue = (hue * 31 + key.charCodeAt(i)) % 360;
+  }
+  return `hsl(${hue}, 70%, 95%)`;
+};

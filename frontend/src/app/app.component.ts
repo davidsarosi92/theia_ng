@@ -10,6 +10,10 @@ import { getConfig } from './theia-config';
 import { cap, keyToSlug } from './util';
 import { ViewService } from './view.service';
 
+/** Theia NG's own app_label — its sidebar/home section is pinned last and hosts
+ *  the Activity link alongside its models (Menu views). */
+const THEIA_APP = 'theia_ng';
+
 @Component({
   selector: 'theia-root',
   standalone: true,
@@ -20,9 +24,12 @@ import { ViewService } from './view.service';
         <div class="shell" [class.nav-open]="sidebarOpen()">
           <header class="topbar">
             <button class="nav-toggle" (click)="toggleSidebar()" aria-label="Toggle menu">☰</button>
-            <span class="topbar-title">{{ siteTitle }}</span>
-            @if (firstName()) {
-              <span class="topbar-greet">Hi, {{ firstName() }}</span>
+            <a class="topbar-title" routerLink="/">{{ siteTitle }}</a>
+            @if (firstName() || username()) {
+              <span class="topbar-greet">
+                @if (firstName()) { <span class="greet-hi">Hi, {{ firstName() }}</span> }
+                @if (username()) { <span class="topbar-email">{{ username() }}</span> }
+              </span>
             }
             <div class="topbar-right">
               @if (vs.views().length) {
@@ -37,18 +44,19 @@ import { ViewService } from './view.service';
                   }
                 </select>
               }
-              <span class="username">{{ username() }}</span>
               <button class="link-btn" (click)="logout()">Sign out</button>
             </div>
           </header>
           <div class="layout">
             <aside class="sidebar" [class.collapsed]="!sidebarOpen()">
-              <a routerLink="/" class="nav-home" (click)="onNav()" title="Home">
-                <span class="nav-ini">⌂</span><span class="nav-lbl">Home</span>
-              </a>
-              @for (g of groups(); track g.appLabel) {
+              <div class="nav-top">
+                <a routerLink="/" class="nav-link" (click)="onNav()" title="Home">
+                  <span class="nav-ini">⌂</span><span class="nav-lbl">Home</span>
+                </a>
+              </div>
+              @for (g of otherGroups(); track g.appLabel) {
                 <div class="nav-group">
-                  <div class="nav-group-title">{{ cap(g.appName) }}</div>
+                  <a class="nav-group-title" [routerLink]="['/app', g.appLabel]" (click)="onNav()">{{ cap(g.appName) }}</a>
                   @for (m of g.models; track m.key) {
                     <a
                       [routerLink]="['/', slug(m.key)]"
@@ -61,6 +69,27 @@ import { ViewService } from './view.service';
                   }
                 </div>
               }
+              <!-- Theia NG Admin section, pinned to the bottom: Activity + its
+                   models (Menu views). Always shows Activity, even if the user
+                   can't see the MenuView model. -->
+              <div class="nav-group">
+                <a class="nav-group-title" [routerLink]="['/app', 'theia_ng']" (click)="onNav()">{{ adminTitle() }}</a>
+                <a routerLink="/logs" (click)="onNav()" title="Activity">
+                  <span class="nav-ini">≡</span><span class="nav-lbl">Activity</span>
+                </a>
+                @if (adminGroup(); as ag) {
+                  @for (m of ag.models; track m.key) {
+                    <a
+                      [routerLink]="['/', slug(m.key)]"
+                      (click)="onNav()"
+                      [title]="cap(m.verbose_name_plural)"
+                    >
+                      <span class="nav-ini">{{ initials(m.verbose_name_plural) }}</span>
+                      <span class="nav-lbl">{{ cap(m.verbose_name_plural) }}</span>
+                    </a>
+                  }
+                }
+              </div>
             </aside>
             <div class="sidebar-backdrop" (click)="closeSidebar()"></div>
             <main class="content">
@@ -123,6 +152,13 @@ export class AppComponent implements OnInit {
   /** Visible models (permitted set, narrowed by the active view) grouped by app,
    *  apps sorted by name and models by name within each. */
   groups = computed<AppGroup[]>(() => groupByApp(this.vs.filterModels(this.models())));
+  /** Theia NG's own app group (holds Menu views) — rendered last, with Activity. */
+  adminGroup = computed<AppGroup | null>(
+    () => this.groups().find((g) => g.appLabel === THEIA_APP) ?? null,
+  );
+  /** Every other app group, in their normal sorted order. */
+  otherGroups = computed<AppGroup[]>(() => this.groups().filter((g) => g.appLabel !== THEIA_APP));
+  adminTitle = computed(() => this.adminGroup()?.appName ?? 'Theia NG Admin');
 
   ngOnInit(): void {
     // Seeds the CSRF cookie and tells us whether we're already signed in.

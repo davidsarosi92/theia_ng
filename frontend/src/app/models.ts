@@ -94,6 +94,17 @@ export interface ListConfig {
   per_page: number;
 }
 
+/** A custom action. Parameterized actions carry form ``fields``; ``selection``
+ *  says whether it needs selected rows ('required'), may use them ('optional'),
+ *  or ignores them ('none', e.g. a broadcast). */
+export interface ActionSpec {
+  key: string;
+  label: string;
+  endpoint: string;
+  selection: 'none' | 'optional' | 'required';
+  fields: FieldSpec[];
+}
+
 export interface ModelSchema {
   schema_version: string;
   key: string;
@@ -102,7 +113,7 @@ export interface ModelSchema {
   endpoints: { list: string; detail: string };
   list: ListConfig;
   fields: FieldSpec[];
-  actions: { key: string; label: string; endpoint: string }[];
+  actions: ActionSpec[];
   /** Whether this model participates in a hierarchy tree (offers a Hierarchy view). */
   tree?: boolean;
 }
@@ -170,5 +181,29 @@ export interface AuthState {
   username: string | null;
   /** First name for the greeting, if the user model has one. */
   first_name?: string | null;
+  /** Superusers can view everyone's audit log, not just their own. */
+  is_superuser?: boolean;
   can_access: boolean;
+}
+
+/** One audit-log row (theia_ng.models.LogEntry). */
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  username: string;
+  action: 'create' | 'update' | 'delete' | 'action';
+  model_key: string;
+  model_label: string;
+  object_pk: string;
+  object_repr: string;
+  /** Field diff {field: [old, new]} for create/update, or action metadata. */
+  changes: Record<string, unknown>;
+}
+
+export interface LogResponse {
+  count: number;
+  page: number;
+  num_pages: number;
+  results: LogEntry[];
+  is_superuser: boolean;
 }

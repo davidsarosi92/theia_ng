@@ -33,6 +33,7 @@ def _payload(request: HttpRequest) -> dict:
         "authenticated": authenticated,
         "username": user.get_username() if authenticated else None,
         "first_name": _first_name(user) if authenticated else None,
+        "is_superuser": bool(getattr(user, "is_superuser", False)) if authenticated else False,
         "can_access": has_access(request),
     }
 

@@ -1,16 +1,17 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
-import { FieldSpec, ModelSchema } from './models';
+import { ActionSpec, FieldSpec, ModelSchema } from './models';
 import { cap, slugToKey } from './util';
 import { ViewService } from './view.service';
 
 @Component({
   selector: 'theia-model-list',
   standalone: true,
-  imports: [RouterLink, FilterDialogComponent],
+  imports: [RouterLink, FilterDialogComponent, ActionDialogComponent],
   template: `
     @if (schema(); as s) {
       <nav class="breadcrumb">
@@ -22,6 +23,9 @@ import { ViewService } from './view.service';
       <header class="list-header">
         <h2>{{ cap(s.verbose_name) }}</h2>
         <div class="list-actions">
+          @for (a of toolbarActions(); track a.key) {
+            <button class="btn secondary" (click)="openAction(a)">{{ cap(a.label) }}</button>
+          }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
             <button class="btn secondary" (click)="showFilter.set(true)">+ Filter</button>
           }
@@ -106,6 +110,14 @@ import { ViewService } from './view.service';
           (closed)="showFilter.set(false)"
         />
       }
+
+      @if (activeAction(); as a) {
+        <theia-action-dialog
+          [action]="a"
+          (done)="onActionDone()"
+          (closed)="activeAction.set(null)"
+        />
+      }
     }
   `,
 })
@@ -128,6 +140,22 @@ export class ModelListComponent implements OnInit {
   ordering = signal<string | null>(null);
   filters = signal<AppliedFilter[]>([]);
   showFilter = signal(false);
+  activeAction = signal<ActionSpec | null>(null);
+
+  /** Actions runnable without a row selection (the list has no row-select yet);
+   *  selection-less ('none') and 'optional' actions show as toolbar buttons. */
+  toolbarActions(): ActionSpec[] {
+    return (this.schema()?.actions ?? []).filter((a) => a.selection !== 'required');
+  }
+
+  openAction(action: ActionSpec): void {
+    this.activeAction.set(action);
+  }
+
+  onActionDone(): void {
+    this.activeAction.set(null);
+    this.load();
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {

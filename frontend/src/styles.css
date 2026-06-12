@@ -31,8 +31,10 @@ body {
   background: var(--topbar-bg); color: var(--topbar-text);
   padding: 0.6rem 1.2rem;
 }
-.topbar-title { font-weight: 600; color: var(--topbar-text); }
-.topbar-greet { color: var(--topbar-muted); font-size: 0.9rem; flex: 1; }
+.topbar-title { font-weight: 600; color: var(--topbar-text); text-decoration: none; }
+.topbar-title:hover { opacity: 0.85; }
+.topbar-greet { color: var(--topbar-muted); font-size: 0.9rem; flex: 1; display: flex; align-items: baseline; gap: 0.5rem; }
+.topbar-email { color: var(--topbar-text); font-size: 0.85rem; }
 .topbar-right { display: flex; align-items: center; gap: 0.9rem; margin-left: auto; }
 .username { color: var(--topbar-muted); }
 
@@ -64,12 +66,19 @@ body {
 /* long model names wrap instead of clipping/overflowing */
 .nav-lbl { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
 .sidebar a:hover { background: var(--panel); }
-.sidebar .nav-home { color: var(--muted); margin-bottom: 0.75rem; }
-.nav-group { margin-bottom: 0.85rem; }
-.nav-group-title {
-  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--muted); font-weight: 700; padding: 0.25rem 0.6rem;
+.nav-top { margin-bottom: 0.9rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+.sidebar .nav-link { color: var(--muted); font-weight: 600; }
+.nav-group { margin-bottom: 1rem; }
+/* app name: a real section header (and a link to the app's landing page) */
+.sidebar a.nav-group-title {
+  display: block; gap: 0; white-space: normal; text-decoration: none; cursor: pointer;
+  font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text); font-weight: 800; padding: 0.3rem 0.6rem 0.35rem;
+  margin-bottom: 0.2rem; border-bottom: 1px solid var(--border); border-radius: 0;
 }
+.sidebar a.nav-group-title:hover { background: none; color: var(--accent); }
+/* models sit visually under their app header */
+.nav-group > a { margin-left: 0.35rem; }
 /* nav item has a full label (default) and an initials badge (rail) */
 .nav-ini {
   display: none;
@@ -82,8 +91,9 @@ body {
 /* collapsed = compact initials rail (desktop) */
 .sidebar.collapsed { width: 56px; padding: 1rem 0.4rem; align-items: center; }
 .sidebar.collapsed .nav-lbl,
-.sidebar.collapsed .nav-group-title { display: none; }
+.sidebar.collapsed a.nav-group-title { display: none; }
 .sidebar.collapsed a { justify-content: center; gap: 0; padding: 0.3rem; }
+.sidebar.collapsed .nav-group > a { margin-left: 0; }
 .sidebar.collapsed .nav-ini { display: inline-flex; }
 .sidebar.collapsed .nav-group { margin-bottom: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
 
@@ -361,6 +371,26 @@ body {
 .tree-pager button { padding: 0.1rem 0.5rem; cursor: pointer; }
 .tree-pager button:disabled { opacity: 0.4; cursor: default; }
 .btn.small { padding: 0.2rem 0.55rem; font-size: 0.8rem; }
+
+/* activity log */
+.log-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; }
+.log-filters select {
+  font: inherit; font-size: 0.85rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer;
+}
+.log-filters .search { width: auto; margin: 0; }
+.log-time { white-space: nowrap; color: var(--muted); font-size: 0.82rem; }
+.log-pk { color: var(--muted); font-size: 0.8rem; }
+.log-changes { font-size: 0.82rem; }
+.log-changes div { white-space: nowrap; }
+.log-badge {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  padding: 0.1rem 0.4rem; border-radius: 4px; letter-spacing: 0.03em;
+}
+.log-create { background: #e6f4ea; color: #1e7e34; }
+.log-update { background: #e8eefc; color: #2a4bd0; }
+.log-delete { background: #fdecec; color: #c92a2a; }
+.log-action { background: #fff4e6; color: #d9480f; }
 
 /* wide data tables scroll horizontally instead of overflowing the page */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }

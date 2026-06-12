@@ -35,6 +35,7 @@ from django.db.models import Q
 from django.http import Http404, HttpRequest, JsonResponse
 from django.views import View
 
+from theia_ng import audit
 from theia_ng.adapters import AdapterValidationError, resolve_adapter
 from theia_ng.api.serialization import (
     relation_field_names,
@@ -189,7 +190,16 @@ class DataListView(_BaseModelView):
             instance = self.adapter.save(self.model(), data)
         except AdapterValidationError as exc:
             return _validation_response(exc)
-        return JsonResponse(self.adapter.to_representation(instance), status=201)
+        rep = self.adapter.to_representation(instance)
+        audit.record(
+            request,
+            "create",
+            model_key,
+            object_pk=instance.pk,
+            object_repr=self.admin.display(instance),
+            changes=audit.diff({}, rep),
+        )
+        return JsonResponse(rep, status=201)
 
 
 class DataDetailView(_BaseModelView):
@@ -214,17 +224,29 @@ class DataDetailView(_BaseModelView):
         data = _json_body(request)
         if data is None:
             return JsonResponse({"detail": "Invalid JSON body"}, status=400)
+        before = self.adapter.to_representation(instance)
         try:
             instance = self.adapter.save(instance, data, partial=True)
         except AdapterValidationError as exc:
             return _validation_response(exc)
-        return JsonResponse(self.adapter.to_representation(instance))
+        after = self.adapter.to_representation(instance)
+        audit.record(
+            request,
+            "update",
+            model_key,
+            object_pk=instance.pk,
+            object_repr=self.admin.display(instance),
+            changes=audit.diff(before, after),
+        )
+        return JsonResponse(after)
 
     def delete(self, request: HttpRequest, model_key: str, pk: str):
         instance = self._get_object(request, pk)
         if not self.admin.has_delete_permission(request, instance):
             return _forbidden()
+        object_repr = self.admin.display(instance)
         instance.delete()
+        audit.record(request, "delete", model_key, object_pk=pk, object_repr=object_repr)
         return JsonResponse({}, status=204)
 
 
@@ -386,8 +408,31 @@ class ActionView(_BaseModelView):
             return JsonResponse({"detail": "Action not implemented"}, status=501)
 
         body = _json_body(request) or {}
-        queryset = self.model._default_manager.filter(pk__in=body.get("ids", []))
-        result = method(request, queryset)
+        ids = body.get("ids", [])
+        params = body.get("params", {}) or {}
+        queryset = self.model._default_manager.filter(pk__in=ids)
+
+        # Parameterized actions (declared with @theia_ng.action) validate their
+        # required fields and receive the collected params as a third argument.
+        meta = getattr(method, "_theia_action", None)
+        if meta:
+            errors = {
+                f.name: ["This field is required."]
+                for f in meta["fields"]
+                if f.required and params.get(f.name) in (None, "", [], {})
+            }
+            if errors:
+                return JsonResponse({"errors": errors}, status=400)
+            result = method(request, queryset, params)
+        else:
+            result = method(request, queryset)
+        audit.record(
+            request,
+            "action",
+            model_key,
+            object_repr=f"{action_key} ({len(ids)} objects)",
+            changes={"action": action_key, "ids": [str(i) for i in ids], "params": params},
+        )
         return JsonResponse(
             {
                 "detail": "ok",

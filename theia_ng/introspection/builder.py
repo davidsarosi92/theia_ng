@@ -275,6 +275,53 @@ def _field_descriptor(field: Field, source: type[Model], admin: ModelAdmin) -> d
     return out
 
 
+def _action_field_descriptor(field, source: type[Model]) -> dict[str, Any]:
+    """Serialize an ActionField into a FieldSpec the SPA's field widget consumes."""
+    out: dict[str, Any] = {
+        "name": field.name,
+        "label": field.label,
+        "type": field.type,
+        "required": field.required,
+        "editable": True,
+        "read_only": False,
+        "help_text": field.help_text,
+        "default": field.default,
+        "widget": field.widget,
+    }
+    if field.choices:
+        out["choices"] = [{"value": v, "label": str(label)} for v, label in field.choices]
+    if field.type in (FieldType.FK.value, FieldType.M2M.value) and field.relation:
+        from theia_ng.registry import site
+
+        resolved = site.get_model(field.relation)
+        target = resolved[0] if resolved else None
+        out["relation"] = {
+            "kind": field.type,
+            "target": field.relation,
+            "display_field": _relation_display_field(target) if target else "__str__",
+            "options_endpoint": f"data/{field.relation}/",
+            "searchable": True,
+            "registered": resolved is not None,
+            "raw": False,
+        }
+    return out
+
+
+def _action_descriptor(model: type[Model], admin: ModelAdmin, key: str) -> dict[str, Any]:
+    """One action's IR: label, endpoint, selection mode, and its form fields."""
+    method = getattr(admin, key, None)
+    meta = getattr(method, "_theia_action", None)
+    base = {"key": key, "label": key, "endpoint": f"action/{_model_key(model)}/{key}/"}
+    if not meta:
+        return {**base, "selection": "required", "fields": []}
+    return {
+        **base,
+        "label": meta["label"],
+        "selection": meta["selection"],
+        "fields": [_action_field_descriptor(f, model) for f in meta["fields"]],
+    }
+
+
 def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     """User-independent model descriptor (cacheable; excludes ``perms``)."""
     key = _model_key(model)
@@ -329,7 +376,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
             "per_page": admin.list_per_page,
         },
         "fields": fields,
-        "actions": [{"key": a, "label": a, "endpoint": f"action/{key}/{a}/"} for a in admin.actions],
+        "actions": [_action_descriptor(model, admin, a) for a in admin.actions],
         # Whether this model participates in a hierarchy tree (offers a "Hierarchy"
         # view). True if it has a parent and/or children declared.
         "tree": bool(admin.tree_parent or admin.tree_children),

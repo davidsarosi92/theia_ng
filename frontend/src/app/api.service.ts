@@ -5,6 +5,7 @@ import { Observable, map, shareReplay } from 'rxjs';
 import {
   AuthState,
   ListResponse,
+  LogResponse,
   ModelSchema,
   Perms,
   Registry,
@@ -48,6 +49,17 @@ export class ApiService {
 
   saveFavorites(favorites: string[]): Observable<{ favorites: string[] }> {
     return this.http.put<{ favorites: string[] }>(this.url('favorites/'), { favorites });
+  }
+
+  // --- audit log ---
+  logs(params: Record<string, string | number>): Observable<LogResponse> {
+    let httpParams = new HttpParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== '' && v !== null && v !== undefined) {
+        httpParams = httpParams.set(k, String(v));
+      }
+    }
+    return this.http.get<LogResponse>(this.url('logs/'), { params: httpParams });
   }
 
   /** Registry fetched once and replayed — used to resolve a relation target's perms. */
@@ -138,7 +150,11 @@ export class ApiService {
     return this.http.get<ListResponse>(this.apiBase + endpoint, { params });
   }
 
-  runAction(endpoint: string, ids: (number | string)[]): Observable<unknown> {
-    return this.http.post(this.apiBase + endpoint, { ids });
+  runAction(
+    endpoint: string,
+    ids: (number | string)[],
+    params: Record<string, unknown> = {},
+  ): Observable<unknown> {
+    return this.http.post(this.apiBase + endpoint, { ids, params });
   }
 }

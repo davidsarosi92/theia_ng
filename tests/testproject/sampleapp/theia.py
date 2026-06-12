@@ -11,7 +11,7 @@ class StockAdmin(theia_ng.ModelAdmin):
     list_filter = ["category", "is_active"]
     search_fields = ["name"]
     ordering = ["name"]
-    actions = ["deactivate"]
+    actions = ["deactivate", "bulk_add"]
     # Only show Spaces that belong to the Stock's currently-selected house.
     relation_filters = {"spaces": {"house": "house"}}
     # Leaf of the House → Space/Stock hierarchy (default reverse accessor: stock_set).
@@ -19,6 +19,27 @@ class StockAdmin(theia_ng.ModelAdmin):
 
     def deactivate(self, request, queryset):
         return {"updated": queryset.update(is_active=False)}
+
+    # Parameterized, selection-less action: collects a small form and creates a
+    # Stock from it (exercises string + fk relation + decimal + boolean fields).
+    @theia_ng.action(
+        label="Bulk add stock",
+        selection="none",
+        fields=[
+            theia_ng.ActionField("name", "string", label="Name", required=True),
+            theia_ng.ActionField("category", "fk", label="Category", relation="sampleapp.category", required=True),
+            theia_ng.ActionField("quantity", "decimal", label="Quantity", default="0"),
+            theia_ng.ActionField("activate", "boolean", label="Active", default=True),
+        ],
+    )
+    def bulk_add(self, request, queryset, params):
+        obj = Stock.objects.create(
+            name=params["name"],
+            category_id=params["category"],
+            quantity=params.get("quantity") or 0,
+            is_active=bool(params.get("activate")),
+        )
+        return {"created": obj.pk}
 
 
 @theia_ng.register(House)
