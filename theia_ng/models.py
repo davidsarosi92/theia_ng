@@ -9,6 +9,7 @@ off a model/content type) — it exists only so ``migrate`` creates the
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 
@@ -44,3 +45,23 @@ class MenuView(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class Favorite(models.Model):
+    """A user's favorite models for the home page, stored as an ordered list of
+    ``app_label.model_name`` keys. One row per user (a personal shortcut list;
+    the home page intersects it with what the user may actually see)."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="theia_ng_favorites",
+    )
+    model_keys = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        verbose_name = "Favorite"
+        verbose_name_plural = "Favorites"
+
+    def __str__(self) -> str:
+        return f"Favorites for {self.user}"

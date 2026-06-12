@@ -168,5 +168,7 @@ export interface ListResponse {
 export interface AuthState {
   authenticated: boolean;
   username: string | null;
+  /** First name for the greeting, if the user model has one. */
+  first_name?: string | null;
   can_access: boolean;
 }

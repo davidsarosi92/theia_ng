@@ -41,6 +41,15 @@ export class ApiService {
     return this.http.get<Registry>(this.url('schema/'));
   }
 
+  // --- favorites (per-user, server-side) ---
+  getFavorites(): Observable<{ favorites: string[] }> {
+    return this.http.get<{ favorites: string[] }>(this.url('favorites/'));
+  }
+
+  saveFavorites(favorites: string[]): Observable<{ favorites: string[] }> {
+    return this.http.put<{ favorites: string[] }>(this.url('favorites/'), { favorites });
+  }
+
   /** Registry fetched once and replayed — used to resolve a relation target's perms. */
   private registry(): Observable<Registry> {
     this.registry$ ??= this.getRegistry().pipe(shareReplay(1));

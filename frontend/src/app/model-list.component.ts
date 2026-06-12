@@ -55,41 +55,43 @@ import { ViewService } from './view.service';
         </table>
       }
 
-      <table class="grid">
-        <thead>
-          <tr>
-            @for (col of columns(); track col) {
-              <th
-                [class.sortable]="isSortable(col)"
-                (click)="onSort(col)"
-              >
-                {{ colLabel(col) }}<span class="sort">{{ sortIndicator(col) }}</span>
-              </th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row['pk']) {
-            <tr class="clickable" (click)="open(row['pk'])">
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
               @for (col of columns(); track col) {
-                <td>
-                  @if (isBool(col)) {
-                    @if (row[col] === true) {
-                      <span class="bool bool-true">✓</span>
-                    } @else if (row[col] === false) {
-                      <span class="bool bool-false">✕</span>
-                    }
-                  } @else {
-                    {{ cell(row[col]) }}
-                  }
-                </td>
+                <th
+                  [class.sortable]="isSortable(col)"
+                  (click)="onSort(col)"
+                >
+                  {{ colLabel(col) }}<span class="sort">{{ sortIndicator(col) }}</span>
+                </th>
               }
             </tr>
-          } @empty {
-            <tr><td [attr.colspan]="columns().length">No records.</td></tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row['pk']) {
+              <tr class="clickable" (click)="open(row['pk'])">
+                @for (col of columns(); track col) {
+                  <td>
+                    @if (isBool(col)) {
+                      @if (row[col] === true) {
+                        <span class="bool bool-true">✓</span>
+                      } @else if (row[col] === false) {
+                        <span class="bool bool-false">✕</span>
+                      }
+                    } @else {
+                      {{ cell(row[col]) }}
+                    }
+                  </td>
+                }
+              </tr>
+            } @empty {
+              <tr><td [attr.colspan]="columns().length">No records.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
 
       <footer class="pager">
         <button [disabled]="page() <= 1" (click)="go(page() - 1)">‹ Prev</button>

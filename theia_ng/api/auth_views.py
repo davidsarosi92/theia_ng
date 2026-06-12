@@ -19,12 +19,20 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from theia_ng.permissions import has_access
 
 
+def _first_name(user) -> str | None:
+    """First name for the greeting, if the user model carries one (non-fatal:
+    custom user models may not have ``first_name``)."""
+    name = (getattr(user, "first_name", "") or "").strip()
+    return name or None
+
+
 def _payload(request: HttpRequest) -> dict:
     user = request.user
     authenticated = bool(user.is_authenticated)
     return {
         "authenticated": authenticated,
         "username": user.get_username() if authenticated else None,
+        "first_name": _first_name(user) if authenticated else None,
         "can_access": has_access(request),
     }
 

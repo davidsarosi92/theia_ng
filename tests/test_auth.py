@@ -15,7 +15,7 @@ def test_me_anonymous(client, db):
 
 
 def test_login_then_me_then_logout(client, db):
-    User.objects.create_user("root", password="pw", is_superuser=True)
+    User.objects.create_user("root", password="pw", first_name="Ada", is_superuser=True)
 
     r = client.post(
         "/theia/api/login/",
@@ -23,7 +23,12 @@ def test_login_then_me_then_logout(client, db):
         content_type="application/json",
     )
     assert r.status_code == 200
-    assert r.json() == {"authenticated": True, "username": "root", "can_access": True}
+    assert r.json() == {
+        "authenticated": True,
+        "username": "root",
+        "first_name": "Ada",
+        "can_access": True,
+    }
 
     # session now carries the user
     assert client.get("/theia/api/me/").json()["authenticated"] is True

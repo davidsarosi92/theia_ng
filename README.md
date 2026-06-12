@@ -48,7 +48,11 @@ ships inside the wheel.
   relations), with per-row permission-aware View / Edit / Delete
 - **Menu views** — admin-defined, named subsets of the sidebar (which models, and
   which of their fields), switchable from the top bar; always narrowed by perms
+- **Favorites** — each user stars their own home-page shortcuts (server-side,
+  per user; intersected with what they may see)
 - Session login built into the SPA, gated by the `theia_ng.access` permission
+- **Responsive** throughout: collapsible sidebar (full → compact initials rail →
+  off-canvas drawer on mobile), scrollable tables; a per-user greeting in the bar
 - Sidebar grouped by Django app; sticky top bar with sign-out
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
   both lazy, so the core never imports DRF
