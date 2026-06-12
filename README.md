@@ -32,8 +32,9 @@ ships inside the wheel.
 - Auto-CRUD: list with **search, filtering, sorting, pagination**; create /
   update / delete; custom server-side actions
 - `ModelAdmin`-style config: `list_display` (incl. **computed columns**),
-  `list_filter`, `search_fields`, `ordering`, `readonly_fields`, `exclude`,
-  `raw_id_fields`, `actions`, `relation_filters`
+  `list_filter` (field filters + **custom filters**), `search_fields`,
+  `ordering`, `readonly_fields`, `exclude`, `raw_id_fields`, `actions`,
+  `relation_filters`
 - Searchable, paginated relation pickers (FK single, M2M multi) that load options
   on demand — fine for tables with thousands of rows. Related rows carry
   **View / Edit / Delete** actions (permission-aware) and navigate to the record
@@ -41,6 +42,8 @@ ships inside the wheel.
   always know where you are
 - `get_queryset` and **object-level permissions** hooks for row scoping
 - Per-model display control: `display_field` / `display()` for relation labels
+- **Menu views** — admin-defined, named subsets of the sidebar (which models, and
+  which of their fields), switchable from the top bar; always narrowed by perms
 - Session login built into the SPA, gated by the `theia_ng.access` permission
 - Sidebar grouped by Django app; sticky top bar with sign-out
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
@@ -106,7 +109,8 @@ class CategoryAdmin(theia_ng.ModelAdmin):
     search_fields = ["name"]
 ```
 
-**4. Migrate** (creates the `theia_ng.access` permission):
+**4. Migrate** (creates the `theia_ng.access` permission and the `MenuView`
+table used by sidebar views — run this after upgrading too):
 
 ```bash
 python manage.py migrate
@@ -178,6 +182,49 @@ detail/update/delete too, not just the list:
 def get_queryset(self, request):
     return super().get_queryset(request).filter(company=request.user.company)
 ```
+
+## Custom list filters
+
+Field names in `list_filter` build the obvious filters. For anything else, add a
+`ListFilter` subclass (the equivalent of `django.contrib.admin.SimpleListFilter`)
+— it contributes a labelled dropdown and applies arbitrary queryset logic:
+
+```python
+class HasOrdersFilter(theia_ng.ListFilter):
+    title = "Has orders"
+    parameter_name = "has_orders"
+
+    def lookups(self, request):
+        return [("yes", "Has orders"), ("no", "No orders")]
+
+    def queryset(self, request, queryset, value):
+        if value == "yes":
+            return queryset.filter(orders__isnull=False).distinct()
+        if value == "no":
+            return queryset.filter(orders__isnull=True)
+        return queryset
+
+
+@theia_ng.register(Customer)
+class CustomerAdmin(theia_ng.ModelAdmin):
+    list_filter = ["active", HasOrdersFilter]   # mix field + custom filters
+```
+
+Choices come from `lookups()` (keep them static — they're cached with the
+schema). The filter runs after `get_queryset`, so any annotations are available.
+
+## Menu views
+
+Admins can define named **views** that narrow the left sidebar: which models
+appear, and optionally which of each model's fields are shown (in the list and
+the form). A view only ever *narrows* within what the user may already see —
+permissions are checked first, then the view intersects. Staff switch the active
+view from a dropdown in the top bar; "Full" (everything permitted) is always
+available.
+
+Views are stored in the built-in `MenuView` model and managed through the admin
+itself (no code) — so they're maintainable at runtime. Nothing to configure;
+just `migrate` and a "Menu views" entry appears in the sidebar.
 
 ## Dependent relation options
 

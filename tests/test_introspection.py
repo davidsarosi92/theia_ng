@@ -128,3 +128,73 @@ def test_model_detail_includes_fields_and_relation(admin_request):
 
     # reverse relations (Bundle.stocks -> Stock.bundles) must NOT appear as fields
     assert "bundles" not in fields
+
+
+def test_registry_choice_field_renders_as_model_multiselect(admin_request):
+    from theia_ng.models import MenuView
+
+    detail = build_model_detail(MenuView, site.registry[MenuView], admin_request)
+    field = next(f for f in detail["fields"] if f["name"] == "model_keys")
+    assert field["widget"] == "multiselect"
+    values = {c["value"] for c in field["choices"]}
+    assert "sampleapp.stock" in values  # choices are the registered model keys
+
+
+def test_registry_views_intersected_with_permitted_models(admin_request):
+    from theia_ng.models import MenuView
+
+    MenuView.objects.create(
+        name="Management",
+        model_keys=["sampleapp.stock", "nope.missing"],
+        model_fields={"sampleapp.stock": ["name", "category"], "nope.missing": ["x"]},
+    )
+    payload = build_registry(site, admin_request)
+    views = {v["name"]: v for v in payload["views"]}
+    assert "Management" in views
+    # only keys the user can actually see survive (permissions win)
+    assert views["Management"]["models"] == ["sampleapp.stock"]
+    # per-model field lists, intersected to accessible models too
+    assert views["Management"]["fields"] == {"sampleapp.stock": ["name", "category"]}
+
+
+def test_custom_list_filter_in_ir():
+    import theia_ng
+    from theia_ng.introspection.builder import _model_structure
+
+    class ActiveFilter(theia_ng.ListFilter):
+        title = "Active?"
+        parameter_name = "active_only"
+
+        def lookups(self, request):
+            return [("yes", "Yes"), ("no", "No")]
+
+        def queryset(self, request, queryset, value):
+            return queryset
+
+    class A(theia_ng.ModelAdmin):
+        list_filter = ["is_active", ActiveFilter]
+
+    s = _model_structure(Stock, A(Stock, None))
+    assert s["list"]["filters"] == ["is_active"]  # plain field filter
+    cf = s["list"]["custom_filters"]
+    assert cf == [
+        {
+            "param": "active_only",
+            "label": "Active?",
+            "choices": [{"value": "yes", "label": "Yes"}, {"value": "no", "label": "No"}],
+        }
+    ]
+
+
+def test_model_field_select_widget(admin_request):
+    from theia_ng.models import MenuView
+
+    detail = build_model_detail(MenuView, site.registry[MenuView], admin_request)
+    field = next(f for f in detail["fields"] if f["name"] == "model_fields")
+    assert field["widget"] == "model_field_select"
+    assert field["models_field"] == "model_keys"
+    # field_choices: per registered model, its selectable fields
+    stock = field["field_choices"]["sampleapp.stock"]
+    names = {c["value"] for c in stock["fields"]}
+    assert "name" in names and "category" in names
+    assert "id" not in names  # auto pk excluded

@@ -57,6 +57,13 @@ class ModelAdmin:
     exclude: list[str] = []
     # FK/M2M rendered as a plain id input instead of a searchable picker.
     raw_id_fields: list[str] = []
+    # Fields (typically JSON) whose choices are the registered model keys,
+    # rendered as a multiselect. Used by MenuView to pick sidebar models.
+    registry_choice_fields: list[str] = []
+    # Fields rendered as a per-model field picker (grouped checkboxes), keyed by
+    # the sibling field that holds the selected model keys. Used by MenuView to
+    # pick which fields each included model shows. {field: models_source_field}.
+    model_field_select: dict[str, str] = {}
 
     # --- relation label ----------------------------------------------------
     # How an instance is labelled when shown as a relation option or in an M2M

@@ -1,9 +1,11 @@
-import { Component, Input } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
-import { FieldSpec, RelationValue } from './models';
+import { Choice, FieldSpec, RelationValue } from './models';
 import { RelationSelectComponent } from './relation-select.component';
 import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
+import { cap } from './util';
 
 @Component({
   selector: 'theia-field',
@@ -32,6 +34,43 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
               <option [ngValue]="c.value">{{ c.label }}</option>
             }
           </select>
+        }
+        @case ('multiselect') {
+          <div class="multiselect">
+            @for (c of field.choices ?? []; track c.value) {
+              <label class="ms-opt">
+                <input
+                  type="checkbox"
+                  [checked]="isChecked(c.value)"
+                  [disabled]="control.disabled"
+                  (change)="toggleChoice(c.value, $any($event.target).checked)"
+                />
+                {{ cap(c.label) }}
+              </label>
+            }
+          </div>
+        }
+        @case ('model_field_select') {
+          <!-- For each model selected in the sibling field, pick its fields. -->
+          @for (mk of selectedKeys(); track mk) {
+            <div class="mfs-group">
+              <div class="mfs-title">{{ cap(modelLabel(mk)) }}</div>
+              @for (c of fieldsOf(mk); track c.value) {
+                <label class="ms-opt">
+                  <input
+                    type="checkbox"
+                    [checked]="isFieldChecked(mk, c.value)"
+                    [disabled]="control.disabled"
+                    (change)="toggleField(mk, c.value, $any($event.target).checked)"
+                  />
+                  {{ cap(c.label) }}
+                </label>
+              }
+              <small class="help">Empty = all fields.</small>
+            </div>
+          } @empty {
+            <small class="help">Select models first.</small>
+          }
         }
         @case ('relation') {
           @if (rawInput()) {
@@ -69,14 +108,81 @@ import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
     </div>
   `,
 })
-export class FieldInputComponent {
+export class FieldInputComponent implements OnInit {
   @Input({ required: true }) field!: FieldSpec;
   @Input({ required: true }) control!: FormControl;
   @Input() initial: RelationValue | RelationValue[] | null = null;
   @Input() form?: FormGroup;
+  cap = cap;
+
+  private destroyRef = inject(DestroyRef);
+  /** model_field_select: the model keys currently chosen in the sibling field. */
+  selectedKeys = signal<string[]>([]);
+  /** Bumped on control value changes so checkbox state re-renders (zoneless). */
+  private rev = signal(0);
+
+  ngOnInit(): void {
+    const widget = this.field.widget;
+    if (widget === 'multiselect' || widget === 'model_field_select') {
+      // The form control isn't a signal: re-render checkbox state whenever its
+      // value changes (incl. the async record load and toggles).
+      this.control.valueChanges
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => this.rev.update((n) => n + 1));
+    }
+    if (widget === 'model_field_select' && this.field.models_field && this.form) {
+      const sibling = this.form.get(this.field.models_field);
+      const sync = () =>
+        this.selectedKeys.set(Array.isArray(sibling?.value) ? sibling!.value : []);
+      sync();
+      sibling?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(sync);
+    }
+  }
 
   widgetType(): WidgetKind {
+    // A widget hint (registry_choice_fields / model_field_select) overrides the
+    // type-derived widget.
+    if (this.field.widget === 'multiselect' || this.field.widget === 'model_field_select') {
+      return this.field.widget;
+    }
     return widgetFor(this.field.type);
+  }
+
+  // --- model_field_select (per-model field picker; value = {key: [fields]}) ---
+  modelLabel(modelKey: string): string {
+    return this.field.field_choices?.[modelKey]?.label ?? modelKey;
+  }
+
+  fieldsOf(modelKey: string): Choice[] {
+    return this.field.field_choices?.[modelKey]?.fields ?? [];
+  }
+
+  isFieldChecked(modelKey: string, value: string | number): boolean {
+    this.rev(); // track for re-render in zoneless
+    const map = this.control.value;
+    return Array.isArray(map?.[modelKey]) && map[modelKey].includes(value);
+  }
+
+  toggleField(modelKey: string, value: string | number, checked: boolean): void {
+    const map = { ...(this.control.value || {}) } as Record<string, unknown[]>;
+    const cur = Array.isArray(map[modelKey]) ? [...map[modelKey]] : [];
+    map[modelKey] = checked ? [...new Set([...cur, value])] : cur.filter((x) => x !== value);
+    this.control.setValue(map);
+    this.control.markAsDirty();
+  }
+
+  // --- multiselect (array-valued checkbox group) ---------------------------
+  isChecked(value: string | number): boolean {
+    this.rev(); // track for re-render in zoneless
+    const v = this.control.value;
+    return Array.isArray(v) && v.includes(value);
+  }
+
+  toggleChoice(value: string | number, checked: boolean): void {
+    const cur: unknown[] = Array.isArray(this.control.value) ? [...this.control.value] : [];
+    const next = checked ? [...new Set([...cur, value])] : cur.filter((x) => x !== value);
+    this.control.setValue(next);
+    this.control.markAsDirty();
   }
 
   inputType(): string {

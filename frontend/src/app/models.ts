@@ -21,10 +21,20 @@ export interface RegistryModel {
   perms: Perms;
 }
 
+/** An admin-defined sidebar view: a named subset of model keys (already
+ *  intersected server-side with what the user may see), plus optional per-model
+ *  visible-field lists ({model key -> field names}; missing/empty = all). */
+export interface MenuView {
+  name: string;
+  models: string[];
+  fields?: Record<string, string[]>;
+}
+
 export interface Registry {
   schema_version: string;
   site: { title: string };
   models: RegistryModel[];
+  views: MenuView[];
 }
 
 export interface Choice {
@@ -59,6 +69,18 @@ export interface FieldSpec {
   choices?: Choice[];
   relation?: Relation;
   constraints?: { max_length?: number };
+  /** model_field_select widget: {model key -> {label, fields}} of selectable fields. */
+  field_choices?: Record<string, { label: string; fields: Choice[] }>;
+  /** model_field_select widget: sibling field name holding the selected model keys. */
+  models_field?: string;
+}
+
+/** A custom list filter (theia_ng.ListFilter): a labelled choice dropdown whose
+ *  value is sent as `param` and applied server-side. */
+export interface CustomFilter {
+  param: string;
+  label: string;
+  choices: Choice[];
 }
 
 export interface ListConfig {
@@ -66,6 +88,7 @@ export interface ListConfig {
   /** Column name -> header label (fields humanized, computed columns' short_description). */
   labels: Record<string, string>;
   filters: string[];
+  custom_filters?: CustomFilter[];
   search_fields: string[];
   ordering: string[];
   per_page: number;

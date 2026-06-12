@@ -1,7 +1,14 @@
 /** Pure type -> widget mapping for the 16 IR field types (unit-testable). */
 import { FieldType } from './models';
 
-export type WidgetKind = 'textarea' | 'checkbox' | 'select' | 'relation' | 'input';
+export type WidgetKind =
+  | 'textarea'
+  | 'checkbox'
+  | 'select'
+  | 'multiselect'
+  | 'model_field_select'
+  | 'relation'
+  | 'input';
 
 export function widgetFor(type: FieldType): WidgetKind {
   switch (type) {

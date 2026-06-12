@@ -5,6 +5,7 @@ import { ApiService } from './api.service';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { FieldSpec, ModelSchema } from './models';
 import { cap, slugToKey } from './util';
+import { ViewService } from './view.service';
 
 @Component({
   selector: 'theia-model-list',
@@ -21,7 +22,7 @@ import { cap, slugToKey } from './util';
       <header class="list-header">
         <h2>{{ cap(s.verbose_name) }}</h2>
         <div class="list-actions">
-          @if (s.list.filters.length) {
+          @if (s.list.filters.length || s.list.custom_filters?.length) {
             <button class="btn secondary" (click)="showFilter.set(true)">+ Filter</button>
           }
           @if (s.perms.add) {
@@ -110,6 +111,7 @@ export class ModelListComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private viewService = inject(ViewService);
 
   modelKey = '';
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
@@ -164,6 +166,11 @@ export class ModelListComponent implements OnInit {
   }
 
   columns(): string[] {
+    // The active view, if any, defines the visible columns; else list_display.
+    const viewFields = this.viewService.fieldsFor(this.modelKey);
+    if (viewFields) {
+      return viewFields;
+    }
     const display = this.schema()?.list.display ?? [];
     return display.length ? display : ['pk'];
   }
@@ -182,7 +189,7 @@ export class ModelListComponent implements OnInit {
   }
 
   colLabel(col: string): string {
-    return this.schema()?.list.labels?.[col] ?? col;
+    return this.schema()?.list.labels?.[col] ?? this.fieldByName(col)?.label ?? col;
   }
 
   sortIndicator(col: string): string {

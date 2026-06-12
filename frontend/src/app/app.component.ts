@@ -6,6 +6,7 @@ import { LoginComponent } from './login.component';
 import { RegistryModel } from './models';
 import { getConfig } from './theia-config';
 import { cap, keyToSlug } from './util';
+import { ViewService } from './view.service';
 
 interface AppGroup {
   appLabel: string;
@@ -24,6 +25,18 @@ interface AppGroup {
           <header class="topbar">
             <span class="topbar-title">{{ siteTitle }}</span>
             <div class="topbar-right">
+              @if (vs.views().length) {
+                <select
+                  class="view-select"
+                  [value]="vs.active()"
+                  (change)="vs.setActive($any($event.target).value)"
+                >
+                  <option value="">Full</option>
+                  @for (v of vs.views(); track v.name) {
+                    <option [value]="v.name">{{ v.name }}</option>
+                  }
+                </select>
+              }
               <span class="username">{{ username() }}</span>
               <button class="link-btn" (click)="logout()">Sign out</button>
             </div>
@@ -53,6 +66,7 @@ interface AppGroup {
 })
 export class AppComponent implements OnInit {
   private api = inject(ApiService);
+  protected vs = inject(ViewService);
   siteTitle = getConfig().siteTitle;
   cap = cap;
   slug = keyToSlug;
@@ -61,10 +75,10 @@ export class AppComponent implements OnInit {
   canAccess = signal(false);
   username = signal<string | null>(null);
 
-  /** Models grouped by Django app, preserving registration order. */
+  /** Visible models (permitted set, narrowed by the active view) grouped by app. */
   groups = computed<AppGroup[]>(() => {
     const map = new Map<string, AppGroup>();
-    for (const m of this.models()) {
+    for (const m of this.vs.filterModels(this.models())) {
       let group = map.get(m.app_label);
       if (!group) {
         group = { appLabel: m.app_label, appName: m.app_verbose_name, models: [] };
@@ -113,8 +127,12 @@ export class AppComponent implements OnInit {
       next: (r) => {
         this.siteTitle = r.site.title || this.siteTitle;
         this.models.set(r.models);
+        this.vs.setViews(r.views ?? []);
       },
-      error: () => this.models.set([]),
+      error: () => {
+        this.models.set([]);
+        this.vs.setViews([]);
+      },
     });
   }
 }

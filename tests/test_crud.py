@@ -174,6 +174,28 @@ def test_object_level_permission_denies_update(admin_client, category, monkeypat
     assert resp.status_code == 403
 
 
+def test_custom_list_filter_applied(admin_client, category, monkeypatch):
+    import theia_ng
+
+    Stock.objects.create(name="A", category=category, is_active=True)
+    Stock.objects.create(name="B", category=category, is_active=False)
+
+    class OnlyActive(theia_ng.ListFilter):
+        title = "Active"
+        parameter_name = "only_active"
+
+        def lookups(self, request):
+            return [("1", "Active")]
+
+        def queryset(self, request, queryset, value):
+            return queryset.filter(is_active=True) if value == "1" else queryset
+
+    admin = _stock_admin()
+    monkeypatch.setattr(admin, "list_filter", [*admin.list_filter, OnlyActive])
+    resp = admin_client.get(LIST, {"only_active": "1"})
+    assert {r["name"] for r in resp.json()["results"]} == {"A"}
+
+
 def test_computed_list_display_column(admin_client, category, monkeypatch):
     Stock.objects.create(name="Beer", category=category)
     admin = _stock_admin()

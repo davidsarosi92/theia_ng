@@ -2,14 +2,29 @@ import { Component, Input, output, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 
 import { FieldInputComponent } from './field-input.component';
-import { FieldSpec, ModelSchema } from './models';
+import { CustomFilter, FieldSpec, ModelSchema } from './models';
 
 export interface AppliedFilter {
+  /** Query-param key: a field name, or a custom filter's param. */
   field: string;
   label: string;
   value: unknown;
   display: string;
 }
+
+interface FieldEntry {
+  kind: 'field';
+  key: string;
+  label: string;
+  field: FieldSpec;
+}
+interface CustomEntry {
+  kind: 'custom';
+  key: string;
+  label: string;
+  filter: CustomFilter;
+}
+type Entry = FieldEntry | CustomEntry;
 
 @Component({
   selector: 'theia-filter-dialog',
@@ -22,20 +37,32 @@ export interface AppliedFilter {
 
       <label class="field">
         <span class="field-label">Field</span>
-        <select [value]="selectedName()" (change)="selectField($any($event.target).value)">
+        <select [value]="selectedKey()" (change)="select($any($event.target).value)">
           <option value="">— choose —</option>
-          @for (f of filterable(); track f.name) {
-            <option [value]="f.name">{{ f.label }}</option>
+          @for (e of entries(); track e.key) {
+            <option [value]="e.key">{{ e.label }}</option>
           }
         </select>
       </label>
 
-      @if (selectedField(); as f) {
-        <theia-field [field]="f" [control]="valueControl" />
+      @if (current(); as e) {
+        @if (e.kind === 'field') {
+          <theia-field [field]="e.field" [control]="valueControl" />
+        } @else {
+          <label class="field">
+            <span class="field-label">{{ e.label }}</span>
+            <select [formControl]="valueControl">
+              <option [ngValue]="null">—</option>
+              @for (c of e.filter.choices; track c.value) {
+                <option [ngValue]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </label>
+        }
       }
 
       <div class="actions">
-        <button type="button" class="btn" [disabled]="!selectedName()" (click)="apply()">OK</button>
+        <button type="button" class="btn" [disabled]="!selectedKey()" (click)="apply()">OK</button>
         <button type="button" (click)="closed.emit()">Cancel</button>
       </div>
     </div>
@@ -46,35 +73,56 @@ export class FilterDialogComponent {
   applied = output<AppliedFilter>();
   closed = output<void>();
 
-  selectedName = signal('');
+  selectedKey = signal('');
   valueControl = new FormControl<unknown>(null);
 
-  filterable(): FieldSpec[] {
-    const names = new Set(this.schema.list.filters);
-    return this.schema.fields.filter((f) => names.has(f.name));
+  /** Field filters + custom filters, keyed `field:<name>` / `custom:<param>`. */
+  entries(): Entry[] {
+    const fieldNames = new Set(this.schema.list.filters);
+    const fields: Entry[] = this.schema.fields
+      .filter((f) => fieldNames.has(f.name))
+      .map((f) => ({ kind: 'field', key: 'field:' + f.name, label: f.label, field: f }));
+    const customs: Entry[] = (this.schema.list.custom_filters ?? []).map((cf) => ({
+      kind: 'custom',
+      key: 'custom:' + cf.param,
+      label: cf.label,
+      filter: cf,
+    }));
+    return [...fields, ...customs];
   }
 
-  selectedField(): FieldSpec | undefined {
-    return this.schema.fields.find((f) => f.name === this.selectedName());
+  current(): Entry | undefined {
+    return this.entries().find((e) => e.key === this.selectedKey());
   }
 
-  selectField(name: string): void {
-    this.selectedName.set(name);
-    const f = this.selectedField();
-    this.valueControl = new FormControl<unknown>(f?.type === 'boolean' ? false : null);
+  select(key: string): void {
+    this.selectedKey.set(key);
+    const e = this.current();
+    const boolField = e?.kind === 'field' && e.field.type === 'boolean';
+    this.valueControl = new FormControl<unknown>(boolField ? false : null);
   }
 
   apply(): void {
-    const f = this.selectedField();
-    if (!f) {
+    const e = this.current();
+    if (!e) {
       return;
     }
     const value = this.valueControl.value;
-    this.applied.emit({ field: f.name, label: f.label, value, display: this.display(f, value) });
+    if (e.kind === 'field') {
+      this.applied.emit({
+        field: e.field.name,
+        label: e.field.label,
+        value,
+        display: this.fieldDisplay(e.field, value),
+      });
+    } else {
+      const label = e.filter.choices.find((c) => c.value === value)?.label ?? String(value);
+      this.applied.emit({ field: e.filter.param, label: e.label, value, display: label });
+    }
     this.closed.emit();
   }
 
-  private display(f: FieldSpec, value: unknown): string {
+  private fieldDisplay(f: FieldSpec, value: unknown): string {
     if (f.type === 'boolean') {
       return value ? 'Yes' : 'No';
     }

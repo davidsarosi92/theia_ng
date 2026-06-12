@@ -36,10 +36,12 @@ def editable_fields(model: type[models.Model], admin: ModelAdmin) -> list[models
     skip = set(admin.readonly_fields) | set(admin.exclude)
     out: list[models.Field] = []
     for field in model._meta.get_fields():
+        if getattr(field, "auto_created", False) or field.name in skip:
+            continue
         if isinstance(field, models.ManyToManyField):
-            if field.editable and field.name not in skip:
+            if field.editable:
                 out.append(field)
-        elif getattr(field, "concrete", False) and field.editable and field.name not in skip:
+        elif getattr(field, "concrete", False) and field.editable:
             out.append(field)
     return out
 

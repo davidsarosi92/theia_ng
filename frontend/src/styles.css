@@ -239,3 +239,23 @@ body {
 .bool { font-weight: 700; }
 .bool-true { color: #2f9e44; }
 .bool-false { color: #e03131; }
+
+/* top-bar view selector */
+.view-select {
+  font: inherit; font-size: 0.85rem; padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer;
+}
+
+/* multiselect (checkbox group, e.g. MenuView models) */
+.multiselect {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem;
+  max-height: 260px; overflow-y: auto;
+}
+.ms-opt { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 400; cursor: pointer; }
+.ms-opt input[type="checkbox"] { width: auto; }
+
+/* model_field_select: per-model field groups */
+.mfs-group { border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; }
+.mfs-title { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.3rem; }
+.mfs-group .ms-opt { font-size: 0.85rem; }

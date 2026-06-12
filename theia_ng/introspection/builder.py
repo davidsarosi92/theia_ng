@@ -72,7 +72,29 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "site": {"title": site.site_title},
         "models": models_out,
+        "views": _menu_views({m["key"] for m in models_out}),
     }
+
+
+def _menu_views(accessible: set[str]) -> list[dict[str, Any]]:
+    """Admin-defined sidebar views, with each one's model keys intersected with
+    what the user may actually see (permissions win over views)."""
+    try:
+        from theia_ng.models import MenuView
+
+        return [
+            {
+                "name": v.name,
+                "models": [k for k in (v.model_keys or []) if k in accessible],
+                "fields": {
+                    k: f for k, f in (v.model_fields or {}).items() if k in accessible
+                },
+            }
+            for v in MenuView.objects.all()
+        ]
+    except Exception:
+        # Table not migrated yet, or DB unavailable — fall back to no views.
+        return []
 
 
 def _relation_display_field(target: type[Model]) -> str:
@@ -137,6 +159,38 @@ def _serialize_default(field: Field) -> Any:
     return None  # non-scalar default (e.g. list/dict) — let the form start empty
 
 
+def _model_field_options(model: type[Model]) -> list[dict[str, str]]:
+    """Selectable fields of a model (name + label) for the per-model field picker."""
+    out: list[dict[str, str]] = []
+    for f in [*model._meta.concrete_fields, *model._meta.many_to_many]:
+        if getattr(f, "auto_created", False):
+            continue
+        out.append({"value": f.name, "label": _humanize_label(f)})
+    return out
+
+
+def _split_filters(admin: ModelAdmin) -> tuple[list[str], list[dict[str, Any]]]:
+    """Split ``list_filter`` into plain field names and custom ListFilter
+    descriptors (param + title + static choices)."""
+    from theia_ng.filters import ListFilter
+
+    fields: list[str] = []
+    custom: list[dict[str, Any]] = []
+    for entry in admin.list_filter:
+        if isinstance(entry, type) and issubclass(entry, ListFilter):
+            inst = entry()
+            custom.append({
+                "param": inst.parameter_name,
+                "label": str(inst.title),
+                "choices": [
+                    {"value": value, "label": str(label)} for value, label in inst.lookups(None)
+                ],
+            })
+        else:
+            fields.append(entry)
+    return fields, custom
+
+
 def _titleize(name: str) -> str:
     """`full_name` -> `Full Name` (label for a computed list_display column)."""
     return name.replace("_", " ").title()
@@ -177,7 +231,9 @@ def _field_descriptor(field: Field, source: type[Model], admin: ModelAdmin) -> d
         "label": _humanize_label(field),
         "type": ftype.value,
         "required": not field.blank,
-        "editable": field.editable,
+        # auto-created fields (the auto pk `id`) are never form-editable, matching
+        # Django's ModelForm — they stay in the IR (for list_display) but out of the form.
+        "editable": field.editable and not field.auto_created,
         # read_only = "show in the form but disabled" (set for readonly_fields).
         # Plain non-editable fields (auto pk/timestamps) just stay out of the form
         # via editable=False; only readonly_fields opt them back in, read-only.
@@ -190,6 +246,28 @@ def _field_descriptor(field: Field, source: type[Model], admin: ModelAdmin) -> d
         out["choices"] = [
             {"value": value, "label": str(label)} for value, label in field.choices
         ]
+    if field.name in (admin.registry_choice_fields or []):
+        # Multiselect of registered model keys (e.g. MenuView.model_keys).
+        from theia_ng.registry import site
+
+        out["widget"] = "multiselect"
+        out["choices"] = [
+            {"value": _model_key(m), "label": str(m._meta.verbose_name)} for m in site.registry
+        ]
+    if field.name in (admin.model_field_select or {}):
+        # Per-model field picker (e.g. MenuView.model_fields), reading the sibling
+        # that holds the selected model keys.
+        from theia_ng.registry import site
+
+        out["widget"] = "model_field_select"
+        out["models_field"] = admin.model_field_select[field.name]
+        out["field_choices"] = {
+            _model_key(m): {
+                "label": str(m._meta.verbose_name),
+                "fields": _model_field_options(m),
+            }
+            for m in site.registry
+        }
     if ftype in (FieldType.FK, FieldType.M2M):
         out["relation"] = _relation_descriptor(field, ftype, source, admin)
     if max_length := getattr(field, "max_length", None):
@@ -231,6 +309,8 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
 
         enrich_fields_from_openapi(fields, admin.openapi_schema, admin.openapi_component)
 
+    _field_filters, _custom_filters = _split_filters(admin)
+
     return {
         "schema_version": SCHEMA_VERSION,
         "key": key,
@@ -242,7 +322,8 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         "list": {
             "display": list(admin.list_display),
             "labels": {name: _column_label(model, admin, name) for name in admin.list_display},
-            "filters": list(admin.list_filter),
+            "filters": _field_filters,
+            "custom_filters": _custom_filters,
             "search_fields": list(admin.search_fields),
             "ordering": list(admin.ordering),
             "per_page": admin.list_per_page,

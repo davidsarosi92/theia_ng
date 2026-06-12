@@ -66,6 +66,13 @@ def _jsonable(value: Any) -> Any:
     return str(value)
 
 
+def _custom_filter_instances(admin) -> list:
+    """Instances of the custom ListFilter subclasses declared in ``list_filter``."""
+    from theia_ng.filters import ListFilter
+
+    return [f() for f in admin.list_filter if isinstance(f, type) and issubclass(f, ListFilter)]
+
+
 def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
     """Add computed ``list_display`` columns (admin methods / model attrs) to a
     serialized row. Real model fields are already present from the adapter."""
@@ -125,6 +132,8 @@ class DataListView(_BaseModelView):
         # filters
         try:
             for name in self.admin.list_filter:
+                if not isinstance(name, str):
+                    continue  # custom ListFilter classes are applied below
                 if name in request.GET:
                     value: object = request.GET[name]
                     try:
@@ -134,6 +143,11 @@ class DataListView(_BaseModelView):
                     except FieldDoesNotExist:
                         pass
                     qs = qs.filter(**{name: value})
+
+            # custom filters (theia_ng.ListFilter subclasses in list_filter)
+            for flt in _custom_filter_instances(self.admin):
+                if flt.parameter_name in request.GET:
+                    qs = flt.queryset(request, qs, request.GET[flt.parameter_name])
 
             # ordering
             ordering = request.GET.get("ordering")

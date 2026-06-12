@@ -6,6 +6,7 @@ import { ApiService } from './api.service';
 import { FieldInputComponent } from './field-input.component';
 import { FieldSpec, ModelSchema, RelationValue } from './models';
 import { cap, slugToKey } from './util';
+import { ViewService } from './view.service';
 
 @Component({
   selector: 'theia-model-detail',
@@ -60,6 +61,7 @@ export class ModelDetailComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private viewService = inject(ViewService);
 
   modelKey = '';
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
@@ -111,7 +113,8 @@ export class ModelDetailComponent implements OnInit {
     } else {
       this.form.enable({ emitEvent: false });
     }
-    for (const field of this.formFields()) {
+    // Read-only fields stay disabled regardless of view filtering.
+    for (const field of this.schema()?.fields ?? []) {
       if (field.read_only) {
         this.controlFor(field.name)?.disable({ emitEvent: false });
       }
@@ -127,9 +130,17 @@ export class ModelDetailComponent implements OnInit {
   }
 
   /** Fields shown in the form: editable ones, plus read-only fields (shown
-   *  disabled, e.g. audit fields). Plain non-editable fields stay hidden. */
+   *  disabled, e.g. audit fields). Plain non-editable fields stay hidden.
+   *  The active view narrows this further; hidden fields keep their value (not
+   *  edited). On create, required fields are always shown so saving works. */
   formFields(): FieldSpec[] {
-    return (this.schema()?.fields ?? []).filter((f) => f.editable || f.read_only);
+    const base = (this.schema()?.fields ?? []).filter((f) => f.editable || f.read_only);
+    const viewFields = this.viewService.fieldsFor(this.modelKey);
+    if (!viewFields) {
+      return base;
+    }
+    const allowed = new Set(viewFields);
+    return base.filter((f) => allowed.has(f.name) || (this.isNew && f.required));
   }
 
   controlFor(name: string): FormControl {
@@ -148,7 +159,9 @@ export class ModelDetailComponent implements OnInit {
     const group: Record<string, FormControl> = {};
     for (const field of s.fields) {
       if (field.editable || field.read_only) {
-        const initial = field.type === 'm2m' ? [] : field.default ?? null;
+        const isArray = field.type === 'm2m' || field.widget === 'multiselect';
+        const isObject = field.widget === 'model_field_select';
+        const initial = isArray ? [] : isObject ? {} : field.default ?? null;
         group[field.name] = new FormControl(initial);
       }
     }
@@ -182,6 +195,7 @@ export class ModelDetailComponent implements OnInit {
     obs.subscribe({
       next: () => {
         this.saving.set(false);
+        this.refreshViewsIfNeeded();
         this.back();
       },
       error: (err) => {
@@ -195,7 +209,17 @@ export class ModelDetailComponent implements OnInit {
     if (!confirm('Delete this record?')) {
       return;
     }
-    this.api.remove(this.modelKey, this.pk).subscribe(() => this.back());
+    this.api.remove(this.modelKey, this.pk).subscribe(() => {
+      this.refreshViewsIfNeeded();
+      this.back();
+    });
+  }
+
+  /** Editing the MenuView model changes the sidebar views — refresh them. */
+  private refreshViewsIfNeeded(): void {
+    if (this.modelKey === 'theia_ng.menuview') {
+      this.viewService.reload();
+    }
   }
 
   back(): void {
