@@ -2,7 +2,15 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, shareReplay } from 'rxjs';
 
-import { AuthState, ListResponse, ModelSchema, Perms, Registry } from './models';
+import {
+  AuthState,
+  ListResponse,
+  ModelSchema,
+  Perms,
+  Registry,
+  TreeChildrenResponse,
+  TreeResponse,
+} from './models';
 import { getConfig } from './theia-config';
 
 @Injectable({ providedIn: 'root' })
@@ -72,6 +80,35 @@ export class ApiService {
 
   remove(key: string, pk: string): Observable<unknown> {
     return this.http.delete(this.url(`data/${key}/${pk}/`));
+  }
+
+  /** The hierarchy tree rooted at this record's topmost ancestor. */
+  tree(key: string, pk: string): Observable<TreeResponse> {
+    return this.http.get<TreeResponse>(this.url(`tree/${key}/${pk}/`));
+  }
+
+  /** One child group of a tree node: searched + paginated, `focus` jumps to the
+   *  page holding that child pk (for auto-expanding the lineage). */
+  treeChildren(
+    key: string,
+    pk: string | number,
+    accessor: string,
+    opts: { page?: number; search?: string; focus?: string | number } = {},
+  ): Observable<TreeChildrenResponse> {
+    let params = new HttpParams();
+    if (opts.page) {
+      params = params.set('page', String(opts.page));
+    }
+    if (opts.search) {
+      params = params.set('search', opts.search);
+    }
+    if (opts.focus !== undefined && opts.focus !== null && !opts.search) {
+      params = params.set('focus', String(opts.focus));
+    }
+    return this.http.get<TreeChildrenResponse>(
+      this.url(`tree-children/${key}/${pk}/${accessor}/`),
+      { params },
+    );
   }
 
   /** Fetch a page of relation options. `endpoint` is the IR's options_endpoint.

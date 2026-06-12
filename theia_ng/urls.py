@@ -19,6 +19,8 @@ from theia_ng.api.crud_views import (
     DataDetailView,
     DataListView,
     RelationOptionsView,
+    TreeChildrenView,
+    TreeView,
 )
 from theia_ng.views import spa
 
@@ -37,6 +39,12 @@ api_patterns = [
         rf"^relation-options/{_KEY}/(?P<field>[a-zA-Z0-9_]+)/$",
         RelationOptionsView.as_view(),
         name="relation-options",
+    ),
+    re_path(rf"^tree/{_KEY}/(?P<pk>[^/]+)/$", TreeView.as_view(), name="tree"),
+    re_path(
+        rf"^tree-children/{_KEY}/(?P<pk>[^/]+)/(?P<accessor>[a-zA-Z0-9_]+)/$",
+        TreeChildrenView.as_view(),
+        name="tree-children",
     ),
     re_path(rf"^data/{_KEY}/$", DataListView.as_view(), name="data-list"),
     re_path(rf"^data/{_KEY}/(?P<pk>[^/]+)/$", DataDetailView.as_view(), name="data-detail"),

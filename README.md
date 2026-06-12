@@ -42,6 +42,10 @@ ships inside the wheel.
   always know where you are
 - `get_queryset` and **object-level permissions** hooks for row scoping
 - Per-model display control: `display_field` / `display()` for relation labels
+- **Hierarchy tree** — render a record inside a parent→children tree
+  (`tree_parent` / `tree_children`), always from the topmost ancestor. Children
+  load **lazily** as searchable, paginated mini-tables (scales to thousands of
+  relations), with per-row permission-aware View / Edit / Delete
 - **Menu views** — admin-defined, named subsets of the sidebar (which models, and
   which of their fields), switchable from the top bar; always narrowed by perms
 - Session login built into the SPA, gated by the `theia_ng.access` permission
@@ -244,6 +248,48 @@ This loads `Space.objects.filter(house=<the form's current house value>)`. The
 picker re-fetches when `house` changes, and shows nothing until it is set. The
 filter lookups are **server-defined** (the client only sends the sibling
 values), so it can't be used to query arbitrary fields.
+
+## Hierarchy tree
+
+Show a record inside a parent→children tree — e.g. a multi-tenant
+`Registration → Company → House → Space` hierarchy. Each model declares the
+forward FK up to its parent (`tree_parent`) and the reverse accessors down to
+its children (`tree_children`):
+
+```python
+@theia_ng.register(Registration)
+class RegistrationAdmin(theia_ng.ModelAdmin):
+    tree_children = ["companies"]          # reverse accessor (related_name)
+
+@theia_ng.register(Company)
+class CompanyAdmin(theia_ng.ModelAdmin):
+    tree_parent = "registration"
+    tree_children = ["houses"]
+
+@theia_ng.register(House)
+class HouseAdmin(theia_ng.ModelAdmin):
+    tree_parent = "company"
+    tree_children = ["spaces"]
+
+@theia_ng.register(Space)
+class SpaceAdmin(theia_ng.ModelAdmin):
+    tree_parent = "house"                   # leaf
+```
+
+Any model with `tree_parent` and/or `tree_children` gets a **Hierarchy** button
+on its detail page. The tree always renders from the **topmost ancestor**,
+regardless of which level you opened it from (open it on a `Space` and you still
+see the whole `Registration` tree, with the lineage auto-expanded down to that
+`Space` and highlighted).
+
+Children **load lazily**: each node shows its child relations as collapsed
+groups with a count; expanding one fetches a **searchable, paginated mini-table**
+(server-side search over the child's `search_fields`, page size = its
+`list_per_page`). Nothing is loaded until you open it, so a node with thousands
+of children stays fast. Each row carries permission-aware **View / Edit /
+Delete** actions, and a child group is hidden entirely if the user can't view
+that model. `tree_children` uses Django's reverse accessor names (the
+`related_name`, or the default `<model>_set`).
 
 ## Optional: DRF delegation
 

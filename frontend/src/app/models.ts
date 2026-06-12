@@ -103,6 +103,53 @@ export interface ModelSchema {
   list: ListConfig;
   fields: FieldSpec[];
   actions: { key: string; label: string; endpoint: string }[];
+  /** Whether this model participates in a hierarchy tree (offers a Hierarchy view). */
+  tree?: boolean;
+}
+
+/** One child relation of a tree node: its target + a count (records load lazily). */
+export interface ChildGroup {
+  /** Reverse accessor name on the parent (e.g. "space_set"). */
+  accessor: string;
+  /** Child model key (app.model). */
+  key: string;
+  /** Plural verbose name, e.g. "spaces". */
+  label: string;
+  count: number;
+  searchable: boolean;
+}
+
+/** A node in the hierarchy tree (theia_ng.introspection.tree). Children are not
+ *  inlined — each child group loads on demand via the tree-children endpoint. */
+export interface TreeNode {
+  key: string;
+  /** Model verbose_name, e.g. "house". */
+  model_label: string;
+  pk: number | string;
+  /** Human label for the record (the target's display()). */
+  label: string;
+  perms: { view: boolean; change: boolean; delete: boolean };
+  /** True for the record the tree was opened from. */
+  is_current: boolean;
+  child_groups: ChildGroup[];
+}
+
+export interface TreeResponse {
+  schema_version: string;
+  root: TreeNode;
+  /** The lineage from root → opened record ({key, pk} each), for auto-expansion. */
+  path: { key: string; pk: number | string }[];
+  current: { key: string; pk: number | string };
+}
+
+/** A page of one child group (searched + paginated). */
+export interface TreeChildrenResponse {
+  key: string;
+  accessor: string;
+  count: number;
+  page: number;
+  num_pages: number;
+  results: TreeNode[];
 }
 
 /** Relation values serialize as { id, label }; lists for m2m. */

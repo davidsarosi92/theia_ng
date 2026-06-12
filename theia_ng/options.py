@@ -75,6 +75,21 @@ class ModelAdmin:
     # --- custom actions (server-side) -------------------------------------
     actions: list[str] = []
 
+    # --- hierarchy tree ----------------------------------------------------
+    # Render this model inside a parent→children tree (e.g. Registration →
+    # Company → House → Space). The tree always renders from the topmost
+    # ancestor, regardless of which level you opened it from.
+    #
+    # ``tree_parent`` — the forward FK field name leading up to the parent in
+    # the hierarchy (``None`` on the root model).
+    # ``tree_children`` — reverse-relation accessor names leading down to the
+    # children (Django's ``related_name``, or the default ``<model>_set``).
+    #
+    # e.g. on a House:  tree_parent = "company";  tree_children = ["spaces"]
+    # A model with either set advertises a "Hierarchy" view in the SPA.
+    tree_parent: str | None = None
+    tree_children: list[str] = []
+
     # --- dependent relation options --------------------------------------
     # Limit a relation field's options by sibling field values of the record
     # being edited. Maps relation field name -> {target_lookup: source_field}.

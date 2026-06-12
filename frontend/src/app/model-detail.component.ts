@@ -24,7 +24,12 @@ import { ViewService } from './view.service';
 
       <header class="list-header">
         <h2>{{ leaf }} {{ cap(s.verbose_name) }}</h2>
-        <button type="button" class="btn secondary" (click)="back()">← Back</button>
+        <div class="list-actions">
+          @if (s.tree && !isNew) {
+            <a class="btn secondary" [routerLink]="['/', slug, pk, 'tree']" [queryParams]="{ ret: here() }">Hierarchy</a>
+          }
+          <button type="button" class="btn secondary" (click)="back()">← Back</button>
+        </div>
       </header>
 
       @if (errors()['__all__']; as nonField) {
@@ -103,6 +108,11 @@ export class ModelDetailComponent implements OnInit {
 
   get leaf(): string {
     return this.isNew ? 'New' : this.viewMode ? 'View' : 'Edit';
+  }
+
+  /** This page's URL, passed to the tree as `ret` so its Back returns here. */
+  here(): string {
+    return this.router.url;
   }
 
   /** Disable the form in view mode, enable it otherwise. Read-only fields stay

@@ -14,6 +14,8 @@ class StockAdmin(theia_ng.ModelAdmin):
     actions = ["deactivate"]
     # Only show Spaces that belong to the Stock's currently-selected house.
     relation_filters = {"spaces": {"house": "house"}}
+    # Leaf of the House → Space/Stock hierarchy (default reverse accessor: stock_set).
+    tree_parent = "house"
 
     def deactivate(self, request, queryset):
         return {"updated": queryset.update(is_active=False)}
@@ -23,12 +25,15 @@ class StockAdmin(theia_ng.ModelAdmin):
 class HouseAdmin(theia_ng.ModelAdmin):
     list_display = ["name"]
     search_fields = ["name"]
+    # Root of the hierarchy: Houses own Spaces (related_name="spaces") and Stocks.
+    tree_children = ["spaces", "stock_set"]
 
 
 @theia_ng.register(Space)
 class SpaceAdmin(theia_ng.ModelAdmin):
     list_display = ["name", "house"]
     search_fields = ["name"]
+    tree_parent = "house"
 
 
 @theia_ng.register(Category)

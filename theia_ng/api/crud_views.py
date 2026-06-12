@@ -306,6 +306,68 @@ class RelationOptionsView(View):
         )
 
 
+class TreeView(_BaseModelView):
+    """The hierarchy tree rooted at a record's topmost ancestor.
+
+    Walks up ``tree_parent`` to the root, then down ``tree_children``, returning
+    a nested structure with per-node object-level perms. The opened record is
+    flagged ``is_current`` so the SPA can highlight it.
+    """
+
+    def get(self, request: HttpRequest, model_key: str, pk: str):
+        from theia_ng.introspection.tree import build_tree
+
+        try:
+            instance = self.admin.get_queryset(request).get(pk=pk)
+        except self.model.DoesNotExist:
+            raise Http404(f"{self.model._meta.object_name} {pk!r} not found")
+        if not self.admin.has_view_permission(request, instance):
+            return _forbidden()
+        return JsonResponse(build_tree(self.model, self.admin, instance, request))
+
+
+class TreeChildrenView(_BaseModelView):
+    """One child group of a tree node — searched and paginated.
+
+    Backs the lazy mini-tables: ``?page=`` and ``?search=`` page/filter the
+    children, ``?focus=<pk>`` jumps to the page holding that child (so the SPA
+    can auto-expand the lineage down to the opened record).
+    """
+
+    def get(self, request: HttpRequest, model_key: str, pk: str, accessor: str):
+        from theia_ng.introspection.tree import ChildAccessDenied, build_children
+
+        try:
+            instance = self.admin.get_queryset(request).get(pk=pk)
+        except self.model.DoesNotExist:
+            raise Http404(f"{self.model._meta.object_name} {pk!r} not found")
+        if not self.admin.has_view_permission(request, instance):
+            return _forbidden()
+        if accessor not in (self.admin.tree_children or []):
+            raise Http404(f"{accessor!r} is not a tree child of {model_key}")
+
+        try:
+            page = int(request.GET.get("page", 1) or 1)
+        except ValueError:
+            page = 1
+        try:
+            data = build_children(
+                self.model,
+                self.admin,
+                instance,
+                accessor,
+                request,
+                page=page,
+                search=request.GET.get("search", "") or "",
+                focus=request.GET.get("focus") or None,
+            )
+        except LookupError:
+            raise Http404(f"Unknown child relation {accessor!r}")
+        except ChildAccessDenied:
+            return _forbidden()
+        return JsonResponse(data)
+
+
 class ActionView(_BaseModelView):
     """Run a custom ModelAdmin action over a selection of objects.
 

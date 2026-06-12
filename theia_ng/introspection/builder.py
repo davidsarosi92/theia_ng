@@ -330,6 +330,9 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         },
         "fields": fields,
         "actions": [{"key": a, "label": a, "endpoint": f"action/{key}/{a}/"} for a in admin.actions],
+        # Whether this model participates in a hierarchy tree (offers a "Hierarchy"
+        # view). True if it has a parent and/or children declared.
+        "tree": bool(admin.tree_parent or admin.tree_children),
     }
 
 
