@@ -26,8 +26,22 @@ class NotRegistered(Exception):
 class TheiaSite:
     def __init__(self, name: str = "theia") -> None:
         self.name = name
-        self.site_title = "Theia NG Admin"
+        self._site_title = "Theia NG Admin"
         self._registry: dict[type[Model], ModelAdmin] = {}
+
+    @property
+    def site_title(self) -> str:
+        """Top-bar title. ``THEIA_NG['SITE_TITLE']`` (deploy config) wins over a
+        programmatic default, so the same source feeds the registry payload and
+        the SPA's injected config — no more two-source mismatch."""
+        from django.conf import settings
+
+        conf = getattr(settings, "THEIA_NG", {}) or {}
+        return conf.get("SITE_TITLE") or self._site_title
+
+    @site_title.setter
+    def site_title(self, value: str) -> None:
+        self._site_title = value
 
     def register(self, model: type[Model], admin_class: type[ModelAdmin] | None = None):
         """Register ``model``. Usable as a decorator or a direct call.

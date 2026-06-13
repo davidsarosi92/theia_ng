@@ -2,7 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import AnonymousUser, Permission, User
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 
 from theia_ng.introspection import build_model_detail, build_registry
 from theia_ng.introspection.types import FieldType, resolve_field_type
@@ -26,6 +26,18 @@ def test_resolve_field_type_covers_common_fields():
     assert resolve_field_type(fields["is_active"]) is FieldType.BOOLEAN
     assert resolve_field_type(fields["notes"]) is FieldType.TEXT
     assert resolve_field_type(fields["category"]) is FieldType.FK
+
+
+@override_settings(THEIA_NG={"SITE_TITLE": "My Admin"})
+def test_registry_site_title_from_settings(admin_request):
+    # THEIA_NG['SITE_TITLE'] feeds the registry payload (same source as the SPA
+    # config), so the top bar and home page agree.
+    assert build_registry(site, admin_request)["site"]["title"] == "My Admin"
+
+
+@override_settings(THEIA_NG={})
+def test_registry_site_title_defaults_without_setting(admin_request):
+    assert build_registry(site, admin_request)["site"]["title"] == "Theia NG Admin"
 
 
 def test_registry_lists_registered_models(admin_request):
