@@ -6,6 +6,7 @@ import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
 import { FieldSpec, ModelSchema, RelationValue } from './models';
+import { ToastService } from './toast.service';
 import { cap, slugToKey } from './util';
 import { ViewService } from './view.service';
 
@@ -47,16 +48,23 @@ import { ViewService } from './view.service';
 
         <div class="actions">
           @if (viewMode) {
-            @if (s.perms.change) {
-              <button type="button" class="btn" (click)="editThis()">Edit</button>
-            }
-            <button type="button" (click)="back()">Back</button>
+            <div class="actions-left">
+              @if (s.perms.change) {
+                <button type="button" class="btn" (click)="editThis()">Edit</button>
+              }
+              <button type="button" (click)="back()">Back</button>
+            </div>
           } @else {
-            <button type="submit" class="btn" [disabled]="saving()">Save</button>
+            <div class="actions-left">
+              <button type="submit" class="btn" [disabled]="saving()">Save</button>
+              <button type="button" class="btn secondary" [disabled]="saving()" (click)="save(true)">
+                Save and continue
+              </button>
+              <button type="button" (click)="back()">Cancel</button>
+            </div>
             @if (!isNew && s.perms.delete) {
               <button type="button" class="btn danger" (click)="remove()">Delete</button>
             }
-            <button type="button" (click)="back()">Cancel</button>
           }
         </div>
       </form>
@@ -79,6 +87,7 @@ export class ModelDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewService = inject(ViewService);
+  private toast = inject(ToastService);
 
   modelKey = '';
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
@@ -208,7 +217,9 @@ export class ModelDetailComponent implements OnInit {
     this.applyMode();
   }
 
-  save(): void {
+  /** Save the form. ``continueEditing`` keeps you on the record afterwards
+   *  (Django's "Save and continue editing"); otherwise it returns to the list. */
+  save(continueEditing = false): void {
     this.saving.set(true);
     this.errors.set({});
     const body = this.form.value;
@@ -216,14 +227,28 @@ export class ModelDetailComponent implements OnInit {
       ? this.api.create(this.modelKey, body)
       : this.api.update(this.modelKey, this.pk, body);
     obs.subscribe({
-      next: () => {
+      next: (record) => {
         this.saving.set(false);
+        this.toast.success(this.isNew ? 'Created.' : 'Saved.');
         this.refreshViewsIfNeeded();
-        this.back();
+        if (!continueEditing) {
+          this.back();
+          return;
+        }
+        if (this.isNew) {
+          // Move to the created record's edit URL so editing continues on it.
+          const newPk = String((record as { pk?: unknown })?.pk ?? '');
+          const ret = this.route.snapshot.queryParamMap.get('ret');
+          this.router.navigate(['/', this.slug, newPk], { queryParams: ret ? { ret } : {} });
+        } else {
+          // Reload so derived/audit fields (modified, etc.) refresh.
+          this.api.retrieve(this.modelKey, this.pk).subscribe((data) => this.populate(data));
+        }
       },
       error: (err) => {
         this.saving.set(false);
         this.errors.set(err?.error?.errors ?? { __all__: ['Save failed.'] });
+        this.toast.error('Could not save — check the form.');
       },
     });
   }
@@ -234,9 +259,13 @@ export class ModelDetailComponent implements OnInit {
 
   doRemove(): void {
     this.confirmingDelete.set(false);
-    this.api.remove(this.modelKey, this.pk).subscribe(() => {
-      this.refreshViewsIfNeeded();
-      this.back();
+    this.api.remove(this.modelKey, this.pk).subscribe({
+      next: () => {
+        this.toast.success('Deleted.');
+        this.refreshViewsIfNeeded();
+        this.back();
+      },
+      error: () => this.toast.error('Could not delete.'),
     });
   }
 

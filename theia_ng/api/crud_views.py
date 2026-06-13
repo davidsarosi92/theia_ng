@@ -189,12 +189,18 @@ class DataListView(_BaseModelView):
 
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
-        # select_related direct FKs + the relation prefixes of any a__b columns.
-        related = list(dict.fromkeys([*fk_names, *_list_display_relation_paths(self.admin)]))
+        # select_related: direct FKs + the relation prefixes of any a__b columns +
+        # the admin's declared list_select_related (for cross-relation labels).
+        related = list(dict.fromkeys([
+            *fk_names,
+            *_list_display_relation_paths(self.admin),
+            *self.admin.list_select_related,
+        ]))
         if related:
             qs = qs.select_related(*related)
-        if m2m_names:
-            qs = qs.prefetch_related(*m2m_names)
+        prefetch = list(dict.fromkeys([*m2m_names, *self.admin.list_prefetch_related]))
+        if prefetch:
+            qs = qs.prefetch_related(*prefetch)
 
         # search
         search = request.GET.get("search")

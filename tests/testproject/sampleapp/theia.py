@@ -44,10 +44,16 @@ class StockAdmin(theia_ng.ModelAdmin):
 
 @theia_ng.register(House)
 class HouseAdmin(theia_ng.ModelAdmin):
-    list_display = ["name"]
+    list_display = ["name", "space_names"]
     search_fields = ["name"]
+    # Prefetch the reverse relation walked by the computed column, to avoid N+1.
+    list_prefetch_related = ["spaces"]
     # Root of the hierarchy: Houses own Spaces (related_name="spaces") and Stocks.
     tree_children = ["spaces", "stock_set"]
+
+    @theia_ng.display(description="Spaces")
+    def space_names(self, obj):
+        return ", ".join(s.name for s in obj.spaces.all())
 
 
 @theia_ng.register(Space)

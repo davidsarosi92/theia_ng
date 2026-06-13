@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { ChildGroup, TreeNode } from './models';
+import { ToastService } from './toast.service';
 import { cap, keyToSlug } from './util';
 
 /** Lazy-load state for one child group (one row of mini-table). Held in a
@@ -101,6 +102,7 @@ interface GroupState {
 })
 export class TreeNodeComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
 
   @Input({ required: true }) node!: TreeNode;
   @Input() depth = 0;
@@ -206,6 +208,12 @@ export class TreeNodeComponent implements OnInit {
 
   doRemove(): void {
     this.confirming.set(false);
-    this.api.remove(this.node.key, String(this.node.pk)).subscribe(() => this.onChanged());
+    this.api.remove(this.node.key, String(this.node.pk)).subscribe({
+      next: () => {
+        this.toast.success('Deleted.');
+        this.onChanged();
+      },
+      error: () => this.toast.error('Could not delete.'),
+    });
   }
 }

@@ -180,8 +180,11 @@ body {
 .field input[type="checkbox"] { width: auto; align-self: flex-start; }
 .help { color: var(--muted); font-size: 0.75rem; }
 
-.actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
 .actions button { padding: 0.45rem 0.9rem; border-radius: 6px; cursor: pointer; }
+/* form actions: Save group on the left, Delete pushed to the far right */
+.actions:has(.actions-left) { justify-content: space-between; align-items: center; }
+.actions-left { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
 
 .errors { color: #e03131; font-size: 0.8rem; margin: -0.5rem 0 0.75rem; max-width: 480px; }
 
@@ -371,6 +374,45 @@ body {
 .tree-pager button { padding: 0.1rem 0.5rem; cursor: pointer; }
 .tree-pager button:disabled { opacity: 0.4; cursor: default; }
 .btn.small { padding: 0.2rem 0.55rem; font-size: 0.8rem; }
+
+/* raw_id relation: value label + Choose button (opens the modal picker) */
+.raw-rel { display: flex; align-items: center; gap: 0.5rem; }
+.raw-rel-val {
+  flex: 1; min-width: 0; padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9rem;
+}
+.raw-rel-clear { background: none; border: none; color: #e03131; cursor: pointer; font-size: 1rem; line-height: 1; }
+
+/* relation picker modal (loads on open) */
+.picker-dialog { width: 520px; max-width: calc(100vw - 2rem); }
+.picker-dialog .search { margin: 0 0 0.6rem; }
+.picker-table { max-height: 50vh; overflow-y: auto; margin-bottom: 0.6rem; }
+.picker-table .grid { border: none; }
+.picker-pk { width: 1%; white-space: nowrap; color: var(--muted); }
+.picker-check { width: 1%; }
+.picker-table .grid tr.selected td { background: #eaf0ff; }
+.picker-count { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+/* toast notifications (top-right, auto-dismiss) */
+.toast-stack {
+  position: fixed; top: 0.8rem; right: 0.8rem; z-index: 50;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  max-width: min(360px, calc(100vw - 1.6rem));
+}
+.toast {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.6rem 0.8rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  font-size: 0.9rem; animation: toast-in 0.16s ease;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.toast-success { background: #e6f7ed; border-color: #b7e4c7; color: #1b6b3a; }
+.toast-error { background: #fdecec; border-color: #f3b1b1; color: #b02a2a; }
+.toast-icon { font-weight: 700; }
+.toast-msg { flex: 1; min-width: 0; }
+.toast-close { background: none; border: none; cursor: pointer; color: inherit; opacity: 0.6; font-size: 1.1rem; line-height: 1; padding: 0; }
+.toast-close:hover { opacity: 1; }
 
 /* confirm modal */
 .confirm-dialog { width: 380px; max-width: calc(100vw - 2rem); }

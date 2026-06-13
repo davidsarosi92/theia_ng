@@ -49,7 +49,12 @@ ships inside the wheel.
   **View / Edit / Delete** actions (permission-aware) and navigate to the record
 - M2M selections shown as a **table** above the picker; breadcrumbs + Back so you
   always know where you are
-- `get_queryset` and **object-level permissions** hooks for row scoping
+- **raw_id fields** get a modal table picker (searchable, paginated, loads only
+  on open) that pre-selects current assignments and works purely by pk
+- **Toast notifications** for every operation (green success / red error,
+  top-right, auto-dismiss); **Save and continue editing**
+- `get_queryset`, **`list_select_related` / `list_prefetch_related`**, and
+  **object-level permissions** hooks for row scoping and N+1 avoidance
 - Per-model display control: `display_field` / `display()` for relation labels
 - **Hierarchy tree** — render a record inside a parent→children tree
   (`tree_parent` / `tree_children`), always from the topmost ancestor. Children

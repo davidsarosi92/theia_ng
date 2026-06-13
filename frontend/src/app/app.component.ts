@@ -6,6 +6,7 @@ import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
 import { LoginComponent } from './login.component';
 import { AuthState, RegistryModel } from './models';
+import { ToastHostComponent } from './toast-host.component';
 import { getConfig } from './theia-config';
 import { cap, keyToSlug } from './util';
 import { ViewService } from './view.service';
@@ -17,7 +18,7 @@ const THEIA_APP = 'theia_ng';
 @Component({
   selector: 'theia-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, LoginComponent],
+  imports: [RouterOutlet, RouterLink, LoginComponent, ToastHostComponent],
   template: `
     @if (ready()) {
       @if (canAccess()) {
@@ -101,6 +102,7 @@ const THEIA_APP = 'theia_ng';
         <theia-login (loggedIn)="onLoggedIn()" />
       }
     }
+    <theia-toasts />
   `,
 })
 export class AppComponent implements OnInit {

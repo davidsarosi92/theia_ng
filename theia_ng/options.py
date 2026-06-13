@@ -48,6 +48,12 @@ class ModelAdmin:
     search_fields: list[str] = []
     ordering: list[str] = []
     list_per_page: int = 50
+    # Extra relations to prefetch for the list query, to avoid N+1 when a
+    # relation's label (``__str__`` / ``display()``) or a computed column reaches
+    # *across* relations (direct FK fields and ``a__b`` columns are already
+    # optimized). Mirrors django admin's ``list_select_related``.
+    list_select_related: list[str] = []
+    list_prefetch_related: list[str] = []
 
     # --- form view ---------------------------------------------------------
     fields: list[str] | None = None       # None -> all editable fields

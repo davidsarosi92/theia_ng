@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import { Choice, FieldSpec, RelationValue } from './models';
+import { RelationPickerDialogComponent } from './relation-picker-dialog.component';
 import { RelationSelectComponent } from './relation-select.component';
 import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
 import { cap } from './util';
@@ -10,7 +11,7 @@ import { cap } from './util';
 @Component({
   selector: 'theia-field',
   standalone: true,
-  imports: [ReactiveFormsModule, RelationSelectComponent],
+  imports: [ReactiveFormsModule, RelationSelectComponent, RelationPickerDialogComponent],
   template: `
     <!-- A plain <div>, NOT a <label>: a <label> forwards clicks on non-control
          areas (e.g. the relation trigger) to its first form control — which for
@@ -73,9 +74,33 @@ import { cap } from './util';
           }
         }
         @case ('relation') {
-          @if (rawInput()) {
-            <!-- raw_id_fields, or an unregistered FK target: plain id input(s)
-                 instead of a picker. M2M takes comma-separated ids. -->
+          @if (rawPickable()) {
+            <!-- raw_id_fields with a registered target: a modal table picker that
+                 only loads when opened (keeps the form light for huge tables). -->
+            <div class="raw-rel">
+              <span class="raw-rel-val">{{ rawLabel() || '—' }}</span>
+              <button
+                type="button"
+                class="btn small secondary"
+                [disabled]="control.disabled"
+                (click)="pickerOpen.set(true)"
+              >Choose…</button>
+              @if (rawHasValue() && !control.disabled) {
+                <button type="button" class="raw-rel-clear" (click)="clearRaw()" aria-label="Clear">✕</button>
+              }
+            </div>
+            @if (pickerOpen()) {
+              <theia-relation-picker-dialog
+                [endpoint]="rawEndpoint()"
+                [multi]="field.type === 'm2m'"
+                [selectedIds]="currentIds()"
+                (picked)="onPicked($event)"
+                (closed)="pickerOpen.set(false)"
+              />
+            }
+          } @else if (plainRaw()) {
+            <!-- Unregistered FK/M2M target: no options endpoint, so a plain id
+                 input. M2M takes comma-separated ids. -->
             @if (field.type === 'm2m') {
               <input
                 type="text"
@@ -120,9 +145,18 @@ export class FieldInputComponent implements OnInit {
   selectedKeys = signal<string[]>([]);
   /** Bumped on control value changes so checkbox state re-renders (zoneless). */
   private rev = signal(0);
+  /** raw_id picker open state. */
+  pickerOpen = signal(false);
 
   ngOnInit(): void {
     const widget = this.field.widget;
+    // raw_id input shows pk(s) from the control; re-render when the record loads
+    // (async setValue) or after a pick — the control isn't a signal (zoneless).
+    if ((this.field.type === 'fk' || this.field.type === 'm2m') && this.rawPickable()) {
+      this.control.valueChanges
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => this.rev.update((n) => n + 1));
+    }
     if (widget === 'multiselect' || widget === 'model_field_select') {
       // The form control isn't a signal: re-render checkbox state whenever its
       // value changes (incl. the async record load and toggles).
@@ -189,11 +223,57 @@ export class FieldInputComponent implements OnInit {
     return inputTypeFor(this.field.type);
   }
 
-  /** Render the relation as a plain id input: explicit raw_id_fields, or an
-   *  unregistered FK target (which has no picker endpoint). */
-  rawInput(): boolean {
+  /** raw_id_fields on a registered target: render a modal table picker. */
+  rawPickable(): boolean {
     const r = this.field.relation;
-    return !!r && (r.raw === true || (this.field.type === 'fk' && r.registered === false));
+    return !!r && r.raw === true && r.registered !== false;
+  }
+
+  /** No options endpoint (unregistered target): fall back to a plain id input. */
+  plainRaw(): boolean {
+    const r = this.field.relation;
+    return !!r && r.registered === false;
+  }
+
+  /** Unfiltered list endpoint for the target, so the picker can show *every*
+   *  row — including assignments that wouldn't match a dependent filter (e.g. a
+   *  Space wrongly linked to a Stock whose House it doesn't belong to). */
+  rawEndpoint(): string {
+    return `data/${this.field.relation?.target}/`;
+  }
+
+  /** The raw input shows the pk(s) themselves — no label lookup for raw fields. */
+  rawLabel(): string {
+    this.rev(); // track for re-render in zoneless
+    const v = this.control.value;
+    if (Array.isArray(v)) {
+      return v.join(', ');
+    }
+    return v === null || v === undefined ? '' : String(v);
+  }
+
+  /** Current selection as pk array (FK -> single, M2M -> the list), for the modal. */
+  currentIds(): (number | string)[] {
+    const v = this.control.value;
+    if (Array.isArray(v)) {
+      return v as (number | string)[];
+    }
+    return v === null || v === undefined || v === '' ? [] : [v as number | string];
+  }
+
+  rawHasValue(): boolean {
+    return this.currentIds().length > 0;
+  }
+
+  /** Apply a pick from the modal: FK sets the pk, M2M replaces with the full set. */
+  onPicked(value: number | string | (number | string)[]): void {
+    this.control.setValue(this.field.type === 'm2m' ? (value as unknown[]) : value);
+    this.control.markAsDirty();
+  }
+
+  clearRaw(): void {
+    this.control.setValue(this.field.type === 'm2m' ? [] : null);
+    this.control.markAsDirty();
   }
 
   /** M2M raw value (array of ids) <-> comma-separated text. */

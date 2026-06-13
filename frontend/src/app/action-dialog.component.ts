@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ApiService } from './api.service';
 import { FieldInputComponent } from './field-input.component';
 import { ActionSpec } from './models';
+import { ToastService } from './toast.service';
 
 /** A modal form for a parameterized action: builds inputs from the action's
  *  fields (reusing theia-field, so it gets relation pickers etc. for free),
@@ -39,6 +40,7 @@ import { ActionSpec } from './models';
 })
 export class ActionDialogComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
 
   @Input({ required: true }) action!: ActionSpec;
   /** Selected row ids (for selection-based actions; empty for 'none'). */
@@ -69,11 +71,13 @@ export class ActionDialogComponent implements OnInit {
     this.api.runAction(this.action.endpoint, this.ids, this.form.value).subscribe({
       next: (res) => {
         this.running.set(false);
+        this.toast.success(this.action.label + ' — done.');
         this.done.emit(res);
       },
       error: (err) => {
         this.running.set(false);
         this.errors.set(err?.error?.errors ?? { __all__: ['Action failed.'] });
+        this.toast.error(this.action.label + ' failed.');
       },
     });
   }
