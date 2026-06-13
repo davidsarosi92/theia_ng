@@ -39,8 +39,9 @@ from theia_ng import audit
 from theia_ng.adapters import AdapterValidationError, resolve_adapter
 from theia_ng.api.serialization import (
     relation_field_names,
+    scalar_and_fk_fields,
     serializable_fields,
-    serialize_instance,
+    serialize_option,
 )
 from theia_ng.permissions import has_access
 from theia_ng.registry import site
@@ -189,8 +190,8 @@ class DataListView(_BaseModelView):
 
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
-        # select_related: direct FKs + the relation prefixes of any a__b columns +
-        # the admin's declared list_select_related (for cross-relation labels).
+        # select_related: direct FKs (cheap joins, help relation labels) + the
+        # relation prefixes of any a__b columns + list_select_related.
         related = list(dict.fromkeys([
             *fk_names,
             *_list_display_relation_paths(self.admin),
@@ -198,7 +199,11 @@ class DataListView(_BaseModelView):
         ]))
         if related:
             qs = qs.select_related(*related)
-        prefetch = list(dict.fromkeys([*m2m_names, *self.admin.list_prefetch_related]))
+        # prefetch ONLY the M2M actually shown as a column (+ declared ones) — a
+        # non-displayed M2M must never be materialized per row in a list.
+        displayed = set(self.admin.list_display)
+        shown_m2m = [n for n in m2m_names if n in displayed]
+        prefetch = list(dict.fromkeys([*shown_m2m, *self.admin.list_prefetch_related]))
         if prefetch:
             qs = qs.prefetch_related(*prefetch)
 
@@ -246,7 +251,7 @@ class DataListView(_BaseModelView):
             page = paginator.get_page(request.GET.get("page", 1))
             results = []
             for obj in page:
-                rep = self.adapter.to_representation(obj)
+                rep = self.adapter.to_list_representation(obj, self.admin.list_display)
                 _apply_list_display(self.admin, obj, rep)
                 results.append(rep)
         except (FieldError, ValueError) as exc:
@@ -369,16 +374,16 @@ class RelationOptionsView(View):
                 break
             filter_kwargs[target_lookup] = value
 
-        fields = serializable_fields(target)
+        # Options only need pk + label (a scalar/__str__), never the target's
+        # M2M — so select_related FKs (for labels) but don't prefetch M2M.
+        option_fields = scalar_and_fk_fields(target)
         if missing:
             qs = target._default_manager.none()
         else:
             qs = target._default_manager.filter(**filter_kwargs)
-            fk_names, m2m_names = relation_field_names(fields)
+            fk_names, _m2m = relation_field_names(option_fields)
             if fk_names:
                 qs = qs.select_related(*fk_names)
-            if m2m_names:
-                qs = qs.prefetch_related(*m2m_names)
 
         target_resolved = site.get_model(f"{target._meta.app_label}.{target._meta.model_name}")
         target_admin = target_resolved[1] if target_resolved else None
@@ -395,7 +400,7 @@ class RelationOptionsView(View):
             per_page = target_admin.list_per_page if target_admin else 50
             paginator = Paginator(qs, per_page)
             page = paginator.get_page(request.GET.get("page", 1))
-            results = [serialize_instance(obj, fields, target_admin) for obj in page]
+            results = [serialize_option(obj, target, target_admin) for obj in page]
         except (FieldError, ValueError) as exc:
             return JsonResponse({"detail": str(exc)}, status=400)
 

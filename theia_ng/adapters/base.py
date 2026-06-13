@@ -34,6 +34,12 @@ class DataAdapter:
     def to_representation(self, instance: Model) -> dict[str, Any]:
         raise NotImplementedError
 
+    def to_list_representation(self, instance: Model, list_display) -> dict[str, Any]:
+        """A lighter row for the list/options endpoint — must not materialize a
+        row's whole M2M sets. Defaults to the full representation; the generic
+        adapter overrides it to serialize only the displayed columns."""
+        return self.to_representation(instance)
+
     def save(self, instance: Model, data: dict[str, Any], partial: bool = False) -> Model:
         """Validate ``data`` and persist. ``instance`` is unsaved for create.
 

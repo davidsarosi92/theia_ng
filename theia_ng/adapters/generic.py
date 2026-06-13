@@ -14,7 +14,12 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
 from theia_ng.adapters.base import AdapterValidationError, DataAdapter
-from theia_ng.api.serialization import apply_data, serializable_fields, serialize_instance
+from theia_ng.api.serialization import (
+    apply_data,
+    serializable_fields,
+    serialize_instance,
+    serialize_list_row,
+)
 
 if TYPE_CHECKING:
     from django.db.models import Model, QuerySet
@@ -33,6 +38,9 @@ class GenericAdapter(DataAdapter):
 
     def to_representation(self, instance: Model) -> dict[str, Any]:
         return serialize_instance(instance, self._fields, self.admin)
+
+    def to_list_representation(self, instance: Model, list_display) -> dict[str, Any]:
+        return serialize_list_row(instance, self.model, self.admin, list_display)
 
     def save(self, instance: Model, data: dict[str, Any], partial: bool = False) -> Model:
         with transaction.atomic():

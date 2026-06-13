@@ -53,12 +53,39 @@ def relation_field_names(fields: list[models.Field]) -> tuple[list[str], list[st
     return fk, m2m
 
 
+def scalar_and_fk_fields(model: type[models.Model]) -> list[models.Field]:
+    """Concrete local fields (scalars + FK), **excluding** many-to-many. For the
+    list and relation-option rows, which must never materialize a row's whole
+    M2M set (that's an unbounded, per-row load)."""
+    return list(model._meta.concrete_fields)
+
+
+def list_row_fields(model: type[models.Model], list_display) -> list[models.Field]:
+    """Fields serialized for a list row: every scalar/FK, plus only the M2M
+    fields that are actually shown as a column (those get capped on serialize)."""
+    display = set(list_display or [])
+    return [
+        *model._meta.concrete_fields,
+        *[f for f in model._meta.many_to_many if f.name in display],
+    ]
+
+
 # --- read ------------------------------------------------------------------
 
 
-def _serialize_value(field: models.Field, instance: models.Model) -> Any:
+def _serialize_value(field: models.Field, instance: models.Model, m2m_cap: int | None = None) -> Any:
     if isinstance(field, models.ManyToManyField):
-        return [{"id": obj.pk, "label": str(obj)} for obj in getattr(instance, field.name).all()]
+        manager = getattr(instance, field.name)
+        # In lists, cap the labels (the field is prefetched, so this uses the
+        # cache) so a huge M2M can't bloat the row; append a "+N more" marker.
+        # Detail uses no cap (the form needs every selected value).
+        if m2m_cap is not None:
+            objs = list(manager.all())
+            capped = [{"id": o.pk, "label": str(o)} for o in objs[:m2m_cap]]
+            if len(objs) > m2m_cap:
+                capped.append({"id": None, "label": f"+{len(objs) - m2m_cap} more"})
+            return capped
+        return [{"id": obj.pk, "label": str(obj)} for obj in manager.all()]
     if isinstance(field, (models.ForeignKey, models.OneToOneField)):
         related = getattr(instance, field.name, None)
         return None if related is None else {"id": related.pk, "label": str(related)}
@@ -79,6 +106,7 @@ def serialize_instance(
     instance: models.Model,
     fields: list[models.Field],
     admin: ModelAdmin | None = None,
+    m2m_cap: int | None = None,
 ) -> dict[str, Any]:
     # ``__str__`` carries the human label (the model's ``__str__`` or the
     # admin's ``display()``), so relation pickers can show it without a real
@@ -86,8 +114,24 @@ def serialize_instance(
     label = admin.display(instance) if admin is not None else str(instance)
     data: dict[str, Any] = {"pk": instance.pk, "__str__": label}
     for field in fields:
-        data[field.name] = _serialize_value(field, instance)
+        data[field.name] = _serialize_value(field, instance, m2m_cap)
     return data
+
+
+# Max M2M labels rendered per list cell before a "+N more" marker.
+LIST_M2M_CAP = 20
+
+
+def serialize_list_row(instance: models.Model, model, admin, list_display) -> dict[str, Any]:
+    """A list row: scalars + FK + only the M2M shown as columns (capped). Never
+    loads a row's non-displayed (or unbounded) M2M sets."""
+    return serialize_instance(instance, list_row_fields(model, list_display), admin, LIST_M2M_CAP)
+
+
+def serialize_option(instance: models.Model, model, admin) -> dict[str, Any]:
+    """A relation-picker option: scalars + FK only (the label comes from
+    ``__str__`` or a scalar ``display_field``), never M2M."""
+    return serialize_instance(instance, scalar_and_fk_fields(model), admin)
 
 
 # --- write -----------------------------------------------------------------
