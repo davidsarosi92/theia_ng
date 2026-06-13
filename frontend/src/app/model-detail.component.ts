@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
 import { FieldSpec, ModelSchema, RelationValue } from './models';
 import { cap, slugToKey } from './util';
@@ -11,7 +12,7 @@ import { ViewService } from './view.service';
 @Component({
   selector: 'theia-model-detail',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldInputComponent],
+  imports: [ReactiveFormsModule, RouterLink, FieldInputComponent, ConfirmDialogComponent],
   template: `
     @if (schema(); as s) {
       <nav class="breadcrumb">
@@ -59,6 +60,17 @@ import { ViewService } from './view.service';
           }
         </div>
       </form>
+
+      @if (confirmingDelete()) {
+        <theia-confirm-dialog
+          title="Delete record"
+          message="Delete this record? This cannot be undone."
+          confirmLabel="Delete"
+          [danger]="true"
+          (confirmed)="doRemove()"
+          (cancelled)="confirmingDelete.set(false)"
+        />
+      }
     }
   `,
 })
@@ -81,6 +93,7 @@ export class ModelDetailComponent implements OnInit {
   form = new FormGroup({});
   errors = signal<Record<string, string[]>>({});
   saving = signal(false);
+  confirmingDelete = signal(false);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -216,9 +229,11 @@ export class ModelDetailComponent implements OnInit {
   }
 
   remove(): void {
-    if (!confirm('Delete this record?')) {
-      return;
-    }
+    this.confirmingDelete.set(true);
+  }
+
+  doRemove(): void {
+    this.confirmingDelete.set(false);
     this.api.remove(this.modelKey, this.pk).subscribe(() => {
       this.refreshViewsIfNeeded();
       this.back();

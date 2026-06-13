@@ -7,8 +7,8 @@ from .models import Category, House, Space, Stock
 
 @theia_ng.register(Stock)
 class StockAdmin(theia_ng.ModelAdmin):
-    list_display = ["name", "category", "quantity", "is_active"]
-    list_filter = ["category", "is_active"]
+    list_display = ["name", "category", "house__name", "quantity", "is_active"]
+    list_filter = ["category", "is_active", "house__name", "created_at"]
     search_fields = ["name"]
     ordering = ["name"]
     actions = ["deactivate", "bulk_add"]

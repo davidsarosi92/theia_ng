@@ -15,3 +15,28 @@ export const cardColor = (key: string): string => {
   }
   return `hsl(${hue}, 70%, 95%)`;
 };
+
+/** Human, locale-aware rendering of an IR date/datetime/time value (ISO from the
+ *  server). Falls back to the raw string if it can't be parsed. */
+export const formatDateValue = (value: unknown, type: 'date' | 'datetime' | 'time'): string => {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+  const s = String(value);
+  if (type === 'time') {
+    // "14:30:00" / "14:30" -> "14:30"
+    const m = /^(\d{2}:\d{2})/.exec(s);
+    return m ? m[1] : s;
+  }
+  if (type === 'date') {
+    // Parse Y-M-D as a local date so the day never shifts across time zones.
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(s);
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString();
+  }
+  const d = new Date(s);
+  if (isNaN(d.getTime())) {
+    return s;
+  }
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+};

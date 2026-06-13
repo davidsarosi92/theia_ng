@@ -196,14 +196,40 @@ def _titleize(name: str) -> str:
     return name.replace("_", " ").title()
 
 
+def _resolve_lookup_field(model: type[Model], path: str) -> Field | None:
+    """Walk an ``a__b__c`` lookup to its leaf Django field (None if invalid)."""
+    from django.core.exceptions import FieldDoesNotExist
+
+    cur: Any = model
+    field: Field | None = None
+    parts = path.split("__")
+    for i, part in enumerate(parts):
+        try:
+            field = cur._meta.get_field(part)
+        except (FieldDoesNotExist, AttributeError):
+            return None
+        if i < len(parts) - 1:
+            cur = getattr(field, "related_model", None)
+            if cur is None:
+                return None
+    return field
+
+
+def _path_label(path: str) -> str:
+    """`house__company__name` -> `House Company Name`."""
+    return path.replace("__", " ").replace("_", " ").title()
+
+
 def _column_label(model: type[Model], admin: ModelAdmin, name: str) -> str:
-    """Header label for a list_display column (field, property, or admin method).
-    Honours a ``short_description`` (set by ``@theia_ng.display`` or directly)."""
+    """Header label for a list_display column (field, property, admin method, or
+    ``a__b`` relation lookup). Honours a ``short_description``."""
     from django.core.exceptions import FieldDoesNotExist
 
     method = getattr(admin, name, None)
     if callable(method):
         return str(getattr(method, "short_description", None) or _titleize(name))
+    if "__" in name:
+        return _path_label(name)
     try:
         return _humanize_label(model._meta.get_field(name))
     except FieldDoesNotExist:
@@ -212,6 +238,22 @@ def _column_label(model: type[Model], admin: ModelAdmin, name: str) -> str:
     if attr is not None:
         return str(getattr(attr, "short_description", None) or _titleize(name))
     return _titleize(name)
+
+
+def _lookup_field_descriptor(
+    model: type[Model], admin: ModelAdmin, path: str
+) -> dict[str, Any] | None:
+    """A synthetic, non-editable FieldSpec for a relation-spanning lookup, so the
+    SPA can label a ``a__b`` column and render a filter input for it."""
+    leaf = _resolve_lookup_field(model, path)
+    if leaf is None:
+        return None
+    desc = _field_descriptor(leaf, model, admin)
+    desc["name"] = path
+    desc["label"] = _path_label(path)
+    desc["editable"] = False
+    desc["read_only"] = False
+    return desc
 
 
 def _humanize_label(field: Field) -> str:
@@ -357,6 +399,16 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         enrich_fields_from_openapi(fields, admin.openapi_schema, admin.openapi_component)
 
     _field_filters, _custom_filters = _split_filters(admin)
+
+    # Synthetic descriptors for relation-spanning lookups (`a__b`) used as
+    # list_display columns or field filters, so the SPA can label and filter them.
+    existing = {f["name"] for f in fields}
+    for path in [*admin.list_display, *_field_filters]:
+        if isinstance(path, str) and "__" in path and path not in existing:
+            desc = _lookup_field_descriptor(model, admin, path)
+            if desc is not None:
+                fields.append(desc)
+                existing.add(path)
 
     return {
         "schema_version": SCHEMA_VERSION,

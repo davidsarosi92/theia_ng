@@ -31,10 +31,14 @@ ships inside the wheel.
 
 - Auto-CRUD: list with **search, filtering, sorting, pagination**; create /
   update / delete; custom server-side actions
-- `ModelAdmin`-style config: `list_display` (incl. **computed columns**),
-  `list_filter` (field filters + **custom filters**), `search_fields`,
-  `ordering`, `readonly_fields`, `exclude`, `raw_id_fields`, `actions`,
-  `relation_filters`
+- `ModelAdmin`-style config: `list_display` (incl. **computed columns** and
+  **relation lookups** like `house__company__name`), `list_filter` (field
+  filters + **custom filters** + **date presets**), `search_fields`, `ordering`,
+  `readonly_fields`, `exclude`, `raw_id_fields`, `actions`, `relation_filters`
+- **Relation-spanning lookups** (`a__b__c`) in `list_display` / `list_filter`:
+  labelled, sortable, and filterable with no extra code
+- **Date filters** with relative presets (today, last 2 / 7 / 30 days, last year)
+  or a specific day (time optional); locale-aware date rendering in lists
 - **Parameterized actions** — actions that pop a form (text, choices, relation
   pickers, …) and run server-side; `selection="none"` for global actions like a
   broadcast

@@ -119,7 +119,11 @@ def test_model_detail_includes_fields_and_relation(admin_request):
     assert fields["category"]["relation"]["registered"] is True
     # auto-derived verbose_name is title-cased: is_active -> "Is Active"
     assert fields["is_active"]["label"] == "Is Active"
-    assert detail["list"]["display"] == ["name", "category", "quantity", "is_active"]
+    assert detail["list"]["display"] == ["name", "category", "house__name", "quantity", "is_active"]
+    # relation-spanning column gets a synthetic, non-editable field spec + label
+    assert fields["house__name"]["label"] == "House Name"
+    assert fields["house__name"]["type"] == "string"
+    assert fields["house__name"]["editable"] is False
 
     # static defaults serialized; callable/no-default -> None
     assert fields["is_active"]["default"] is True

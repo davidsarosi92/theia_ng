@@ -372,6 +372,10 @@ body {
 .tree-pager button:disabled { opacity: 0.4; cursor: default; }
 .btn.small { padding: 0.2rem 0.55rem; font-size: 0.8rem; }
 
+/* confirm modal */
+.confirm-dialog { width: 380px; max-width: calc(100vw - 2rem); }
+.confirm-dialog p { margin: 0 0 1.1rem; color: var(--text); }
+
 /* activity log */
 .log-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; }
 .log-filters select {

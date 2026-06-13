@@ -5,7 +5,7 @@ import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { ActionSpec, FieldSpec, ModelSchema } from './models';
-import { cap, slugToKey } from './util';
+import { cap, formatDateValue, slugToKey } from './util';
 import { ViewService } from './view.service';
 
 @Component({
@@ -84,6 +84,8 @@ import { ViewService } from './view.service';
                       } @else if (row[col] === false) {
                         <span class="bool bool-false">✕</span>
                       }
+                    } @else if (dateType(col); as dt) {
+                      {{ formatDate(row[col], dt) }}
                     } @else {
                       {{ cell(row[col]) }}
                     }
@@ -217,6 +219,14 @@ export class ModelListComponent implements OnInit {
   isBool(col: string): boolean {
     return this.fieldByName(col)?.type === 'boolean';
   }
+
+  /** The date/datetime/time type of a column, if it is one (else null). */
+  dateType(col: string): 'date' | 'datetime' | 'time' | null {
+    const t = this.fieldByName(col)?.type;
+    return t === 'date' || t === 'datetime' || t === 'time' ? t : null;
+  }
+
+  formatDate = formatDateValue;
 
   colLabel(col: string): string {
     return this.schema()?.list.labels?.[col] ?? this.fieldByName(col)?.label ?? col;

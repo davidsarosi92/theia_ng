@@ -46,7 +46,23 @@ type Entry = FieldEntry | CustomEntry;
       </label>
 
       @if (current(); as e) {
-        @if (e.kind === 'field') {
+        @if (e.kind === 'field' && isDate(e.field)) {
+          <label class="field">
+            <span class="field-label">When</span>
+            <select [value]="datePreset()" (change)="datePreset.set($any($event.target).value)">
+              <option value="specific">Specific date</option>
+              @for (p of datePresets; track p.key) {
+                <option [value]="p.key">{{ p.label }}</option>
+              }
+            </select>
+          </label>
+          @if (datePreset() === 'specific') {
+            <label class="field">
+              <span class="field-label">Date</span>
+              <input type="date" [formControl]="valueControl" />
+            </label>
+          }
+        } @else if (e.kind === 'field') {
           <theia-field [field]="e.field" [control]="valueControl" />
         } @else {
           <label class="field">
@@ -62,7 +78,7 @@ type Entry = FieldEntry | CustomEntry;
       }
 
       <div class="actions">
-        <button type="button" class="btn" [disabled]="!selectedKey()" (click)="apply()">OK</button>
+        <button type="button" class="btn" [disabled]="!valid()" (click)="apply()">OK</button>
         <button type="button" (click)="closed.emit()">Cancel</button>
       </div>
     </div>
@@ -75,6 +91,21 @@ export class FilterDialogComponent {
 
   selectedKey = signal('');
   valueControl = new FormControl<unknown>(null);
+
+  /** Relative date presets (mirrors the server's `_DATE_PRESETS`). */
+  readonly datePresets = [
+    { key: 'today', label: 'Today' },
+    { key: 'last_2_days', label: 'Last 2 days' },
+    { key: 'last_7_days', label: 'Last 7 days' },
+    { key: 'last_30_days', label: 'Last 30 days' },
+    { key: 'last_year', label: 'Last year' },
+  ];
+  /** 'specific' = pick a date; otherwise a preset key. */
+  datePreset = signal('specific');
+
+  isDate(f: FieldSpec): boolean {
+    return f.type === 'date' || f.type === 'datetime';
+  }
 
   /** Field filters + custom filters, keyed `field:<name>` / `custom:<param>`. */
   entries(): Entry[] {
@@ -97,17 +128,45 @@ export class FilterDialogComponent {
 
   select(key: string): void {
     this.selectedKey.set(key);
+    this.datePreset.set('specific');
     const e = this.current();
     const boolField = e?.kind === 'field' && e.field.type === 'boolean';
     this.valueControl = new FormControl<unknown>(boolField ? false : null);
   }
 
-  apply(): void {
+  /** The value to apply: a date preset key, or the control's value. */
+  private resolvedValue(e: Entry): unknown {
+    if (e.kind === 'field' && this.isDate(e.field) && this.datePreset() !== 'specific') {
+      return this.datePreset();
+    }
+    return this.valueControl.value;
+  }
+
+  /** No empty filters: booleans/presets are always valid; everything else needs
+   *  a non-empty value. */
+  valid(): boolean {
     const e = this.current();
     if (!e) {
+      return false;
+    }
+    if (e.kind === 'field') {
+      if (e.field.type === 'boolean') {
+        return true;
+      }
+      if (this.isDate(e.field) && this.datePreset() !== 'specific') {
+        return true;
+      }
+    }
+    const v = this.valueControl.value;
+    return v !== null && v !== undefined && v !== '';
+  }
+
+  apply(): void {
+    const e = this.current();
+    if (!e || !this.valid()) {
       return;
     }
-    const value = this.valueControl.value;
+    const value = this.resolvedValue(e);
     if (e.kind === 'field') {
       this.applied.emit({
         field: e.field.name,
@@ -128,6 +187,12 @@ export class FilterDialogComponent {
     }
     if (f.type === 'choice') {
       return f.choices?.find((c) => c.value === value)?.label ?? String(value);
+    }
+    if (this.isDate(f)) {
+      const preset = this.datePresets.find((p) => p.key === value);
+      if (preset) {
+        return preset.label;
+      }
     }
     if (value === null || value === undefined || value === '') {
       return '(empty)';

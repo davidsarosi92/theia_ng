@@ -57,6 +57,7 @@ class Stock(models.Model):
     house = models.ForeignKey(House, on_delete=models.SET_NULL, null=True, blank=True)
     # Should only allow Spaces belonging to the Stock's house (relation_filters).
     spaces = models.ManyToManyField(Space, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         app_label = "sampleapp"

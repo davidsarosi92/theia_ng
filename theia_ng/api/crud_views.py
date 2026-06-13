@@ -67,6 +67,52 @@ def _jsonable(value: Any) -> Any:
     return str(value)
 
 
+def _filter_field(model, name: str):
+    """Resolve a filter name (possibly ``a__b``) to its leaf Django field, or None."""
+    cur = model
+    field = None
+    for i, part in enumerate(name.split("__")):
+        try:
+            field = cur._meta.get_field(part)
+        except (FieldDoesNotExist, AttributeError):
+            return None
+        if i < len(name.split("__")) - 1:
+            cur = getattr(field, "related_model", None)
+            if cur is None:
+                return None
+    return field
+
+
+# Relative date presets: how many days back from now (None = exact day "today").
+_DATE_PRESETS = {"today": None, "last_2_days": 2, "last_7_days": 7, "last_30_days": 30, "last_year": 365}
+
+
+def _apply_date_filter(qs, name: str, field, value: str):
+    """Apply a date/datetime filter: a preset keyword, an ISO date (``YYYY-MM-DD``,
+    time optional), or an exact value."""
+    import datetime
+    import re
+
+    from django.utils import timezone
+
+    is_dt = isinstance(field, models.DateTimeField)
+
+    if value in _DATE_PRESETS:
+        days = _DATE_PRESETS[value]
+        if days is None:  # today
+            today = timezone.localdate()
+            return qs.filter(**{f"{name}__date" if is_dt else name: today})
+        if is_dt:
+            return qs.filter(**{f"{name}__gte": timezone.now() - datetime.timedelta(days=days)})
+        return qs.filter(**{f"{name}__gte": timezone.localdate() - datetime.timedelta(days=days)})
+
+    # Specific calendar day (time optional): match the date part.
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value or ""):
+        return qs.filter(**{f"{name}__date" if is_dt else name: value})
+
+    return qs.filter(**{name: value})
+
+
 def _custom_filter_instances(admin) -> list:
     """Instances of the custom ListFilter subclasses declared in ``list_filter``."""
     from theia_ng.filters import ListFilter
@@ -74,14 +120,30 @@ def _custom_filter_instances(admin) -> list:
     return [f() for f in admin.list_filter if isinstance(f, type) and issubclass(f, ListFilter)]
 
 
+def _resolve_lookup(obj, path: str) -> Any:
+    """Follow a ``house__company__name`` lookup across relations, None-safe."""
+    cur = obj
+    for part in path.split("__"):
+        if cur is None:
+            return None
+        cur = getattr(cur, part, None)
+    return cur
+
+
 def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
-    """Add computed ``list_display`` columns (admin methods / model attrs) to a
-    serialized row. Real model fields are already present from the adapter."""
+    """Add computed ``list_display`` columns (admin methods, model attrs, or
+    ``a__b`` relation lookups) to a serialized row. Real model fields are already
+    present from the adapter."""
     for name in admin.list_display:
         method = getattr(admin, name, None)
         if callable(method):  # ModelAdmin method: method(obj)
             try:
                 representation[name] = _jsonable(method(obj))
+            except Exception:
+                representation[name] = None
+        elif "__" in name:  # relation-spanning lookup
+            try:
+                representation[name] = _jsonable(_resolve_lookup(obj, name))
             except Exception:
                 representation[name] = None
         elif name not in representation:  # model property / method / attribute
@@ -90,6 +152,16 @@ def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
                 representation[name] = _jsonable(attr() if callable(attr) else attr)
             except Exception:
                 representation[name] = None
+
+
+def _list_display_relation_paths(admin) -> list[str]:
+    """Relation prefixes of ``a__b`` list_display columns, for select_related
+    (e.g. ``house__company__name`` -> ``house__company``)."""
+    paths = []
+    for name in admin.list_display:
+        if "__" in name and not callable(getattr(admin, name, None)):
+            paths.append(name.rsplit("__", 1)[0])
+    return paths
 
 
 class _BaseModelView(View):
@@ -117,8 +189,10 @@ class DataListView(_BaseModelView):
 
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
-        if fk_names:
-            qs = qs.select_related(*fk_names)
+        # select_related direct FKs + the relation prefixes of any a__b columns.
+        related = list(dict.fromkeys([*fk_names, *_list_display_relation_paths(self.admin)]))
+        if related:
+            qs = qs.select_related(*related)
         if m2m_names:
             qs = qs.prefetch_related(*m2m_names)
 
@@ -135,14 +209,15 @@ class DataListView(_BaseModelView):
             for name in self.admin.list_filter:
                 if not isinstance(name, str):
                     continue  # custom ListFilter classes are applied below
-                if name in request.GET:
-                    value: object = request.GET[name]
-                    try:
-                        field = self.model._meta.get_field(name)
-                        if isinstance(field, models.BooleanField):
-                            value = str(value).lower() in ("true", "1", "yes", "on")
-                    except FieldDoesNotExist:
-                        pass
+                if name not in request.GET:
+                    continue
+                value: object = request.GET[name]
+                field = _filter_field(self.model, name)
+                if isinstance(field, models.BooleanField):
+                    qs = qs.filter(**{name: str(value).lower() in ("true", "1", "yes", "on")})
+                elif isinstance(field, (models.DateField, models.DateTimeField)):
+                    qs = _apply_date_filter(qs, name, field, str(value))
+                else:
                     qs = qs.filter(**{name: value})
 
             # custom filters (theia_ng.ListFilter subclasses in list_filter)

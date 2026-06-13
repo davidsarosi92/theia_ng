@@ -2,6 +2,7 @@ import { Component, Input, OnInit, WritableSignal, inject, signal } from '@angul
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { ChildGroup, TreeNode } from './models';
 import { cap, keyToSlug } from './util';
 
@@ -22,7 +23,7 @@ interface GroupState {
 @Component({
   selector: 'theia-tree-node',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ConfirmDialogComponent],
   template: `
     <div class="tree-row" [class.tree-current]="isCurrent()" [style.paddingLeft.rem]="depth * 1.3">
       <span class="tree-type">{{ cap(node.model_label) }}</span>
@@ -39,6 +40,17 @@ interface GroupState {
         }
       </span>
     </div>
+
+    @if (confirming()) {
+      <theia-confirm-dialog
+        title="Delete record"
+        [message]="'Delete this ' + node.model_label + ' (' + node.label + ')? This cannot be undone.'"
+        confirmLabel="Delete"
+        [danger]="true"
+        (confirmed)="doRemove()"
+        (cancelled)="confirming.set(false)"
+      />
+    }
 
     @for (g of node.child_groups; track g.accessor) {
       <div class="tree-group" [style.paddingLeft.rem]="(depth + 1) * 1.3">
@@ -101,6 +113,7 @@ export class TreeNodeComponent implements OnInit {
   @Input() onChanged: () => void = () => {};
 
   cap = cap;
+  confirming = signal(false);
   private groups = new Map<string, WritableSignal<GroupState>>();
   private debounce = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -188,9 +201,11 @@ export class TreeNodeComponent implements OnInit {
   }
 
   remove(): void {
-    if (!confirm(`Delete this ${this.node.model_label} (${this.node.label})?`)) {
-      return;
-    }
+    this.confirming.set(true);
+  }
+
+  doRemove(): void {
+    this.confirming.set(false);
     this.api.remove(this.node.key, String(this.node.pk)).subscribe(() => this.onChanged());
   }
 }
