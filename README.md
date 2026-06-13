@@ -374,6 +374,10 @@ class ArticleAdmin(theia_ng.ModelAdmin):
 The serializer also enriches the schema (required / read-only / help text). DRF
 is imported lazily — if you don't use this, you don't need DRF installed.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the per-release history.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
