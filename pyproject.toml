@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "theia_ng"
-version = "0.7.2"
+version = "0.7.3"
 description = "Theia NG — a dynamic Angular admin for Django, generated from your models."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "David Sarosi" }]
 keywords = ["django", "admin", "angular", "crud", "introspection"]
@@ -18,7 +19,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: MIT License",
 ]
 
 # Core depends ONLY on django.contrib.auth (via Django itself) — NOT on DRF.

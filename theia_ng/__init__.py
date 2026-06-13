@@ -7,7 +7,7 @@ from theia_ng.registry import site
 
 __all__ = ["site", "ModelAdmin", "display", "ListFilter", "action", "ActionField", "register"]
 
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 
 # Convenience: `from theia_ng import register`
 register = site.register
