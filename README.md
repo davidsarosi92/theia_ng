@@ -155,11 +155,22 @@ THEIA_NG = {
     "MOUNT_PREFIX": "/theia/",  # usually auto-detected from the request
     "SCHEMA_TTL": 300,          # IR cache TTL in seconds (0 disables caching)
     "CACHE_VERSION": "1",       # bump to invalidate the IR cache on deploy
+    # List rows auto-select_related the forward relations their labels traverse
+    # (kills N+1); on by default, set False to disable.
+    "AUTO_SELECT_RELATED": True,
     # Optional fast list path — a swappable provider that serializes list pages
     # in bulk instead of per row. Unset = generic per-instance path (default).
     # "LIST_PROVIDER": "fastberry.list_provider.ListProvider",
 }
 ```
+
+By default the list endpoint inspects each model's relation labels — the row's
+`__str__`, computed `@display` columns, and every FK's target `__str__`
+(or `display_field`) — and `select_related`s the forward-relation paths they
+reach, so a list never does a per-row N+1 for labels. It only follows forward
+FK/O2O hops (never reverse/M2M) and the output is unchanged. You can still add
+explicit `list_select_related` on a `ModelAdmin`; set
+`THEIA_NG['AUTO_SELECT_RELATED'] = False` to turn the automatic behaviour off.
 
 The introspected schema is cached (structure only; per-user permissions are
 always computed fresh). Configure a shared cache backend (e.g. Redis) in

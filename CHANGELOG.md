@@ -4,6 +4,16 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] — 2026-06-15
+### Added
+- **Automatic `select_related` for list rows** (`THEIA_NG['AUTO_SELECT_RELATED']`,
+  on by default). The list endpoint inspects each model's relation labels — the
+  row's `__str__`, computed `@display` columns, and every FK target's `__str__`
+  (or `display_field`) — and `select_related`s the forward-relation paths they
+  traverse, eliminating per-row label N+1s with no change to output. Only forward
+  FK/O2O hops are followed (never reverse/M2M); results are cached per model.
+  Explicit `ModelAdmin.list_select_related` still applies and merges on top.
+
 ## [0.9.0] — 2026-06-15
 ### Added
 - **Pluggable list provider** (`THEIA_NG['LIST_PROVIDER']`) — an optional fast
@@ -139,6 +149,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.10.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.0
 [0.9.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.9.0
 [0.8.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.8.0
 [0.7.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.3

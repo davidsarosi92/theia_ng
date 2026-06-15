@@ -43,6 +43,7 @@ from theia_ng.api.serialization import (
     serializable_fields,
     serialize_option,
 )
+from theia_ng.api.list_optimize import select_related_paths
 from theia_ng.permissions import has_access
 from theia_ng.registry import site
 
@@ -191,10 +192,12 @@ class DataListView(_BaseModelView):
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
         # select_related: direct FKs (cheap joins, help relation labels) + the
-        # relation prefixes of any a__b columns + list_select_related.
+        # relation prefixes of any a__b columns + the forward-relation paths the
+        # row labels traverse (auto, kills N+1) + the explicit list_select_related.
         related = list(dict.fromkeys([
             *fk_names,
             *_list_display_relation_paths(self.admin),
+            *select_related_paths(self.model, self.admin),
             *self.admin.list_select_related,
         ]))
         if related:
