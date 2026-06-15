@@ -166,8 +166,13 @@ export class FieldInputComponent implements OnInit {
     }
     if (widget === 'model_field_select' && this.field.models_field && this.form) {
       const sibling = this.form.get(this.field.models_field);
+      // Only render groups for models still in the registry — a stale key (a
+      // model that's been unregistered or lost access) is silently skipped.
+      const known = this.field.field_choices ?? {};
       const sync = () =>
-        this.selectedKeys.set(Array.isArray(sibling?.value) ? sibling!.value : []);
+        this.selectedKeys.set(
+          (Array.isArray(sibling?.value) ? sibling!.value : []).filter((k: string) => k in known),
+        );
       sync();
       sibling?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(sync);
     }

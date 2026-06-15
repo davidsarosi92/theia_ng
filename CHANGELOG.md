@@ -4,6 +4,18 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] — 2026-06-15
+### Added
+- **`admin.py` discovery** (opt-in via `THEIA_NG['DISCOVER_ADMIN_FILES']`) —
+  reuse existing `django.contrib.admin` registrations across apps and installed
+  packages: for each model not registered with theia, a `ModelAdmin` is built
+  from the compatible subset of options (field-based config), dropping
+  Django-specific pieces (method columns, `SimpleListFilter`, actions, inlines,
+  …). Explicit `theia.py` wins; one broken `admin.py` never breaks the rest.
+### Fixed
+- The MenuView field-picker skips groups for models that are no longer
+  registered/accessible (stale favorites and menu-view keys never error).
+
 ## [0.7.3] — 2026-06-13
 ### Changed
 - PEP 639 license metadata: SPDX `license = "MIT"` + `license-files`; dropped the
@@ -108,6 +120,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.8.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.8.0
 [0.7.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.3
 [0.7.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.2
 [0.7.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.1

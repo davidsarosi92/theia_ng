@@ -69,6 +69,8 @@ ships inside the wheel.
   off-canvas drawer on mobile), scrollable tables; a per-user greeting in the bar
 - Sidebar grouped by Django app; **app names link to a per-app landing page** of
   their model cards; sticky top bar with sign-out
+- Optional **admin.py discovery** — reuse existing `django.contrib.admin`
+  registrations (compatible options only) via `DISCOVER_ADMIN_FILES`
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
   both lazy, so the core never imports DRF
 
@@ -359,6 +361,30 @@ The **Activity** page (linked from the sidebar and the home "Theia NG Admin"
 section) lists the entries, filterable by action and model. Regular users see
 only their own trail; superusers see everyone's and can filter by user. No
 configuration needed — it follows from `migrate`.
+
+## Discovering existing `admin.py`
+
+If your project (or a third-party package) already configures models with
+`django.contrib.admin`, Theia NG can reuse that — set:
+
+```python
+THEIA_NG = {"DISCOVER_ADMIN_FILES": True}
+```
+
+On startup, after your `theia.py` registrations, Theia imports every app/package
+`admin.py` and, for each model **not already registered with Theia**, builds a
+`ModelAdmin` from the *compatible* subset of the Django admin's options.
+
+Copied (same meaning in both): `list_display` (real fields + `a__b` lookups
+only), `list_filter` (plain field-name filters only), `search_fields`,
+`ordering`, `list_per_page`, `readonly_fields`, `exclude`, `raw_id_fields`,
+`fields` (flat lists), `list_select_related` (when an explicit list).
+
+Dropped (Django-specific / not portable): callable or admin-method `list_display`
+columns, `SimpleListFilter` classes, `actions`, inlines, fieldsets, widgets,
+`date_hierarchy`, `autocomplete_fields`, etc. A discovered model renders with
+safe defaults rather than broken columns. Explicit `theia.py` registrations
+always win, and one broken `admin.py` never breaks the rest.
 
 ## Optional: DRF delegation
 
