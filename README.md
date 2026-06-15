@@ -155,6 +155,9 @@ THEIA_NG = {
     "MOUNT_PREFIX": "/theia/",  # usually auto-detected from the request
     "SCHEMA_TTL": 300,          # IR cache TTL in seconds (0 disables caching)
     "CACHE_VERSION": "1",       # bump to invalidate the IR cache on deploy
+    # Optional fast list path — a swappable provider that serializes list pages
+    # in bulk instead of per row. Unset = generic per-instance path (default).
+    # "LIST_PROVIDER": "fastberry.list_provider.ListProvider",
 }
 ```
 
@@ -399,6 +402,36 @@ class ArticleAdmin(theia_ng.ModelAdmin):
 
 The serializer also enriches the schema (required / read-only / help text). DRF
 is imported lazily — if you don't use this, you don't need DRF installed.
+
+## Optional: fast list provider
+
+The list endpoint serializes one model instance per row by default. For large or
+hot lists you can plug in a **list provider** that builds the whole page from
+column-projected queries instead — no per-row instances.
+
+A ready-made one is [**fastberry**](https://pypi.org/project/fastberry/): its
+`ListProvider` compiles each list into a column-projected schema (FK labels via a
+join, M2M set-based over the through table) and encodes the page in one go —
+typically several times faster on large/relational lists. To use it:
+
+```bash
+pip install fastberry
+```
+
+```python
+THEIA_NG = {"LIST_PROVIDER": "fastberry.list_provider.ListProvider"}
+```
+
+Theia core has **no dependency** on any provider — the dotted path is the only
+coupling, and the provider is fully swappable (fastberry is just the reference
+implementation). A model is only accelerated when its labels are DB-expressible
+(its admin, and every relation target's admin, set `display_field`); otherwise
+that model transparently uses the generic path, so output is identical either
+way. When `LIST_PROVIDER` is unset there is no fast path at all.
+
+Want to back it with something else (raw `.values()`, a SQL view, a non-Django
+store)? Writing a provider is one method. See
+**[docs/list_provider.md](docs/list_provider.md)**.
 
 ## Changelog
 

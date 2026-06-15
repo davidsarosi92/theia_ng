@@ -29,6 +29,16 @@ def resolve_adapter(model: type[Model], admin: ModelAdmin) -> DataAdapter:
 
         return DRFAdapter(model, admin)
 
+    # Fast list path (fastberry) for models whose rows are fully DB-projectable;
+    # falls back to generic when not eligible or fastberry is unavailable.
+    from theia_ng.api.fast_list import build_fast_schema
+
+    fast_schema = build_fast_schema(model, admin)
+    if fast_schema is not None:
+        from theia_ng.adapters.fast import FastRestAdapter
+
+        return FastRestAdapter(model, admin, fast_schema)
+
     from theia_ng.adapters.generic import GenericAdapter
 
     return GenericAdapter(model, admin)

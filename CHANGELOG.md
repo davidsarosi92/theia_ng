@@ -4,6 +4,25 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] — 2026-06-15
+### Added
+- **Pluggable list provider** (`THEIA_NG['LIST_PROVIDER']`) — an optional fast
+  path that serializes a list page in bulk from column-projected queries instead
+  of per instance. theia core has no dependency on any provider; the dotted path
+  is the only coupling and it is fully swappable. A model is accelerated only when
+  its labels are DB-expressible — its admin, and every relation target's admin,
+  set `display_field` — otherwise it transparently uses the generic path, so
+  output is identical. When `LIST_PROVIDER` is unset there is no fast path.
+  `fastberry.list_provider.ListProvider` is a ready-made reference implementation.
+  See [docs/list_provider.md](docs/list_provider.md).
+### Changed
+- Relation labels (FK / M2M in list rows and detail) now come from the target
+  `ModelAdmin.display()` (which honours `display_field`, falling back to `str()`),
+  unifying labels across list rows and relation pickers. Backward-compatible where
+  no `display_field` is set.
+- `ModelAdmin` detail M2M can be capped via `THEIA_NG['DETAIL_M2M_CAP']`
+  (default `None` = uncapped, unchanged behaviour).
+
 ## [0.8.0] — 2026-06-15
 ### Added
 - **`admin.py` discovery** (opt-in via `THEIA_NG['DISCOVER_ADMIN_FILES']`) —
@@ -120,6 +139,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.9.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.9.0
 [0.8.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.8.0
 [0.7.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.3
 [0.7.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.7.2

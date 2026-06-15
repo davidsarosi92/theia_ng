@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 
@@ -37,7 +38,14 @@ class GenericAdapter(DataAdapter):
         return self.model._default_manager.all()
 
     def to_representation(self, instance: Model) -> dict[str, Any]:
-        return serialize_instance(instance, self._fields, self.admin)
+        # Detail view normally returns every selected M2M value (the form needs
+        # them all). THEIA_NG['DETAIL_M2M_CAP'] can cap this for models with huge
+        # M2M sets; default None = uncapped (no behaviour change). Capping trades
+        # form-edit completeness for payload size — only set it where the frontend
+        # loads the remaining values lazily.
+        conf = getattr(settings, "THEIA_NG", {}) or {}
+        cap = conf.get("DETAIL_M2M_CAP")
+        return serialize_instance(instance, self._fields, self.admin, m2m_cap=cap)
 
     def to_list_representation(self, instance: Model, list_display) -> dict[str, Any]:
         return serialize_list_row(instance, self.model, self.admin, list_display)

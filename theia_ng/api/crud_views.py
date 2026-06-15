@@ -249,11 +249,15 @@ class DataListView(_BaseModelView):
 
             paginator = Paginator(qs, self.admin.list_per_page)
             page = paginator.get_page(request.GET.get("page", 1))
-            results = []
-            for obj in page:
-                rep = self.adapter.to_list_representation(obj, self.admin.list_display)
-                _apply_list_display(self.admin, obj, rep)
-                results.append(rep)
+            # Fast batch path (fastberry) when the adapter offers one; eligibility
+            # guarantees no computed columns, so no per-instance pass is needed.
+            results = self.adapter.serialize_list_page(page.object_list, self.admin.list_display)
+            if results is None:
+                results = []
+                for obj in page:
+                    rep = self.adapter.to_list_representation(obj, self.admin.list_display)
+                    _apply_list_display(self.admin, obj, rep)
+                    results.append(rep)
         except (FieldError, ValueError) as exc:
             return JsonResponse({"detail": str(exc)}, status=400)
 

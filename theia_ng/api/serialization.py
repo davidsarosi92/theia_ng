@@ -73,22 +73,36 @@ def list_row_fields(model: type[models.Model], list_display) -> list[models.Fiel
 # --- read ------------------------------------------------------------------
 
 
+def _label_fn(related_model: type[models.Model]):
+    """The label callable for a relation target: the target ModelAdmin's
+    ``display()`` (which honours ``display_field``, falling back to ``str``), or
+    plain ``str`` when the model is not registered. Resolved once per field so a
+    big M2M doesn't rescan the registry per row."""
+    from theia_ng.registry import site
+
+    resolved = site.get_model(f"{related_model._meta.app_label}.{related_model._meta.model_name}")
+    return resolved[1].display if resolved is not None else str
+
+
 def _serialize_value(field: models.Field, instance: models.Model, m2m_cap: int | None = None) -> Any:
     if isinstance(field, models.ManyToManyField):
         manager = getattr(instance, field.name)
+        label = _label_fn(field.related_model)
         # In lists, cap the labels (the field is prefetched, so this uses the
         # cache) so a huge M2M can't bloat the row; append a "+N more" marker.
         # Detail uses no cap (the form needs every selected value).
         if m2m_cap is not None:
             objs = list(manager.all())
-            capped = [{"id": o.pk, "label": str(o)} for o in objs[:m2m_cap]]
+            capped = [{"id": o.pk, "label": label(o)} for o in objs[:m2m_cap]]
             if len(objs) > m2m_cap:
                 capped.append({"id": None, "label": f"+{len(objs) - m2m_cap} more"})
             return capped
-        return [{"id": obj.pk, "label": str(obj)} for obj in manager.all()]
+        return [{"id": obj.pk, "label": label(obj)} for obj in manager.all()]
     if isinstance(field, (models.ForeignKey, models.OneToOneField)):
         related = getattr(instance, field.name, None)
-        return None if related is None else {"id": related.pk, "label": str(related)}
+        if related is None:
+            return None
+        return {"id": related.pk, "label": _label_fn(field.related_model)(related)}
 
     value = field.value_from_object(instance)
     if value is None:

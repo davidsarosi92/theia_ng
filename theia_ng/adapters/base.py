@@ -40,6 +40,14 @@ class DataAdapter:
         adapter overrides it to serialize only the displayed columns."""
         return self.to_representation(instance)
 
+    def serialize_list_page(self, source: QuerySet, list_display) -> list[dict[str, Any]] | None:
+        """Optional batch fast path: serialize a whole page of list rows at once.
+
+        Return a list of rows (same shape as ``to_list_representation``) to skip
+        the per-instance loop, or ``None`` to let the view fall back to it. The
+        default has no fast path; ``FastRestAdapter`` overrides it."""
+        return None
+
     def save(self, instance: Model, data: dict[str, Any], partial: bool = False) -> Model:
         """Validate ``data`` and persist. ``instance`` is unsaved for create.
 
