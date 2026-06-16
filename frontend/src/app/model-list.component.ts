@@ -259,7 +259,12 @@ export class ModelListComponent implements OnInit {
 
   private load(): void {
     this.syncUrl();
-    const params: Record<string, string | number> = { page: this.page() };
+    // Tell the server which columns are shown so it serializes only those (a much
+    // narrower query) instead of every field. Re-fetched when columns/view change.
+    const params: Record<string, string | number> = {
+      page: this.page(),
+      columns: this.columns().join(','),
+    };
     if (this.searchTerm()) {
       params['search'] = this.searchTerm();
     }

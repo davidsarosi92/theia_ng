@@ -37,8 +37,8 @@ from theia_ng.registry import site
 if TYPE_CHECKING:
     from theia_ng.options import ModelAdmin
 
-# model class -> tuple of select_related paths (cached; admins are singletons).
-_CACHE: dict[type, tuple[str, ...]] = {}
+# (model, columns) -> tuple of select_related paths (cached; admins are singletons).
+_CACHE: dict[tuple, tuple[str, ...]] = {}
 
 
 def reset_cache() -> None:
@@ -133,22 +133,29 @@ def _paths_from_str(model: type[models.Model], admin_for_model: Any | None) -> s
     return {p for p in paths if p}
 
 
-def select_related_paths(model: type[models.Model], admin: ModelAdmin) -> tuple[str, ...]:
-    """Forward-relation paths the list-row serialization for ``model`` traverses.
+def select_related_paths(
+    model: type[models.Model], admin: ModelAdmin, columns=None
+) -> tuple[str, ...]:
+    """Forward-relation paths the list-row serialization traverses, scoped to the
+    shown ``columns`` (defaults to the admin's ``list_display``).
 
-    Cached per model. Empty when disabled."""
+    Cached per (model, columns). Empty when disabled."""
     if not _enabled():
         return ()
-    if model in _CACHE:
-        return _CACHE[model]
+    cols = tuple(columns) if columns is not None else tuple(getattr(admin, "list_display", []) or [])
+    key = (model, cols)
+    if key in _CACHE:
+        return _CACHE[key]
+    col_set = set(cols)
 
     paths: set[str] = set()
 
-    # 1) the row's own label (admin.display -> display_field or model.__str__)
+    # 1) the row's own label (admin.display -> display_field or model.__str__);
+    #    always serialized, so always relevant.
     paths |= _paths_from_str(model, admin)
 
-    # 2) computed @display columns in list_display
-    for name in getattr(admin, "list_display", []) or []:
+    # 2) computed @display columns that are shown
+    for name in cols:
         meth = getattr(admin, name, None)
         if callable(meth):
             src = _source(meth)
@@ -164,12 +171,11 @@ def select_related_paths(model: type[models.Model], admin: ModelAdmin) -> tuple[
                 if p:
                     paths.add(p)
 
-    # 3) every concrete forward FK is rendered as a {id, label} cell; its label is
-    #    the target admin's display() (display_field scalar -> no hop) else the
-    #    target's __str__. One level into the target is enough (the label is a
-    #    plain string, not a further-serialized row).
+    # 3) each shown concrete forward FK is rendered as a {id, label} cell; its
+    #    label is the target admin's display() (display_field scalar -> no hop)
+    #    else the target's __str__. One level into the target is enough.
     for f in model._meta.concrete_fields:
-        if f.many_to_one or f.one_to_one:
+        if (f.many_to_one or f.one_to_one) and f.name in col_set:
             target = f.related_model
             r = site.get_model(f"{target._meta.app_label}.{target._meta.model_name}")
             target_admin = r[1] if r is not None else None
@@ -177,5 +183,5 @@ def select_related_paths(model: type[models.Model], admin: ModelAdmin) -> tuple[
                 paths.add(f"{f.name}__{tp}")
 
     result = tuple(sorted(paths))
-    _CACHE[model] = result
+    _CACHE[key] = result
     return result

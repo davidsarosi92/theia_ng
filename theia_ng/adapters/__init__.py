@@ -37,7 +37,7 @@ def resolve_adapter(model: type[Model], admin: ModelAdmin) -> DataAdapter:
     if fast_schema is not None:
         from theia_ng.adapters.fast import FastRestAdapter
 
-        return FastRestAdapter(model, admin, fast_schema)
+        return FastRestAdapter(model, admin)
 
     from theia_ng.adapters.generic import GenericAdapter
 

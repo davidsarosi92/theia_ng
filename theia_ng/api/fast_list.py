@@ -100,8 +100,8 @@ class _Compiled:
         self.provider = provider
 
 
-# model class -> compiled holder, or None when ineligible / no provider.
-_CACHE: dict[type, _Compiled | None] = {}
+# (model, columns) -> compiled holder, or None when ineligible / no provider.
+_CACHE: dict[tuple, _Compiled | None] = {}
 # resolved provider instance (or False once we've found there is none).
 _PROVIDER: ListProvider | None | bool = False
 
@@ -152,17 +152,23 @@ def _target_label_field(related_model: type[models.Model]) -> str | None:
     return _scalar_display_field(related_model, resolved[1])
 
 
-def build_fast_schema(model: type[models.Model], admin: ModelAdmin) -> _Compiled | None:
-    """Return a cached compiled holder for the model, or None if not fast-eligible."""
-    if model in _CACHE:
-        return _CACHE[model]
-    compiled = _try_build(model, admin)
-    _CACHE[model] = compiled
+def build_fast_schema(
+    model: type[models.Model], admin: ModelAdmin, columns=None
+) -> _Compiled | None:
+    """Return a cached compiled holder for the model + shown columns, or None if
+    not fast-eligible. ``columns`` defaults to the admin's ``list_display``."""
+    cols = tuple(columns) if columns is not None else tuple(admin.list_display)
+    key = (model, cols)
+    if key in _CACHE:
+        return _CACHE[key]
+    compiled = _try_build(model, admin, cols)
+    _CACHE[key] = compiled
     return compiled
 
 
-def build_plan(model: type[models.Model], admin: ModelAdmin) -> FieldPlan | None:
-    """The backend-agnostic plan for a model's list rows, or None if not eligible.
+def build_plan(model: type[models.Model], admin: ModelAdmin, columns=None) -> FieldPlan | None:
+    """The backend-agnostic plan for a model's list rows, scoped to the shown
+    ``columns`` (defaults to ``list_display``), or None if not eligible.
 
     Provider-independent — exposed for testing and tooling."""
     if getattr(admin, "serializer_class", None) is not None:
@@ -173,9 +179,11 @@ def build_plan(model: type[models.Model], admin: ModelAdmin) -> FieldPlan | None
         return None  # row label would be a Python __str__ -> not projectable
 
     meta = model._meta
+    cols = list(columns) if columns is not None else list(admin.list_display)
+    col_set = set(cols)
 
-    # list_display must contain only real, projectable columns.
-    for name in admin.list_display:
+    # shown columns must be real, projectable fields (no computed/relation-span).
+    for name in cols:
         if callable(getattr(admin, name, None)):
             return None  # @display / admin method -> needs an instance
         if "__" in name:
@@ -187,8 +195,12 @@ def build_plan(model: type[models.Model], admin: ModelAdmin) -> FieldPlan | None
 
     plan = FieldPlan(model=model, pk_name=meta.pk.name, display_field=display_field)
 
-    # Every concrete field is in a list row: scalars verbatim, FKs as {id,label}.
+    # The pk and the display_field column are always needed (row key + __str__);
+    # otherwise only the shown columns are serialized.
+    always = {meta.pk.name, display_field}
     for f in meta.concrete_fields:
+        if not (f.name in col_set or f.name in always):
+            continue
         if isinstance(f, (models.ForeignKey, models.OneToOneField)):
             label = _target_label_field(f.related_model)
             if label is None:
@@ -198,9 +210,8 @@ def build_plan(model: type[models.Model], admin: ModelAdmin) -> FieldPlan | None
             plan.scalar_fields.append(f.name)
 
     # Only the M2M shown as a column appears in list rows (capped).
-    displayed = set(admin.list_display)
     for f in meta.many_to_many:
-        if f.name not in displayed:
+        if f.name not in col_set:
             continue
         label = _target_label_field(f.related_model)
         if label is None:
@@ -210,11 +221,11 @@ def build_plan(model: type[models.Model], admin: ModelAdmin) -> FieldPlan | None
     return plan
 
 
-def _try_build(model: type[models.Model], admin: ModelAdmin) -> _Compiled | None:
+def _try_build(model: type[models.Model], admin: ModelAdmin, columns=None) -> _Compiled | None:
     provider = _get_provider()
     if provider is None:
         return None
-    plan = build_plan(model, admin)
+    plan = build_plan(model, admin, columns)
     if plan is None:
         return None
     return _Compiled(plan, provider)

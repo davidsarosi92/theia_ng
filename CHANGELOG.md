@@ -4,6 +4,19 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] — 2026-06-16
+### Changed
+- **List rows are now scoped to the shown columns.** Previously a list row
+  serialized *every* concrete field (and every FK as a `{id,label}` cell);
+  now it serializes only the pk, the `__str__` label, and the columns actually
+  shown — the admin's `list_display`, or the `columns=` the client sends for a
+  saved view. This narrows the query (only shown FKs are joined) and shrinks the
+  payload dramatically (e.g. a wide model dropped from ~35 keys/1.1 kB per row to
+  ~5 keys/170 B). `select_related` and the fastberry fast path are scoped to the
+  same columns. The detail endpoint still returns all fields. **Note for direct
+  API consumers:** request the fields you need via `?columns=a,b,c` (the bundled
+  SPA does this automatically); without it, the row contains `list_display`.
+
 ## [0.10.2] — 2026-06-16
 ### Added
 - The installed **package version is shown in the topbar** as a small footnote
@@ -165,6 +178,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.0
 [0.10.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.2
 [0.10.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.1
 [0.10.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.0

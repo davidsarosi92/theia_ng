@@ -60,14 +60,18 @@ def scalar_and_fk_fields(model: type[models.Model]) -> list[models.Field]:
     return list(model._meta.concrete_fields)
 
 
-def list_row_fields(model: type[models.Model], list_display) -> list[models.Field]:
-    """Fields serialized for a list row: every scalar/FK, plus only the M2M
-    fields that are actually shown as a column (those get capped on serialize)."""
-    display = set(list_display or [])
-    return [
-        *model._meta.concrete_fields,
-        *[f for f in model._meta.many_to_many if f.name in display],
-    ]
+def list_row_fields(model: type[models.Model], columns) -> list[models.Field]:
+    """Fields serialized for a list row: the pk (always — the client keys rows on
+    it) plus only the concrete fields and M2M actually shown as a ``columns``
+    column. Scoping to the shown columns (rather than every field) keeps the row
+    — and the query behind it — narrow. Non-field columns (computed methods,
+    ``a__b`` lookups) are filled in separately from the instance."""
+    cols = set(columns or [])
+    pk = model._meta.pk
+    fields: list[models.Field] = [pk]
+    fields += [f for f in model._meta.concrete_fields if f is not pk and f.name in cols]
+    fields += [f for f in model._meta.many_to_many if f.name in cols]
+    return fields
 
 
 # --- read ------------------------------------------------------------------

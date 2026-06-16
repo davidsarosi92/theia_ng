@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from theia_ng.adapters.generic import GenericAdapter
-from theia_ng.api.fast_list import serialize_page
+from theia_ng.api.fast_list import build_fast_schema, serialize_page
 
 if TYPE_CHECKING:
     from django.db.models import Model, QuerySet
@@ -22,9 +22,11 @@ if TYPE_CHECKING:
 
 
 class FastRestAdapter(GenericAdapter):
-    def __init__(self, model: type[Model], admin: ModelAdmin, fast_schema) -> None:
-        super().__init__(model, admin)
-        self._fast = fast_schema
-
-    def serialize_list_page(self, source: QuerySet, list_display) -> list[dict[str, Any]]:
-        return serialize_page(self._fast, source)
+    def serialize_list_page(self, source: QuerySet, columns) -> list[dict[str, Any]] | None:
+        # The plan is scoped to the columns this request shows; if those columns
+        # aren't fully projectable (e.g. a custom view with a computed column),
+        # build returns None and the view falls back to the generic loop.
+        compiled = build_fast_schema(self.model, self.admin, columns)
+        if compiled is None:
+            return None
+        return serialize_page(compiled, source)

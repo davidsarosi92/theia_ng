@@ -40,7 +40,7 @@ class DataAdapter:
         adapter overrides it to serialize only the displayed columns."""
         return self.to_representation(instance)
 
-    def serialize_list_page(self, source: QuerySet, list_display) -> list[dict[str, Any]] | None:
+    def serialize_list_page(self, source: QuerySet, columns) -> list[dict[str, Any]] | None:
         """Optional batch fast path: serialize a whole page of list rows at once.
 
         Return a list of rows (same shape as ``to_list_representation``) to skip

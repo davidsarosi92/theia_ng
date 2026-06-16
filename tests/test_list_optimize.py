@@ -106,7 +106,7 @@ def _serialize(admin):
     related = list(dict.fromkeys([*fk, *select_related_paths(LoShop, admin), *admin.list_select_related]))
     for obj in LoShop.objects.select_related(*related):
         rep = serialize_list_row(obj, LoShop, admin, admin.list_display)
-        _apply_list_display(admin, obj, rep)
+        _apply_list_display(admin, obj, rep, admin.list_display)
         rows.append(rep)
     return rows
 
@@ -132,3 +132,13 @@ def test_disabled_setting_returns_no_paths(shops, settings):
     list_optimize.reset_cache()
     _m, admin = site.get_model(f"{APP}.loshop")
     assert select_related_paths(LoShop, admin) == ()
+
+
+def test_row_is_scoped_to_shown_columns(shops):
+    """A list row carries only pk + __str__ + the shown columns — not every field
+    (here the un-shown `city` FK must not be serialized)."""
+    _m, admin = site.get_model(f"{APP}.loshop")  # list_display = ["title", "region"]
+    obj = LoShop.objects.first()
+    row = serialize_list_row(obj, LoShop, admin, admin.list_display)
+    assert set(row) == {"pk", "__str__", "id", "title"}  # region is added later by the view
+    assert "city" not in row  # un-shown FK is not serialized (no label, no join)

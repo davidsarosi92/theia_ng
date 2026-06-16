@@ -132,11 +132,11 @@ def _resolve_lookup(obj, path: str) -> Any:
     return cur
 
 
-def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
-    """Add computed ``list_display`` columns (admin methods, model attrs, or
-    ``a__b`` relation lookups) to a serialized row. Real model fields are already
-    present from the adapter."""
-    for name in admin.list_display:
+def _apply_list_display(admin, obj, representation: dict[str, Any], columns) -> None:
+    """Add computed ``columns`` (admin methods, model attrs, or ``a__b`` relation
+    lookups) to a serialized row. Real model fields are already present from the
+    adapter."""
+    for name in columns:
         method = getattr(admin, name, None)
         if callable(method):  # ModelAdmin method: method(obj)
             try:
@@ -156,14 +156,24 @@ def _apply_list_display(admin, obj, representation: dict[str, Any]) -> None:
                 representation[name] = None
 
 
-def _list_display_relation_paths(admin) -> list[str]:
-    """Relation prefixes of ``a__b`` list_display columns, for select_related
+def _relation_paths_for(admin, columns) -> list[str]:
+    """Relation prefixes of ``a__b`` columns, for select_related
     (e.g. ``house__company__name`` -> ``house__company``)."""
     paths = []
-    for name in admin.list_display:
+    for name in columns:
         if "__" in name and not callable(getattr(admin, name, None)):
             paths.append(name.rsplit("__", 1)[0])
     return paths
+
+
+def _requested_columns(request: HttpRequest, admin) -> list[str]:
+    """Columns to serialize for this list request: the client's ``columns=``
+    (a saved view's fields) if present, else the admin's ``list_display``. Limits
+    the row to what's shown instead of every field — a much narrower query."""
+    raw = request.GET.get("columns")
+    if raw:
+        return [c for c in raw.split(",") if c]
+    return list(admin.list_display)
 
 
 class _BaseModelView(View):
@@ -189,23 +199,25 @@ class DataListView(_BaseModelView):
         if not self.admin.has_view_permission(request):
             return _forbidden()
 
+        columns = _requested_columns(request, self.admin)
+        cols = set(columns)
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
-        # select_related: direct FKs (cheap joins, help relation labels) + the
-        # relation prefixes of any a__b columns + the forward-relation paths the
-        # row labels traverse (auto, kills N+1) + the explicit list_select_related.
+        # select_related, scoped to the shown columns only: the FKs rendered as
+        # cells + the relation prefixes of any a__b columns + the forward-relation
+        # paths those columns' labels traverse (auto, kills N+1) + the explicit
+        # list_select_related. We do NOT join FKs that aren't shown.
         related = list(dict.fromkeys([
-            *fk_names,
-            *_list_display_relation_paths(self.admin),
-            *select_related_paths(self.model, self.admin),
+            *[n for n in fk_names if n in cols],
+            *_relation_paths_for(self.admin, columns),
+            *select_related_paths(self.model, self.admin, columns),
             *self.admin.list_select_related,
         ]))
         if related:
             qs = qs.select_related(*related)
         # prefetch ONLY the M2M actually shown as a column (+ declared ones) — a
         # non-displayed M2M must never be materialized per row in a list.
-        displayed = set(self.admin.list_display)
-        shown_m2m = [n for n in m2m_names if n in displayed]
+        shown_m2m = [n for n in m2m_names if n in cols]
         prefetch = list(dict.fromkeys([*shown_m2m, *self.admin.list_prefetch_related]))
         if prefetch:
             qs = qs.prefetch_related(*prefetch)
@@ -254,12 +266,12 @@ class DataListView(_BaseModelView):
             page = paginator.get_page(request.GET.get("page", 1))
             # Fast batch path (fastberry) when the adapter offers one; eligibility
             # guarantees no computed columns, so no per-instance pass is needed.
-            results = self.adapter.serialize_list_page(page.object_list, self.admin.list_display)
+            results = self.adapter.serialize_list_page(page.object_list, columns)
             if results is None:
                 results = []
                 for obj in page:
-                    rep = self.adapter.to_list_representation(obj, self.admin.list_display)
-                    _apply_list_display(self.admin, obj, rep)
+                    rep = self.adapter.to_list_representation(obj, columns)
+                    _apply_list_display(self.admin, obj, rep, columns)
                     results.append(rep)
         except (FieldError, ValueError) as exc:
             return JsonResponse({"detail": str(exc)}, status=400)
