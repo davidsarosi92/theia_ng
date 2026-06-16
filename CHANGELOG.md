@@ -4,6 +4,15 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] — 2026-06-16
+### Added
+- The installed **package version is shown in the topbar** as a small footnote
+  after the site title (injected into the SPA runtime config).
+### Changed
+- The list **loading indicator** is now a pill pinned near the top of the
+  viewport (`position: sticky`) instead of a centred overlay, so it no longer
+  slips out of view on tall pages.
+
 ## [0.10.1] — 2026-06-16
 ### Added
 - **Loading indicator on the list view.** While a list page fetches, a spinner
@@ -156,6 +165,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.10.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.2
 [0.10.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.1
 [0.10.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.0
 [0.9.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.9.0

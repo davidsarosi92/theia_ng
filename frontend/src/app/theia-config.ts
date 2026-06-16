@@ -9,6 +9,8 @@ export interface TheiaNgConfig {
   apiBase: string;
   siteTitle: string;
   schemaVersion: string;
+  /** Installed theia_ng package version, shown as a footnote in the topbar. */
+  version: string;
 }
 
 declare global {
@@ -22,6 +24,7 @@ const FALLBACK: TheiaNgConfig = {
   apiBase: '/theia/api/',
   siteTitle: 'Theia NG Admin',
   schemaVersion: '1.0',
+  version: '',
 };
 
 export function getConfig(): TheiaNgConfig {

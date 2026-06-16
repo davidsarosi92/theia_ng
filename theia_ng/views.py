@@ -15,12 +15,18 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from django.conf import settings
 from django.http import FileResponse, HttpRequest, HttpResponse
 
 import theia_ng
+
+try:
+    _PACKAGE_VERSION = version("theia_ng")
+except PackageNotFoundError:  # running from a source checkout without install metadata
+    _PACKAGE_VERSION = ""
 
 _BUNDLE_DIR = (Path(theia_ng.__file__).parent / "static" / "theia_ng").resolve()
 _INDEX = _BUNDLE_DIR / "index.html"
@@ -60,6 +66,7 @@ def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
         "apiBase": prefix.rstrip("/") + "/api/",
         "siteTitle": conf.get("SITE_TITLE", "Theia NG Admin"),
         "schemaVersion": "1.0",
+        "version": _PACKAGE_VERSION,
     }
     html = _INDEX.read_text(encoding="utf-8")
 

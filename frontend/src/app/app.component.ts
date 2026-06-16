@@ -26,6 +26,7 @@ const THEIA_APP = 'theia_ng';
           <header class="topbar">
             <button class="nav-toggle" (click)="toggleSidebar()" aria-label="Toggle menu">☰</button>
             <a class="topbar-title" routerLink="/">{{ siteTitle }}</a>
+            @if (version) { <span class="topbar-version">v{{ version }}</span> }
             @if (firstName() || username()) {
               <span class="topbar-greet">
                 @if (firstName()) { <span class="greet-hi">Hi, {{ firstName() }}</span> }
@@ -110,6 +111,7 @@ export class AppComponent implements OnInit {
   protected vs = inject(ViewService);
   private favorites = inject(FavoritesService);
   siteTitle = getConfig().siteTitle;
+  version = getConfig().version;
   cap = cap;
   slug = keyToSlug;
   models = signal<RegistryModel[]>([]);

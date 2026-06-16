@@ -61,7 +61,9 @@ import { ViewService } from './view.service';
 
       <div class="table-wrap">
         @if (loading()) {
-          <div class="loading-overlay"><span class="spinner"></span>Loading…</div>
+          <div class="loading-overlay">
+            <span class="loading-pill"><span class="spinner"></span>Loading…</span>
+          </div>
         }
         <table class="grid">
           <thead>
