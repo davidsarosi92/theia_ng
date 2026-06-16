@@ -4,6 +4,13 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] — 2026-06-16
+### Added
+- **Loading indicator on the list view.** While a list page fetches, a spinner
+  overlay covers the table (and the "No records." empty state is suppressed), so
+  a slow request reads as "loading" instead of "already updated but empty" — the
+  list navigation syncs the URL (which scrolls to top) before the data arrives.
+
 ## [0.10.0] — 2026-06-15
 ### Added
 - **Automatic `select_related` for list rows** (`THEIA_NG['AUTO_SELECT_RELATED']`,
@@ -149,6 +156,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.10.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.1
 [0.10.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.0
 [0.9.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.9.0
 [0.8.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.8.0

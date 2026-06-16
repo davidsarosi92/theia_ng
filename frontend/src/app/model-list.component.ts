@@ -60,6 +60,9 @@ import { ViewService } from './view.service';
       }
 
       <div class="table-wrap">
+        @if (loading()) {
+          <div class="loading-overlay"><span class="spinner"></span>Loading…</div>
+        }
         <table class="grid">
           <thead>
             <tr>
@@ -93,7 +96,9 @@ import { ViewService } from './view.service';
                 }
               </tr>
             } @empty {
-              <tr><td [attr.colspan]="columns().length">No records.</td></tr>
+              @if (!loading()) {
+                <tr><td [attr.colspan]="columns().length">No records.</td></tr>
+              }
             }
           </tbody>
         </table>
@@ -143,6 +148,7 @@ export class ModelListComponent implements OnInit {
   filters = signal<AppliedFilter[]>([]);
   showFilter = signal(false);
   activeAction = signal<ActionSpec | null>(null);
+  loading = signal(false);
 
   /** Actions runnable without a row selection (the list has no row-select yet);
    *  selection-less ('none') and 'optional' actions show as toolbar buttons. */
@@ -261,11 +267,16 @@ export class ModelListComponent implements OnInit {
     for (const f of this.filters()) {
       params[f.field] = f.value as string | number;
     }
-    this.api.list(this.modelKey, params).subscribe((resp) => {
-      this.rows.set(resp.results);
-      this.count.set(resp.count);
-      this.numPages.set(resp.num_pages);
-      this.page.set(resp.page);
+    this.loading.set(true);
+    this.api.list(this.modelKey, params).subscribe({
+      next: (resp) => {
+        this.rows.set(resp.results);
+        this.count.set(resp.count);
+        this.numPages.set(resp.num_pages);
+        this.page.set(resp.page);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
   }
 

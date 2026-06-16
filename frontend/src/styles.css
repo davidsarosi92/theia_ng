@@ -439,7 +439,23 @@ body {
 .log-action { background: #fff4e6; color: #d9480f; }
 
 /* wide data tables scroll horizontally instead of overflowing the page */
-.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; position: relative; }
+
+/* Loading overlay (lists/tables): keeps current content in place, covers it with
+   a centred spinner so a slow fetch reads as "loading", not "already updated". */
+.loading-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  min-height: 120px;
+  background: color-mix(in srgb, var(--panel) 65%, transparent);
+  color: var(--muted); font-size: 0.9rem;
+}
+.spinner {
+  width: 1.4rem; height: 1.4rem; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 .tree-grid { overflow-x: auto; }
 
 /* ── responsive: phones & narrow viewports ───────────────────────────── */
