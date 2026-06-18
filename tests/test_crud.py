@@ -203,3 +203,17 @@ def test_computed_list_display_column(admin_client, category, monkeypatch):
     monkeypatch.setattr(admin, "list_display", [*admin.list_display, "shouty"])
     resp = admin_client.get(LIST)
     assert resp.json()["results"][0]["shouty"] == "BEER"
+
+
+def test_default_ordering_is_pk_desc_and_pk_sortable(admin_client):
+    # Category admin declares no `ordering` -> newest-first by pk.
+    a = Category.objects.create(name="A")
+    b = Category.objects.create(name="B")
+    c = Category.objects.create(name="C")
+
+    url = "/theia/api/data/sampleapp.category/"
+    default = admin_client.get(url).json()["results"]
+    assert [r["pk"] for r in default] == [c.pk, b.pk, a.pk]  # -pk
+
+    asc = admin_client.get(url, {"ordering": "pk"}).json()["results"]
+    assert [r["pk"] for r in asc] == [a.pk, b.pk, c.pk]  # explicit pk asc

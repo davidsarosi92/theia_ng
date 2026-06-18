@@ -4,6 +4,13 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.2] — 2026-06-18
+### Added
+- The **pk column is now sortable** in the list view.
+### Changed
+- When a `ModelAdmin` declares no `ordering`, the list now defaults to **pk
+  descending** (newest first) instead of pk ascending.
+
 ## [0.11.1] — 2026-06-18
 ### Added
 - **Loading indicator on the detail view** — a spinner pill while a single
@@ -186,6 +193,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.2
 [0.11.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.1
 [0.11.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.0
 [0.10.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.2

@@ -220,6 +220,7 @@ export class ModelListComponent implements OnInit {
   }
 
   isSortable(col: string): boolean {
+    if (col === 'pk') return true; // the primary key is always sortable (order_by pk)
     const f = this.fieldByName(col);
     return !!f && f.type !== 'fk' && f.type !== 'm2m';
   }
