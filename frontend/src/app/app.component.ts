@@ -209,6 +209,8 @@ export class AppComponent implements OnInit {
     this.api.getRegistry().subscribe({
       next: (r) => {
         this.siteTitle = r.site.title || this.siteTitle;
+        // Prefer the live API version (robust to a stale, cached index.html).
+        this.version = r.site.version || this.version;
         this.models.set(r.models);
         this.vs.setViews(r.views ?? []);
       },

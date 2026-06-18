@@ -32,7 +32,7 @@ export interface MenuView {
 
 export interface Registry {
   schema_version: string;
-  site: { title: string };
+  site: { title: string; version?: string };
   models: RegistryModel[];
   views: MenuView[];
 }

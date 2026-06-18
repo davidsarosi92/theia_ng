@@ -165,7 +165,20 @@ body {
 .grid tr.clickable:hover td { background: #f0f3ff; }
 
 .pager { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; color: var(--muted); }
-.pager button { padding: 0.35rem 0.7rem; cursor: pointer; }
+/* Match the secondary-button convention (panel bg, accent text, rounded border)
+   with a proper disabled state, instead of raw browser buttons. */
+.pager button {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  background: var(--panel);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.pager button:hover:not(:disabled) { border-color: var(--accent); background: var(--bg); }
+.pager button:disabled { opacity: 0.5; cursor: default; }
 
 .field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem; max-width: 480px; }
 .field-label { font-size: 0.85rem; font-weight: 600; }

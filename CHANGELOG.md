@@ -4,6 +4,16 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.5] — 2026-06-19
+### Changed
+- **Pager (prev/next) buttons** now follow the secondary-button convention
+  (panel background, accent text, rounded border, hover + disabled states)
+  instead of raw browser buttons. Applies to every pager (list, relation picker,
+  logs).
+- The **topbar version footnote is now also sourced from the live registry API**
+  (`/schema/`), not only the injected index config — so it shows the real version
+  even if a cached `index.html` predates the field.
+
 ## [0.11.4] — 2026-06-19
 ### Added
 - **Global "server busy" spinner** in the topbar (before Sign out): a small
@@ -209,6 +219,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.5]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.5
 [0.11.4]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.4
 [0.11.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.3
 [0.11.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.2

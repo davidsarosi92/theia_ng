@@ -55,6 +55,7 @@ def _registry_structure(site: TheiaSite) -> list[dict[str, Any]]:
 
 def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
     """Lightweight payload for the left nav. Only models the user may view."""
+    import theia_ng
     from theia_ng.cache import cached_structure
 
     structure = cached_structure("registry", lambda: _registry_structure(site))
@@ -70,7 +71,9 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
         models_out.append({**entry, "perms": perms})
     return {
         "schema_version": SCHEMA_VERSION,
-        "site": {"title": site.site_title},
+        # version here (a live API call) as well as in the injected index config,
+        # so the topbar shows it even if the cached index.html predates the field.
+        "site": {"title": site.site_title, "version": theia_ng.__version__},
         "models": models_out,
         "views": _menu_views({m["key"] for m in models_out}),
     }
