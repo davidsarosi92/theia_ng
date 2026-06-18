@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.3] — 2026-06-19
+### Fixed
+- `theia_ng.__version__` was hardcoded (stuck at an old value) instead of
+  tracking the installed distribution. It now reads the package metadata, so the
+  topbar version footnote shows the real version and — since `cache.py` uses
+  `__version__` as the default `CACHE_VERSION` — the IR cache key actually changes
+  across upgrades instead of being frozen.
+
 ## [0.11.2] — 2026-06-18
 ### Added
 - The **pk column is now sortable** in the list view.
@@ -193,6 +201,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.3
 [0.11.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.2
 [0.11.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.1
 [0.11.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.0

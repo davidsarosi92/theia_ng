@@ -7,7 +7,17 @@ from theia_ng.registry import site
 
 __all__ = ["site", "ModelAdmin", "display", "ListFilter", "action", "ActionField", "register"]
 
-__version__ = "0.8.0"
+# Track the installed distribution version (single source of truth: pyproject).
+# A hardcoded value drifts — and ``cache.py`` uses ``__version__`` as the default
+# IR-cache version, so a stale value would freeze cache invalidation across
+# upgrades.
+try:
+    from importlib.metadata import PackageNotFoundError, version as _version
+
+    __version__ = _version("theia_ng")
+    del _version, PackageNotFoundError
+except Exception:  # source checkout without install metadata
+    __version__ = "0.0.0+dev"
 
 # Convenience: `from theia_ng import register`
 register = site.register
