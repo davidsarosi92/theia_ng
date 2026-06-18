@@ -4,6 +4,7 @@ import { RouterLink, RouterOutlet } from '@angular/router';
 import { ApiService } from './api.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
+import { LoadingService } from './loading.service';
 import { LoginComponent } from './login.component';
 import { AuthState, RegistryModel } from './models';
 import { ToastHostComponent } from './toast-host.component';
@@ -46,6 +47,9 @@ const THEIA_APP = 'theia_ng';
                   }
                 </select>
               }
+              <span class="topbar-busy" [class.active]="loading.active()" aria-hidden="true" title="Working…">
+                <span class="spinner"></span>
+              </span>
               <button class="link-btn" (click)="logout()">Sign out</button>
             </div>
           </header>
@@ -109,6 +113,7 @@ const THEIA_APP = 'theia_ng';
 export class AppComponent implements OnInit {
   private api = inject(ApiService);
   protected vs = inject(ViewService);
+  protected loading = inject(LoadingService);
   private favorites = inject(FavoritesService);
   siteTitle = getConfig().siteTitle;
   version = getConfig().version;

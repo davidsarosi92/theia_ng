@@ -480,6 +480,23 @@ body {
   color: var(--topbar-muted); font-size: 0.7rem; font-weight: 500;
   align-self: flex-end; margin: 0 0 0.15rem -0.25rem; letter-spacing: 0.02em;
 }
+
+/* Global "server busy" indicator in the topbar, before Sign out. A fixed-size
+   slot that's always present (so the bar never resizes); the spinner only fades
+   in and animates while a request is in flight. */
+.topbar-busy {
+  flex: 0 0 auto;
+  width: 1.1rem; height: 1.1rem;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.topbar-busy .spinner {
+  width: 1rem; height: 1rem; border-width: 2px;
+  border-color: color-mix(in srgb, var(--topbar-text) 22%, transparent);
+  border-top-color: var(--topbar-text);
+  opacity: 0; animation-play-state: paused;
+  transition: opacity 0.18s ease;
+}
+.topbar-busy.active .spinner { opacity: 1; animation-play-state: running; }
 .tree-grid { overflow-x: auto; }
 
 /* ── responsive: phones & narrow viewports ───────────────────────────── */

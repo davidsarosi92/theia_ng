@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.4] — 2026-06-19
+### Added
+- **Global "server busy" spinner** in the topbar (before Sign out): a small
+  spinner appears whenever any HTTP request is in flight (tracked via an HTTP
+  interceptor that counts in-flight requests), so the user can tell the server is
+  working or a component is awaiting a response. It sits in a fixed-size slot, so
+  the topbar never changes size.
+
 ## [0.11.3] — 2026-06-19
 ### Fixed
 - `theia_ng.__version__` was hardcoded (stuck at an old value) instead of
@@ -201,6 +209,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.4]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.4
 [0.11.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.3
 [0.11.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.2
 [0.11.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.1
