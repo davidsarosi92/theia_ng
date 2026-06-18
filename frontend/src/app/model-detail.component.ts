@@ -15,7 +15,9 @@ import { ViewService } from './view.service';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, FieldInputComponent, ConfirmDialogComponent],
   template: `
-    @if (schema(); as s) {
+    @if (loading()) {
+      <div class="detail-loading"><span class="loading-pill"><span class="spinner"></span>Loading…</span></div>
+    } @else if (schema(); as s) {
       <nav class="breadcrumb">
         <a routerLink="/">Home</a>
         <span class="sep">/</span>
@@ -103,6 +105,7 @@ export class ModelDetailComponent implements OnInit {
   errors = signal<Record<string, string[]>>({});
   saving = signal(false);
   confirmingDelete = signal(false);
+  loading = signal(false);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -110,14 +113,25 @@ export class ModelDetailComponent implements OnInit {
       this.modelKey = slugToKey(this.slug);
       this.pk = params.get('pk') ?? 'new';
       this.isNew = this.pk === 'new';
-      this.api.getSchema(this.modelKey).subscribe((s) => {
-        this.schema.set(s);
-        this.buildForm(s);
-        if (this.isNew) {
-          this.applyMode();
-        } else {
-          this.api.retrieve(this.modelKey, this.pk).subscribe((data) => this.populate(data));
-        }
+      this.loading.set(true);
+      this.api.getSchema(this.modelKey).subscribe({
+        next: (s) => {
+          this.schema.set(s);
+          this.buildForm(s);
+          if (this.isNew) {
+            this.applyMode();
+            this.loading.set(false);
+          } else {
+            this.api.retrieve(this.modelKey, this.pk).subscribe({
+              next: (data) => {
+                this.populate(data);
+                this.loading.set(false);
+              },
+              error: () => this.loading.set(false),
+            });
+          }
+        },
+        error: () => this.loading.set(false),
       });
     });
 

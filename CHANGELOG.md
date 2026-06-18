@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.1] — 2026-06-18
+### Added
+- **Loading indicator on the detail view** — a spinner pill while a single
+  record's schema + data fetch, instead of a blank screen.
+### Fixed
+- The list loading overlay no longer looks cut off on an empty result: the table
+  area keeps a min-height while loading so the spinner pill is fully visible.
+
 ## [0.11.0] — 2026-06-16
 ### Changed
 - **List rows are now scoped to the shown columns.** Previously a list row
@@ -178,6 +186,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.1
 [0.11.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.0
 [0.10.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.2
 [0.10.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.10.1

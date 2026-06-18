@@ -450,6 +450,15 @@ body {
   min-height: 160px;
   background: color-mix(in srgb, var(--panel) 55%, transparent);
 }
+/* While loading, keep the table area tall enough that the overlay (and its
+   pill) are never clipped — e.g. an empty result would otherwise collapse to a
+   header-height strip and cut the spinner off. */
+.table-wrap.is-loading { min-height: 200px; }
+
+/* Detail (single entity) load: a centred pill while the schema + record fetch. */
+.detail-loading {
+  display: flex; justify-content: center; padding: 3rem 0;
+}
 .loading-pill {
   position: sticky; top: 1.25rem; margin-top: 1.25rem;
   display: inline-flex; align-items: center; gap: 0.55rem;

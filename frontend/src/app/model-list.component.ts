@@ -59,7 +59,7 @@ import { ViewService } from './view.service';
         </table>
       }
 
-      <div class="table-wrap">
+      <div class="table-wrap" [class.is-loading]="loading()">
         @if (loading()) {
           <div class="loading-overlay">
             <span class="loading-pill"><span class="spinner"></span>Loading…</span>
