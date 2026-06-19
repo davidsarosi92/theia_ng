@@ -29,8 +29,9 @@ import json
 from typing import Any
 
 from django.core.exceptions import FieldDoesNotExist, FieldError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.http import Http404, HttpRequest, JsonResponse
 from django.views import View
@@ -38,9 +39,11 @@ from django.views import View
 from theia_ng import audit
 from theia_ng.adapters import AdapterValidationError, resolve_adapter
 from theia_ng.api.serialization import (
+    apply_data,
     relation_field_names,
     scalar_and_fk_fields,
     serializable_fields,
+    serialize_instance,
     serialize_option,
 )
 from theia_ng.api.list_optimize import select_related_paths
@@ -61,6 +64,91 @@ def _json_body(request: HttpRequest) -> dict[str, Any] | None:
 
 def _validation_response(exc: AdapterValidationError) -> JsonResponse:
     return JsonResponse({"errors": exc.errors}, status=400)
+
+
+# --- inlines (related child rows edited on the parent form) -----------------
+
+
+def _resolve_inlines(admin, parent_model) -> list[dict[str, Any]]:
+    """Resolved inline descriptors: the inline instance, child model, the child
+    FK pointing back to the parent, and the payload key (matching the IR)."""
+    from theia_ng.introspection.builder import _inline_fk_name, _model_key
+
+    out: list[dict[str, Any]] = []
+    seen: dict[str, int] = {}
+    for inline_cls in getattr(admin, "inlines", []) or []:
+        inline = inline_cls()
+        child = inline.model
+        fk_name = _inline_fk_name(parent_model, child, inline.fk_name)
+        if not fk_name:
+            continue
+        child_key = _model_key(child)
+        n = seen.get(child_key, 0)
+        seen[child_key] = n + 1
+        out.append({
+            "inline": inline,
+            "child": child,
+            "fk_name": fk_name,
+            "key": child_key if n == 0 else f"{child_key}#{n}",
+        })
+    return out
+
+
+def _inline_row_fields(child, inline, fk_name) -> list[models.Field]:
+    from theia_ng.introspection.builder import inline_field_names
+
+    fields: list[models.Field] = []
+    for name in inline_field_names(child, inline, fk_name):
+        try:
+            fields.append(child._meta.get_field(name))
+        except FieldDoesNotExist:
+            continue
+    return fields
+
+
+def _serialize_inlines(admin, parent) -> dict[str, list[dict[str, Any]]]:
+    """Existing child rows per inline, keyed like the IR (for the detail GET)."""
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for spec in _resolve_inlines(admin, type(parent)):
+        child, inline, fk_name = spec["child"], spec["inline"], spec["fk_name"]
+        fields = _inline_row_fields(child, inline, fk_name)
+        qs = child._default_manager.filter(**{fk_name: parent.pk}).order_by("pk")
+        rows[spec["key"]] = [serialize_instance(obj, fields, inline) for obj in qs]
+    return rows
+
+
+def _save_inlines(admin, parent, data) -> None:
+    """Create/update/delete child rows from ``data['inlines']`` (keyed per inline).
+    Each row may carry ``pk`` (update) and ``_delete: true`` (delete); rows without
+    a pk are created. The parent FK is always forced to the parent — never trusted
+    from the row. Raises ``DjangoValidationError`` on an invalid child."""
+    payload = (data or {}).get("inlines") or {}
+    if not payload:
+        return
+    for spec in _resolve_inlines(admin, type(parent)):
+        rows = payload.get(spec["key"])
+        if not isinstance(rows, list):
+            continue
+        child, inline, fk_name = spec["child"], spec["inline"], spec["fk_name"]
+        fk_attname = child._meta.get_field(fk_name).attname
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            pk = row.get("pk")
+            if row.get("_delete"):
+                if pk and inline.can_delete:
+                    child._default_manager.filter(pk=pk, **{fk_name: parent.pk}).delete()
+                continue
+            obj = child._default_manager.get(pk=pk) if pk else child()
+            apply_data(obj, row, child, inline)
+            setattr(obj, fk_attname, parent.pk)  # force parent link last
+            obj.full_clean(exclude=[fk_name])
+            obj.save()
+
+
+def _inline_error_response(exc: DjangoValidationError) -> JsonResponse:
+    detail = exc.message_dict if hasattr(exc, "message_dict") else {"__all__": list(exc.messages)}
+    return JsonResponse({"errors": {"inlines": detail}}, status=400)
 
 
 def _jsonable(value: Any) -> Any:
@@ -296,9 +384,13 @@ class DataListView(_BaseModelView):
         if data is None:
             return JsonResponse({"detail": "Invalid JSON body"}, status=400)
         try:
-            instance = self.adapter.save(self.model(), data)
+            with transaction.atomic():
+                instance = self.adapter.save(self.model(), data)
+                _save_inlines(self.admin, instance, data)
         except AdapterValidationError as exc:
             return _validation_response(exc)
+        except DjangoValidationError as exc:
+            return _inline_error_response(exc)
         rep = self.adapter.to_representation(instance)
         audit.record(
             request,
@@ -324,7 +416,10 @@ class DataDetailView(_BaseModelView):
         instance = self._get_object(request, pk)
         if not self.admin.has_view_permission(request, instance):
             return _forbidden()
-        return JsonResponse(self.adapter.to_representation(instance))
+        rep = self.adapter.to_representation(instance)
+        if getattr(self.admin, "inlines", None):
+            rep["inlines"] = _serialize_inlines(self.admin, instance)
+        return JsonResponse(rep)
 
     def patch(self, request: HttpRequest, model_key: str, pk: str):
         instance = self._get_object(request, pk)
@@ -335,9 +430,13 @@ class DataDetailView(_BaseModelView):
             return JsonResponse({"detail": "Invalid JSON body"}, status=400)
         before = self.adapter.to_representation(instance)
         try:
-            instance = self.adapter.save(instance, data, partial=True)
+            with transaction.atomic():
+                instance = self.adapter.save(instance, data, partial=True)
+                _save_inlines(self.admin, instance, data)
         except AdapterValidationError as exc:
             return _validation_response(exc)
+        except DjangoValidationError as exc:
+            return _inline_error_response(exc)
         after = self.adapter.to_representation(instance)
         audit.record(
             request,
@@ -568,7 +667,16 @@ class ActionView(_BaseModelView):
             "action",
             model_key,
             object_repr=f"{action_key} ({n} objects)",
-            changes={"action": action_key, "all": select_all, "ids": [str(i) for i in ids], "params": params},
+            # `count` is the authoritative object count (it covers the
+            # select-all-matching case, where `ids` is empty); `ids` is kept for
+            # traceability of an explicit selection.
+            changes={
+                "action": action_key,
+                "all": select_all,
+                "count": n,
+                "ids": [str(i) for i in ids],
+                "params": params,
+            },
         )
         return JsonResponse(
             {

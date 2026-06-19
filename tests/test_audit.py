@@ -69,6 +69,39 @@ def test_action_is_logged(admin_client, category):
     entry = LogEntry.objects.filter(action="action").get()
     assert entry.changes["action"] == "deactivate"
     assert entry.changes["ids"] == [str(s.pk)]
+    # `count` is recorded too, so the UI can show it for select-all actions.
+    assert entry.changes["count"] == 1
+
+
+def test_delete_selected_is_logged_with_count(admin_client, category):
+    a = Stock.objects.create(name="A", category=category)
+    b = Stock.objects.create(name="B", category=category)
+    admin_client.post(
+        "/theia/api/action/sampleapp.stock/delete_selected/",
+        data=json.dumps({"ids": [a.pk, b.pk]}),
+        content_type="application/json",
+    )
+    entry = LogEntry.objects.filter(action="action").get()
+    assert entry.changes["action"] == "delete_selected"
+    assert entry.changes["count"] == 2
+    assert entry.changes["all"] is False
+    assert entry.object_repr == "delete_selected (2 objects)"
+
+
+def test_delete_selected_all_matching_is_logged_with_count(admin_client, category):
+    other = Category.objects.create(name="Other")
+    Stock.objects.create(name="A", category=category)
+    Stock.objects.create(name="B", category=category)
+    Stock.objects.create(name="C", category=other)
+    admin_client.post(
+        "/theia/api/action/sampleapp.stock/delete_selected/",
+        data=json.dumps({"all": True, "filters": {"category": category.pk}}),
+        content_type="application/json",
+    )
+    entry = LogEntry.objects.filter(action="action").get()
+    assert entry.changes["all"] is True
+    # count is authoritative even though no ids were sent.
+    assert entry.changes["count"] == 2
 
 
 def test_logs_endpoint_scopes_to_own_by_default(db, category):

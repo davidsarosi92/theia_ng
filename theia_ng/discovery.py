@@ -7,10 +7,12 @@ a Theia ``ModelAdmin`` from the *compatible* subset of the Django admin's
 options. Explicit ``theia.py`` registrations always win.
 
 Only options that translate cleanly are copied — field-based config that means
-the same thing in both worlds. Django-specific pieces (callable/method
-``list_display`` columns, ``SimpleListFilter`` classes, ``actions``, inlines,
-fieldsets, widgets, ``date_hierarchy``, …) are intentionally dropped, so a
-discovered model renders with safe defaults rather than broken columns.
+the same thing in both worlds. ``fieldsets``, ``list_editable`` and ``inlines``
+(``TabularInline``/``StackedInline``) are translated to their Theia equivalents.
+Django-specific pieces (callable/method ``list_display`` columns,
+``SimpleListFilter`` classes, ``actions``, custom widgets, ``date_hierarchy``, …)
+are still dropped, so a discovered model renders with safe defaults rather than
+broken columns.
 """
 
 from __future__ import annotations
@@ -97,12 +99,89 @@ def translate_admin(model: type[Model], dj_admin: Any) -> dict[str, Any]:
     if fields and all(_is_real_field(model, f) for f in fields):
         attrs["fields"] = list(fields)
 
+    # list_editable: real fields that are also shown as columns.
+    shown = set(attrs.get("list_display", []))
+    editable = [
+        n
+        for n in (getattr(dj_admin, "list_editable", ()) or ())
+        if _is_real_field(model, n) and n in shown
+    ]
+    if editable:
+        attrs["list_editable"] = editable
+
+    # fieldsets: same shape in both worlds; keep sections whose fields are real
+    # (entries may be tuples grouping several fields on a row — validate each).
+    fieldsets = _translate_fieldsets(model, getattr(dj_admin, "fieldsets", None))
+    if fieldsets:
+        attrs["fieldsets"] = fieldsets
+
+    # inlines: map each django InlineModelAdmin to a Theia Inline subclass.
+    inlines = _translate_inlines(getattr(dj_admin, "inlines", ()) or ())
+    if inlines:
+        attrs["inlines"] = inlines
+
     # list_select_related only when an explicit relation list (not the bool form).
     lsr = getattr(dj_admin, "list_select_related", False)
     if isinstance(lsr, (list, tuple)) and lsr:
         attrs["list_select_related"] = list(lsr)
 
     return attrs
+
+
+def _flatten(fields: Any) -> list[str]:
+    out: list[str] = []
+    for f in fields or ():
+        if isinstance(f, (list, tuple)):
+            out.extend(x for x in f if isinstance(x, str))
+        elif isinstance(f, str):
+            out.append(f)
+    return out
+
+
+def _translate_fieldsets(model: type[Model], fieldsets: Any) -> list | None:
+    if not fieldsets:
+        return None
+    out: list = []
+    for entry in fieldsets:
+        try:
+            name, opts = entry
+        except (TypeError, ValueError):
+            continue
+        opts = opts or {}
+        if not all(_is_real_field(model, f) for f in _flatten(opts.get("fields"))):
+            continue  # references a non-field (callable/computed) — skip the section
+        out.append((name, dict(opts)))
+    return out or None
+
+
+def _translate_inlines(dj_inlines: Any) -> list:
+    from theia_ng.options import Inline
+
+    out: list = []
+    for dj_inline in dj_inlines:
+        child = getattr(dj_inline, "model", None)
+        if child is None:
+            continue
+        iattrs: dict[str, Any] = {"model": child}
+        if fk := getattr(dj_inline, "fk_name", None):
+            iattrs["fk_name"] = fk
+        for opt in ("readonly_fields", "exclude", "raw_id_fields"):
+            vals = [n for n in (getattr(dj_inline, opt, ()) or ()) if _is_real_field(child, n)]
+            if vals:
+                iattrs[opt] = vals
+        f = getattr(dj_inline, "fields", None)
+        if f and all(_is_real_field(child, x) for x in _flatten(f)):
+            iattrs["fields"] = _flatten(f)
+        extra = getattr(dj_inline, "extra", None)
+        if isinstance(extra, int):
+            iattrs["extra"] = extra
+        can_delete = getattr(dj_inline, "can_delete", None)
+        if isinstance(can_delete, bool):
+            iattrs["can_delete"] = can_delete
+        template = str(getattr(dj_inline, "template", "") or "").lower()
+        iattrs["style"] = "stacked" if "stacked" in template else "tabular"
+        out.append(type(f"{child.__name__}DiscoveredInline", (Inline,), iattrs))
+    return out
 
 
 def discover_django_admins(site: TheiaSite) -> int:

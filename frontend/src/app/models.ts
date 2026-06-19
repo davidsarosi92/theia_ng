@@ -32,9 +32,30 @@ export interface MenuView {
 
 export interface Registry {
   schema_version: string;
-  site: { title: string; version?: string };
+  site: { title: string; version?: string; logo_url?: string };
   models: RegistryModel[];
   views: MenuView[];
+}
+
+export type ThemePref = 'auto' | 'light' | 'dark';
+
+/** A selectable UI language (code + native label), advertised by the backend. */
+export interface LanguageOption {
+  code: string;
+  label: string;
+}
+
+/** Per-user UI preferences (mirrors theia_ng.models.UserSettings). The GET
+ *  response also carries `available_languages`; PATCH bodies send any subset. */
+export interface UserSettings {
+  language: string;
+  timezone: string;
+  theme: ThemePref;
+  /** App-group order (list of app_label). */
+  nav_app_order: string[];
+  /** Model order within groups (list of app_label.model_name). */
+  nav_order: string[];
+  available_languages?: LanguageOption[];
 }
 
 export interface Choice {
@@ -94,6 +115,33 @@ export interface ListConfig {
   per_page: number;
   /** Row checkboxes + bulk actions are available for this model. */
   selectable?: boolean;
+  /** Columns editable in place on the list (subset of display, non-relation). */
+  editable?: string[];
+}
+
+/** A form section grouping fields under an optional heading (ModelAdmin.fieldsets). */
+export interface Fieldset {
+  title: string | null;
+  fields: string[];
+  description?: string | null;
+  collapsible?: boolean;
+}
+
+/** A related-child editor shown on the parent form (ModelAdmin.inlines). */
+export interface InlineConfig {
+  /** Payload key (unique per inline) used in the detail GET/save body. */
+  key: string;
+  /** Child model key (app.model). */
+  model: string;
+  /** Child FK field pointing back to the parent (set automatically on save). */
+  fk_field: string;
+  title: string;
+  style: 'tabular' | 'stacked';
+  can_delete: boolean;
+  /** Blank rows offered for adding. */
+  extra: number;
+  /** Child form fields (the parent FK is excluded). */
+  fields: FieldSpec[];
 }
 
 /** A custom action. Parameterized actions carry form ``fields``; ``selection``
@@ -120,6 +168,10 @@ export interface ModelSchema {
   list: ListConfig;
   fields: FieldSpec[];
   actions: ActionSpec[];
+  /** Form sections (null/absent -> a single flat form). */
+  fieldsets?: Fieldset[] | null;
+  /** Related-child editors shown on the form. */
+  inlines?: InlineConfig[];
   /** Whether this model participates in a hierarchy tree (offers a Hierarchy view). */
   tree?: boolean;
 }

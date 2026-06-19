@@ -14,6 +14,51 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
 
+class Inline:
+    """Configuration for editing a parent's related child rows on its form
+    (mirrors ``django.contrib.admin.InlineModelAdmin``). Subclass, set ``model``,
+    and list it in a ModelAdmin's ``inlines``::
+
+        class ItemInline(theia_ng.Inline):
+            model = OrderItem
+            fields = ["product", "qty"]
+            extra = 1
+
+        @theia_ng.register(Order)
+        class OrderAdmin(theia_ng.ModelAdmin):
+            inlines = [ItemInline]
+
+    The child's foreign key back to the parent is set automatically and kept out
+    of the inline form (``fk_name`` is auto-detected when there is exactly one
+    candidate FK; set it explicitly otherwise).
+    """
+
+    model: type[Model]
+    fk_name: str | None = None
+    # None -> all editable child fields (minus the parent FK).
+    fields: list[str] | None = None
+    readonly_fields: list[str] = []
+    exclude: list[str] = []
+    raw_id_fields: list[str] = []
+    extra: int = 1
+    can_delete: bool = True
+    style: str = "tabular"  # "tabular" (grid) | "stacked" (stacked field blocks)
+    verbose_name_plural: str | None = None
+    display_field: str | None = None
+
+    # Duck-compatibility with the field-descriptor builder / serializer (which
+    # read these off a ModelAdmin). Inlines don't use registry/model-field
+    # widgets or dependent options.
+    registry_choice_fields: list[str] = []
+    model_field_select: dict[str, str] = {}
+    relation_filters: dict[str, dict[str, str]] = {}
+
+    def display(self, obj: Model) -> str:
+        if self.display_field:
+            return str(getattr(obj, self.display_field, "") or "")
+        return str(obj)
+
+
 def display(*, description: str) -> Callable:
     """Mark a ModelAdmin method as a computed ``list_display`` column and set its
     header label (mirrors ``django.contrib.admin.display``)::
@@ -55,8 +100,24 @@ class ModelAdmin:
     list_select_related: list[str] = []
     list_prefetch_related: list[str] = []
 
+    # --- list view (inline editing) ---------------------------------------
+    # Columns editable directly in the list (must also be in list_display).
+    # Non-relation field types are supported; relation columns stay read-only.
+    list_editable: list[str] = []
+
     # --- form view ---------------------------------------------------------
     fields: list[str] | None = None       # None -> all editable fields
+    # Group form fields into sections (mirrors django admin's ``fieldsets``)::
+    #     fieldsets = [
+    #         (None, {"fields": ["name", "category"]}),
+    #         ("Advanced", {"fields": ["notes"], "classes": ["collapse"],
+    #                       "description": "Rarely changed."}),
+    #     ]
+    # ``classes`` containing "collapse" makes the section collapsible (collapsed
+    # by default). None -> a single, flat, untitled form (current behaviour).
+    fieldsets: list | None = None
+    # Edit related child rows on this model's form. List of ``Inline`` subclasses.
+    inlines: list = []
     # Shown in the form but not editable (e.g. audit fields like created_by).
     readonly_fields: list[str] = []
     # Excluded from the form entirely (still available for list_display).

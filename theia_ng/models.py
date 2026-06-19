@@ -107,3 +107,46 @@ class Favorite(models.Model):
 
     def __str__(self) -> str:
         return f"Favorites for {self.user}"
+
+
+class UserSettings(models.Model):
+    """Per-user Theia NG preferences (one row per user).
+
+    Everything here is a personal UI preference, not access control. Each value
+    is *blank/empty by default*, meaning "fall back to the Django/site default"
+    (e.g. an empty ``language`` resolves to ``get_language()`` server-side); the
+    settings API fills those defaults in on read so the SPA always gets concrete
+    values.
+
+    Sidebar ordering has two levels: ``nav_app_order`` orders the app groups
+    (a list of ``app_label`` strings), and ``nav_order`` orders the model links
+    *within* their group (a list of ``app_label.model_name`` keys). Unknown/stale
+    entries are ignored and anything missing falls back to natural (name) order.
+    """
+
+    THEME_AUTO, THEME_LIGHT, THEME_DARK = "auto", "light", "dark"
+    THEMES = [
+        (THEME_AUTO, "Auto"),
+        (THEME_LIGHT, "Light"),
+        (THEME_DARK, "Dark"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="theia_ng_settings",
+    )
+    # Empty => follow Django's get_language() / TIME_ZONE.
+    language = models.CharField(max_length=16, blank=True)
+    timezone = models.CharField(max_length=64, blank=True)
+    theme = models.CharField(max_length=8, choices=THEMES, default=THEME_AUTO)
+    # Sidebar ordering (see class docstring): app groups, then models per group.
+    nav_app_order = models.JSONField(default=list, blank=True)
+    nav_order = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        verbose_name = "User settings"
+        verbose_name_plural = "User settings"
+
+    def __str__(self) -> str:
+        return f"Settings for {self.user}"

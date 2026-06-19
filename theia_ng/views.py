@@ -53,6 +53,8 @@ def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
             status=501,
             content_type="text/plain",
         )
+    from theia_ng.api.settings_views import _default_language, _default_timezone
+
     prefix = _mount_prefix(request, asset_path)
     conf = getattr(settings, "THEIA_NG", {})
     config = {
@@ -61,6 +63,13 @@ def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
         "siteTitle": conf.get("SITE_TITLE", "Theia NG Admin"),
         "schemaVersion": "1.0",
         "version": theia_ng.__version__,
+        # Brand logo shown before the title (optional). Aspect ratio preserved
+        # within a fixed slot in the topbar.
+        "logoUrl": conf.get("LOGO_URL") or "",
+        # Locale defaults so the SPA can render correctly before the per-user
+        # settings call returns (and for anonymous/login screens).
+        "defaultLanguage": _default_language(),
+        "defaultTimezone": _default_timezone(),
     }
     html = _INDEX.read_text(encoding="utf-8")
 

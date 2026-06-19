@@ -2,10 +2,19 @@
 
 from theia_ng.actions import ActionField, action
 from theia_ng.filters import ListFilter
-from theia_ng.options import ModelAdmin, display
+from theia_ng.options import Inline, ModelAdmin, display
 from theia_ng.registry import site
 
-__all__ = ["site", "ModelAdmin", "display", "ListFilter", "action", "ActionField", "register"]
+__all__ = [
+    "site",
+    "ModelAdmin",
+    "Inline",
+    "display",
+    "ListFilter",
+    "action",
+    "ActionField",
+    "register",
+]
 
 # Track the installed distribution version (single source of truth: pyproject).
 # A hardcoded value drifts — and ``cache.py`` uses ``__version__`` as the default

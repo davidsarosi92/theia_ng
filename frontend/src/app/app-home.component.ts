@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { AppGroup, groupByApp } from './grouping';
+import { I18nService } from './i18n.service';
 import { RegistryModel } from './models';
 import { cap, cardColor, keyToSlug } from './util';
 import { ViewService } from './view.service';
@@ -19,7 +20,7 @@ const THEIA_APP = 'theia_ng';
   imports: [RouterLink],
   template: `
     <nav class="breadcrumb">
-      <a routerLink="/">Home</a>
+      <a routerLink="/">{{ t('home') }}</a>
       <span class="sep">/</span>
       <span>{{ cap(appName()) }}</span>
     </nav>
@@ -29,7 +30,7 @@ const THEIA_APP = 'theia_ng';
     <div class="card-grid">
       @if (appLabel() === theiaApp) {
         <a class="model-card" routerLink="/logs" [style.background]="cardColor('theia_ng.activity')">
-          <span class="card-label">Activity</span>
+          <span class="card-label">{{ t('activity') }}</span>
         </a>
       }
       @for (m of models(); track m.key) {
@@ -38,7 +39,7 @@ const THEIA_APP = 'theia_ng';
         </a>
       } @empty {
         @if (appLabel() !== theiaApp) {
-          <p>Nothing to show in this app.</p>
+          <p>{{ t('nothingInApp') }}</p>
         }
       }
     </div>
@@ -48,6 +49,8 @@ export class AppHomeComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private vs = inject(ViewService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   cap = cap;
   slug = keyToSlug;
   cardColor = cardColor;

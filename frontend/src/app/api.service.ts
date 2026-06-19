@@ -11,6 +11,7 @@ import {
   Registry,
   TreeChildrenResponse,
   TreeResponse,
+  UserSettings,
 } from './models';
 import { getConfig } from './theia-config';
 
@@ -49,6 +50,16 @@ export class ApiService {
 
   saveFavorites(favorites: string[]): Observable<{ favorites: string[] }> {
     return this.http.put<{ favorites: string[] }>(this.url('favorites/'), { favorites });
+  }
+
+  // --- per-user settings (language, timezone, theme, nav order) ---
+  getSettings(): Observable<UserSettings> {
+    return this.http.get<UserSettings>(this.url('settings/'));
+  }
+
+  /** Persist a subset of settings; returns the merged settings. */
+  saveSettings(patch: Partial<UserSettings>): Observable<UserSettings> {
+    return this.http.patch<UserSettings>(this.url('settings/'), patch);
   }
 
   // --- audit log ---

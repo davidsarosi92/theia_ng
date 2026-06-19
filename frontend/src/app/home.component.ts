@@ -1,9 +1,17 @@
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDropList,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
+import { I18nService } from './i18n.service';
 import { RegistryModel } from './models';
 import { getConfig } from './theia-config';
 import { cap, cardColor, keyToSlug } from './util';
@@ -15,21 +23,35 @@ const THEIA_APP = 'theia_ng';
 @Component({
   selector: 'theia-home',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
     <h2>{{ title }}</h2>
 
     @if (favorites().length) {
       <section class="home-group">
-        <h3 class="home-group-title">★ Favorites</h3>
-        <div class="card-grid">
+        <h3 class="home-group-title">★ {{ t('favorites') }}</h3>
+        <div class="card-grid" cdkDropList cdkDropListOrientation="mixed" (cdkDropListDropped)="dropFav($event)">
           @for (m of favorites(); track m.key) {
-            <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)">
+            <a
+              cdkDrag
+              cdkDragPreviewContainer="parent"
+              draggable="false"
+              class="model-card"
+              [routerLink]="['/', slug(m.key)]"
+              [style.background]="cardColor(m.key)"
+            >
               <span class="card-label">{{ cap(m.verbose_name) }}</span>
+              <span
+                class="card-drag"
+                cdkDragHandle
+                (click)="$event.preventDefault(); $event.stopPropagation()"
+                [title]="t('reorder')"
+                aria-hidden="true"
+              >⠿</span>
               <button
                 class="fav-star on"
                 (click)="toggleFav($event, m.key)"
-                [attr.aria-label]="'Remove ' + m.verbose_name + ' from favorites'"
+                [attr.aria-label]="t('favRemove', { name: m.verbose_name })"
               >★</button>
             </a>
           }
@@ -48,7 +70,7 @@ const THEIA_APP = 'theia_ng';
                 class="fav-star"
                 [class.on]="isFav(m.key)"
                 (click)="toggleFav($event, m.key)"
-                [attr.aria-label]="(isFav(m.key) ? 'Remove ' : 'Add ') + m.verbose_name"
+                [attr.aria-label]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
               >{{ isFav(m.key) ? '★' : '☆' }}</button>
             </a>
           }
@@ -61,7 +83,7 @@ const THEIA_APP = 'theia_ng';
       <h3 class="home-group-title">{{ adminTitle() }}</h3>
       <div class="card-grid">
         <a class="model-card" routerLink="/logs" [style.background]="cardColor('theia_ng.activity')">
-          <span class="card-label">Activity</span>
+          <span class="card-label">{{ t('activity') }}</span>
         </a>
         @if (adminGroup(); as ag) {
           @for (m of ag.models; track m.key) {
@@ -71,7 +93,7 @@ const THEIA_APP = 'theia_ng';
                 class="fav-star"
                 [class.on]="isFav(m.key)"
                 (click)="toggleFav($event, m.key)"
-                [attr.aria-label]="(isFav(m.key) ? 'Remove ' : 'Add ') + m.verbose_name"
+                [attr.aria-label]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
               >{{ isFav(m.key) ? '★' : '☆' }}</button>
             </a>
           }
@@ -84,6 +106,8 @@ export class HomeComponent implements OnInit {
   private api = inject(ApiService);
   private vs = inject(ViewService);
   private favs = inject(FavoritesService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   title = getConfig().siteTitle;
   cap = cap;
   slug = keyToSlug;
@@ -125,5 +149,15 @@ export class HomeComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
     this.favs.toggle(key);
+  }
+
+  /** Persist a drag-reorder of the favorite cards. */
+  dropFav(event: CdkDragDrop<unknown>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const keys = this.favorites().map((m) => m.key);
+    moveItemInArray(keys, event.previousIndex, event.currentIndex);
+    this.favs.reorder(keys);
   }
 }

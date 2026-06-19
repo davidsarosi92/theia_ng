@@ -4,6 +4,59 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] — 2026-06-19
+### Added
+- **Inlines** (`theia_ng.Inline`, `TabularInline`/`StackedInline` style) — edit a
+  parent's related child rows on its form. List inline classes in a ModelAdmin's
+  `inlines`; the child's FK back to the parent is auto-detected and set on save.
+  Existing rows load with the detail record; add/update/delete happen in the same
+  transaction (invalid children roll the whole save back). Closes the largest
+  django-admin gap (inlines were previously dropped on discovery).
+- **fieldsets** — group form fields into sections with an optional heading,
+  description and `collapse` class (collapsible, collapsed by default). Fields not
+  named in any fieldset still render (never hidden), so required-on-create fields
+  are safe.
+- **list_editable** — edit cells directly in the list (non-relation columns that
+  are also in `list_display`). A save bar commits all edited rows at once; row
+  clicks still open the record.
+- **Discovery** now translates django admin `fieldsets`, `list_editable` and
+  `inlines` (`TabularInline`/`StackedInline`) too, not just the flat field options.
+- **Per-user settings** model + `GET/PATCH /api/settings/` endpoint. Persists
+  language, timezone, theme and sidebar order per user (one row, like
+  `Favorite`); blanks fall back to Django's defaults (`get_language()`,
+  active timezone), which the endpoint fills in on read. Migration `0006`.
+- **UI translation (i18n).** All UI chrome is translated at runtime from a
+  dictionary keyed by language (single prefix-independent bundle — no
+  `$localize`), shipping **9 languages**: English, Hungarian, German, French,
+  Chinese, Korean, Russian, Spanish, Turkish. A language switcher in the topbar;
+  the default follows Django's active language. Missing keys fall back to English.
+- **Locale + timezone-aware dates.** List/log datetimes are formatted with `Intl`
+  in the user's locale and timezone (replacing naive ISO string slicing); plain
+  dates are not timezone-shifted.
+- **Configurable brand logo** before the topbar title, from `THEIA_NG['LOGO_URL']`
+  (injected config + registry `site` payload). Rendered in a fixed-height slot
+  with `object-fit: contain`, so it never resizes the sticky bar and its aspect
+  ratio is preserved.
+- **Dark / light / auto theme.** A topbar switcher; `auto` follows the OS
+  `prefers-color-scheme`. Saved per user and applied before first paint (an
+  inline bootstrap reads the saved preference) to avoid a flash. Implemented with
+  a `[data-theme]` dark CSS-variable set.
+- **Reorderable sidebar nav + home favorites** via drag-and-drop (`@angular/cdk`),
+  two levels: **app groups** reorder as a whole block (handle on the app header,
+  saved as `nav_app_order`) and **models reorder within their app** (handle on
+  each item, saved as `nav_order`). A drag handle on the right is the only grab
+  target — clicking it doesn't navigate; clicking elsewhere on the row still does.
+  Dragging is locked to the vertical axis and bounded to the sidebar, and the
+  drag preview renders in place (no flying/misplaced clone). Home **favorites**
+  reorder within their grid. All orders are saved per user.
+
+### Fixed
+- **Bulk action / delete count in the activity log.** The log UI counted
+  `changes.ids`, which `delete_selected` (and any select-all-matching action)
+  never records, so it showed "0 object(s)". Actions now record an authoritative
+  `count` and the UI prefers it (with an "(all matching)" hint), falling back to
+  `ids` for older entries.
+
 ## [0.12.1] — 2026-06-19
 ### Fixed
 - The bulk **Apply button did nothing** — under zoneless change detection, the
@@ -248,6 +301,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.13.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.0
 [0.12.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.1
 [0.12.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.0
 [0.11.6]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.6

@@ -9,8 +9,17 @@ from .models import Category, House, Space, Stock
 class StockAdmin(theia_ng.ModelAdmin):
     list_display = ["name", "category", "house__name", "quantity", "is_active"]
     list_filter = ["category", "is_active", "house__name", "created_at"]
+    list_editable = ["quantity", "is_active"]
     search_fields = ["name"]
     ordering = ["name"]
+    fieldsets = [
+        (None, {"fields": ["name", "category", "quantity"]}),
+        ("Details", {
+            "fields": ["status", "is_active", "notes"],
+            "classes": ["collapse"],
+            "description": "Optional details.",
+        }),
+    ]
     actions = ["deactivate", "bulk_add"]
     # Only show Spaces that belong to the Stock's currently-selected house.
     relation_filters = {"spaces": {"house": "house"}}
@@ -63,8 +72,18 @@ class SpaceAdmin(theia_ng.ModelAdmin):
     tree_parent = "house"
 
 
+class StockInline(theia_ng.Inline):
+    """Edit a Category's Stocks inline on the Category form."""
+
+    model = Stock
+    fk_name = "category"
+    fields = ["name", "quantity", "status", "is_active"]
+    extra = 1
+
+
 @theia_ng.register(Category)
 class CategoryAdmin(theia_ng.ModelAdmin):
     list_display = ["name"]
     search_fields = ["name"]
     display_field = "name"  # label relations by this field instead of __str__
+    inlines = [StockInline]

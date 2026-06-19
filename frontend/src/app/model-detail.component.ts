@@ -1,4 +1,12 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  QueryList,
+  ViewChildren,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -6,21 +14,37 @@ import { Subscription } from 'rxjs';
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
-import { FieldSpec, ModelSchema, RelationValue } from './models';
+import { I18nService } from './i18n.service';
+import { InlineEditorComponent } from './inline-editor.component';
+import { FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
 import { ToastService } from './toast.service';
 import { cap, slugToKey } from './util';
 import { ViewService } from './view.service';
 
+/** A resolved form section: its heading + the FieldSpecs it contains. */
+interface FieldsetGroup {
+  title: string | null;
+  description: string | null;
+  collapsible: boolean;
+  fields: FieldSpec[];
+}
+
 @Component({
   selector: 'theia-model-detail',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldInputComponent, ConfirmDialogComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    FieldInputComponent,
+    ConfirmDialogComponent,
+    InlineEditorComponent,
+  ],
   template: `
     @if (loading()) {
-      <div class="detail-loading"><span class="loading-pill"><span class="spinner"></span>Loading…</span></div>
+      <div class="detail-loading"><span class="loading-pill"><span class="spinner"></span>{{ t('loading') }}</span></div>
     } @else if (schema(); as s) {
       <nav class="breadcrumb">
-        <a routerLink="/">Home</a>
+        <a routerLink="/">{{ t('home') }}</a>
         <span class="sep">/</span>
         <a [routerLink]="['/', slug]">{{ cap(s.verbose_name) }}</a>
         <span class="sep">/</span>
@@ -31,9 +55,9 @@ import { ViewService } from './view.service';
         <h2>{{ leaf }} {{ cap(s.verbose_name) }}</h2>
         <div class="list-actions">
           @if (s.tree && !isNew) {
-            <a class="btn secondary" [routerLink]="['/', slug, pk, 'tree']" [queryParams]="{ ret: here() }">Hierarchy</a>
+            <a class="btn secondary" [routerLink]="['/', slug, pk, 'tree']" [queryParams]="{ ret: here() }">{{ t('hierarchy') }}</a>
           }
-          <button type="button" class="btn secondary" (click)="back()">← Back</button>
+          <button type="button" class="btn secondary" (click)="back()">{{ t('backArrow') }}</button>
         </div>
       </header>
 
@@ -42,10 +66,33 @@ import { ViewService } from './view.service';
       }
 
       <form [formGroup]="form" (ngSubmit)="save()">
-        @for (field of formFields(); track field.name) {
-          <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" [form]="form" />
-          @if (errors()[field.name]; as fieldErrors) {
-            <div class="errors">{{ fieldErrors.join(' ') }}</div>
+        @for (g of fieldsetGroups(); track $index) {
+          <fieldset class="form-section" [class.titled]="!!g.title" [class.collapsed]="isCollapsed(g, $index)">
+            @if (g.title || g.collapsible) {
+              <legend
+                class="section-title"
+                [class.toggle]="g.collapsible"
+                (click)="g.collapsible && toggleGroup(g, $index)"
+              >
+                @if (g.collapsible) { <span class="section-caret">{{ isCollapsed(g, $index) ? '▸' : '▾' }}</span> }
+                {{ g.title }}
+              </legend>
+            }
+            @if (g.description) { <p class="section-desc">{{ g.description }}</p> }
+            @if (!isCollapsed(g, $index)) {
+              @for (field of g.fields; track field.name) {
+                <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" [form]="form" />
+                @if (errors()[field.name]; as fieldErrors) {
+                  <div class="errors">{{ fieldErrors.join(' ') }}</div>
+                }
+              }
+            }
+          </fieldset>
+        }
+
+        @if (!viewMode) {
+          @for (inl of inlines(); track inl.key) {
+            <theia-inline-editor [inline]="inl" [initialRows]="inlineRows(inl)" />
           }
         }
 
@@ -53,20 +100,20 @@ import { ViewService } from './view.service';
           @if (viewMode) {
             <div class="actions-left">
               @if (s.perms.change) {
-                <button type="button" class="btn" (click)="editThis()">Edit</button>
+                <button type="button" class="btn" (click)="editThis()">{{ t('edit') }}</button>
               }
-              <button type="button" (click)="back()">Back</button>
+              <button type="button" (click)="back()">{{ t('back') }}</button>
             </div>
           } @else {
             <div class="actions-left">
-              <button type="submit" class="btn" [disabled]="saving()">Save</button>
+              <button type="submit" class="btn" [disabled]="saving()">{{ t('save') }}</button>
               <button type="button" class="btn secondary" [disabled]="saving()" (click)="save(true)">
-                Save and continue
+                {{ t('saveContinue') }}
               </button>
-              <button type="button" (click)="back()">Cancel</button>
+              <button type="button" (click)="back()">{{ t('cancel') }}</button>
             </div>
             @if (!isNew && s.perms.delete) {
-              <button type="button" class="btn danger" (click)="remove()">Delete</button>
+              <button type="button" class="btn danger" (click)="remove()">{{ t('delete') }}</button>
             }
           }
         </div>
@@ -74,9 +121,10 @@ import { ViewService } from './view.service';
 
       @if (confirmingDelete()) {
         <theia-confirm-dialog
-          title="Delete record"
-          message="Delete this record? This cannot be undone."
-          confirmLabel="Delete"
+          [title]="t('deleteRecordTitle')"
+          [message]="t('deleteRecordMsg')"
+          [confirmLabel]="t('delete')"
+          [cancelLabel]="t('cancel')"
           [danger]="true"
           (confirmed)="doRemove()"
           (cancelled)="confirmingDelete.set(false)"
@@ -91,6 +139,8 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private viewService = inject(ViewService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   // In-flight loads, cancelled on navigation so a slow record's late response
   // can't land on a record you've already navigated away from.
   private schemaSub?: Subscription;
@@ -111,6 +161,17 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   saving = signal(false);
   confirmingDelete = signal(false);
   loading = signal(false);
+  @ViewChildren(InlineEditorComponent) private inlineEditors!: QueryList<InlineEditorComponent>;
+
+  inlines(): InlineConfig[] {
+    return this.schema()?.inlines ?? [];
+  }
+
+  /** Existing child rows for an inline, from the loaded record's `inlines` blob. */
+  inlineRows(inline: InlineConfig): Record<string, unknown>[] {
+    const all = (this.record()?.['inlines'] ?? {}) as Record<string, Record<string, unknown>[]>;
+    return all[inline.key] ?? [];
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -156,7 +217,7 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   }
 
   get leaf(): string {
-    return this.isNew ? 'New' : this.viewMode ? 'View' : 'Edit';
+    return this.isNew ? this.t('leafNew') : this.viewMode ? this.t('leafView') : this.t('edit');
   }
 
   /** This page's URL, passed to the tree as `ret` so its Back returns here. */
@@ -200,6 +261,52 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
     }
     const allowed = new Set(viewFields);
     return base.filter((f) => allowed.has(f.name) || (this.isNew && f.required));
+  }
+
+  /** Form fields grouped into sections per ``fieldsets``. With no fieldsets, a
+   *  single untitled group holds every field. Any form field not named in a
+   *  fieldset (e.g. a required field on create) is appended in a trailing group
+   *  so it's never hidden. */
+  fieldsetGroups(): FieldsetGroup[] {
+    const all = this.formFields();
+    const fs = this.schema()?.fieldsets;
+    if (!fs || !fs.length) {
+      return [{ title: null, description: null, collapsible: false, fields: all }];
+    }
+    const byName = new Map(all.map((f) => [f.name, f]));
+    const used = new Set<string>();
+    const groups: FieldsetGroup[] = fs.map((g) => {
+      const fields = g.fields
+        .map((n) => byName.get(n))
+        .filter((f): f is FieldSpec => !!f);
+      fields.forEach((f) => used.add(f.name));
+      return {
+        title: g.title,
+        description: g.description ?? null,
+        collapsible: !!g.collapsible,
+        fields,
+      };
+    });
+    const rest = all.filter((f) => !used.has(f.name));
+    if (rest.length) {
+      groups.push({ title: null, description: null, collapsible: false, fields: rest });
+    }
+    return groups.filter((g) => g.fields.length);
+  }
+
+  /** Collapsible sections start collapsed; track which the user has expanded. */
+  private expanded = signal<Set<string>>(new Set());
+  private groupKey(g: FieldsetGroup, i: number): string {
+    return g.title ?? `__${i}`;
+  }
+  isCollapsed(g: FieldsetGroup, i: number): boolean {
+    return g.collapsible && !this.expanded().has(this.groupKey(g, i));
+  }
+  toggleGroup(g: FieldsetGroup, i: number): void {
+    const key = this.groupKey(g, i);
+    const next = new Set(this.expanded());
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.expanded.set(next);
   }
 
   controlFor(name: string): FormControl {
@@ -249,14 +356,22 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   save(continueEditing = false): void {
     this.saving.set(true);
     this.errors.set({});
-    const body = this.form.value;
+    const body: Record<string, unknown> = { ...this.form.value };
+    // Collect related child rows from each inline editor.
+    if (this.inlineEditors?.length) {
+      const inlines: Record<string, unknown> = {};
+      for (const editor of this.inlineEditors) {
+        inlines[editor.inline.key] = editor.getPayload();
+      }
+      body['inlines'] = inlines;
+    }
     const obs = this.isNew
       ? this.api.create(this.modelKey, body)
       : this.api.update(this.modelKey, this.pk, body);
     obs.subscribe({
       next: (record) => {
         this.saving.set(false);
-        this.toast.success(this.isNew ? 'Created.' : 'Saved.');
+        this.toast.success(this.isNew ? this.t('created') : this.t('saved'));
         this.refreshViewsIfNeeded();
         if (!continueEditing) {
           this.back();
@@ -274,8 +389,8 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.saving.set(false);
-        this.errors.set(err?.error?.errors ?? { __all__: ['Save failed.'] });
-        this.toast.error('Could not save — check the form.');
+        this.errors.set(err?.error?.errors ?? { __all__: [this.t('saveFailed')] });
+        this.toast.error(this.t('couldNotSave'));
       },
     });
   }
@@ -288,11 +403,11 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
     this.confirmingDelete.set(false);
     this.api.remove(this.modelKey, this.pk).subscribe({
       next: () => {
-        this.toast.success('Deleted.');
+        this.toast.success(this.t('deleted'));
         this.refreshViewsIfNeeded();
         this.back();
       },
-      error: () => this.toast.error('Could not delete.'),
+      error: () => this.toast.error(this.t('couldNotDelete')),
     });
   }
 

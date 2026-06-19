@@ -2,7 +2,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { I18nService } from './i18n.service';
 import { LogEntry, RegistryModel } from './models';
+import { MessageKey } from './i18n/messages';
 import { cap } from './util';
 
 @Component({
@@ -11,25 +13,25 @@ import { cap } from './util';
   imports: [RouterLink],
   template: `
     <nav class="breadcrumb">
-      <a routerLink="/">Home</a>
+      <a routerLink="/">{{ t('home') }}</a>
       <span class="sep">/</span>
-      <span>Activity log</span>
+      <span>{{ t('activityLog') }}</span>
     </nav>
 
     <header class="list-header">
-      <h2>Activity log</h2>
+      <h2>{{ t('activityLog') }}</h2>
     </header>
 
     <div class="log-filters">
       <select [value]="action()" (change)="setAction($any($event.target).value)">
-        <option value="">All actions</option>
-        <option value="create">Create</option>
-        <option value="update">Update</option>
-        <option value="delete">Delete</option>
-        <option value="action">Action</option>
+        <option value="">{{ t('allActions') }}</option>
+        <option value="create">{{ t('actionCreate') }}</option>
+        <option value="update">{{ t('actionUpdate') }}</option>
+        <option value="delete">{{ t('actionDelete') }}</option>
+        <option value="action">{{ t('actionAction') }}</option>
       </select>
       <select [value]="model()" (change)="setModel($any($event.target).value)">
-        <option value="">All models</option>
+        <option value="">{{ t('allModels') }}</option>
         @for (m of models(); track m.key) {
           <option [value]="m.key">{{ cap(m.verbose_name_plural) }}</option>
         }
@@ -38,7 +40,7 @@ import { cap } from './util';
         <input
           class="search"
           type="text"
-          placeholder="Filter by user…"
+          [placeholder]="t('filterByUser')"
           [value]="userFilter()"
           (input)="setUser($any($event.target).value)"
         />
@@ -49,12 +51,12 @@ import { cap } from './util';
       <table class="grid">
         <thead>
           <tr>
-            <th>Time</th>
-            @if (isSuper()) { <th>User</th> }
-            <th>Action</th>
-            <th>Model</th>
-            <th>Object</th>
-            <th>Changes</th>
+            <th>{{ t('colTime') }}</th>
+            @if (isSuper()) { <th>{{ t('colUser') }}</th> }
+            <th>{{ t('colAction') }}</th>
+            <th>{{ t('colModel') }}</th>
+            <th>{{ t('colObject') }}</th>
+            <th>{{ t('colChanges') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -62,7 +64,7 @@ import { cap } from './util';
             <tr>
               <td class="log-time">{{ fmtTime(e.timestamp) }}</td>
               @if (isSuper()) { <td>{{ e.username }}</td> }
-              <td><span class="log-badge log-{{ e.action }}">{{ e.action }}</span></td>
+              <td><span class="log-badge log-{{ e.action }}">{{ actionLabel(e.action) }}</span></td>
               <td>{{ cap(e.model_label) }}</td>
               <td>{{ e.object_repr }} <span class="log-pk">#{{ e.object_pk }}</span></td>
               <td class="log-changes">
@@ -72,21 +74,23 @@ import { cap } from './util';
               </td>
             </tr>
           } @empty {
-            <tr><td [attr.colspan]="isSuper() ? 6 : 5">No activity.</td></tr>
+            <tr><td [attr.colspan]="isSuper() ? 6 : 5">{{ t('noActivity') }}</td></tr>
           }
         </tbody>
       </table>
     </div>
 
     <footer class="pager">
-      <button [disabled]="page() <= 1" (click)="go(page() - 1)">‹ Prev</button>
-      <span>Page {{ page() }} / {{ numPages() }} ({{ count() }} total)</span>
-      <button [disabled]="page() >= numPages()" (click)="go(page() + 1)">Next ›</button>
+      <button [disabled]="page() <= 1" (click)="go(page() - 1)">{{ t('prev') }}</button>
+      <span>{{ t('pageInfo', { page: page(), pages: numPages(), count: count() }) }}</span>
+      <button [disabled]="page() >= numPages()" (click)="go(page() + 1)">{{ t('next') }}</button>
     </footer>
   `,
 })
 export class LogComponent implements OnInit {
   private api = inject(ApiService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   cap = cap;
 
   rows = signal<LogEntry[]>([]);
@@ -147,16 +151,35 @@ export class LogComponent implements OnInit {
   }
 
   fmtTime(iso: string): string {
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? iso : d.toLocaleString();
+    return this.i18n.formatDate(iso, 'datetime') || iso;
+  }
+
+  /** Translated badge label for a log action code. */
+  actionLabel(action: string): string {
+    const key: Record<string, MessageKey> = {
+      create: 'actionCreate',
+      update: 'actionUpdate',
+      delete: 'actionDelete',
+      action: 'actionAction',
+    };
+    return key[action] ? this.t(key[action]) : action;
   }
 
   /** Human lines for the changes column. */
   changeLines(e: LogEntry): string[] {
     const c = e.changes ?? {};
     if (e.action === 'action') {
-      const ids = Array.isArray(c['ids']) ? (c['ids'] as unknown[]).length : 0;
-      return [`${c['action']} — ${ids} object(s)`];
+      // Prefer the authoritative `count` (covers select-all-matching, where the
+      // server records no `ids`); fall back to the explicit id list for older
+      // entries that predate `count`.
+      const count =
+        typeof c['count'] === 'number'
+          ? (c['count'] as number)
+          : Array.isArray(c['ids'])
+            ? (c['ids'] as unknown[]).length
+            : 0;
+      const scope = c['all'] ? this.t('allMatchingSuffix') : '';
+      return [`${c['action']} — ${this.t('objectsCount', { n: count })}${scope}`];
     }
     return Object.entries(c).map(([field, pair]) => {
       if (Array.isArray(pair) && pair.length === 2) {

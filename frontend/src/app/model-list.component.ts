@@ -1,24 +1,33 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 
 import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
+import { I18nService } from './i18n.service';
+import { inputTypeFor } from './field-widgets';
 import { ActionSpec, FieldSpec, ModelSchema } from './models';
 import { ToastService } from './toast.service';
-import { cap, formatDateValue, slugToKey } from './util';
+import { cap, slugToKey } from './util';
 import { ViewService } from './view.service';
 
 @Component({
   selector: 'theia-model-list',
   standalone: true,
-  imports: [RouterLink, FilterDialogComponent, ActionDialogComponent, ConfirmDialogComponent],
+  imports: [
+    RouterLink,
+    FormsModule,
+    FilterDialogComponent,
+    ActionDialogComponent,
+    ConfirmDialogComponent,
+  ],
   template: `
     @if (schema(); as s) {
       <nav class="breadcrumb">
-        <a routerLink="/">Home</a>
+        <a routerLink="/">{{ t('home') }}</a>
         <span class="sep">/</span>
         <span>{{ cap(s.verbose_name) }}</span>
       </nav>
@@ -30,10 +39,10 @@ import { ViewService } from './view.service';
             <button class="btn secondary" (click)="openAction(a)">{{ cap(a.label) }}</button>
           }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
-            <button class="btn secondary" (click)="showFilter.set(true)">+ Filter</button>
+            <button class="btn secondary" (click)="showFilter.set(true)">+ {{ t('filter') }}</button>
           }
           @if (s.perms.add) {
-            <a class="btn" [routerLink]="['/', slug, 'new']">+ Add</a>
+            <a class="btn" [routerLink]="['/', slug, 'new']">+ {{ t('add') }}</a>
           }
         </div>
       </header>
@@ -42,7 +51,7 @@ import { ViewService } from './view.service';
         <input
           class="search"
           type="text"
-          placeholder="Search…"
+          [placeholder]="t('search')"
           [value]="searchTerm()"
           (input)="onSearch($any($event.target).value)"
         />
@@ -69,7 +78,7 @@ import { ViewService } from './view.service';
             [value]="selectedAction()"
             (change)="selectedAction.set($any($event.target).value)"
           >
-            <option value="">— Bulk action —</option>
+            <option value="">{{ t('bulkActionPlaceholder') }}</option>
             @for (a of bulkActions(); track a.key) {
               <option [value]="a.key">{{ cap(a.label) }}</option>
             }
@@ -78,18 +87,19 @@ import { ViewService } from './view.service';
             class="btn secondary small"
             [disabled]="!selectionCount() || !selectedAction()"
             (click)="runBulk(selectedAction())"
-          >Apply</button>
+          >{{ t('apply') }}</button>
           @if (selectionCount()) {
-            <span class="bulk-count">{{ selectionCount() }} selected</span>
+            <span class="bulk-count">{{ t('selectedCount', { n: selectionCount() }) }}</span>
           }
           @if (selectAllAcross()) {
             <span class="bulk-across">
-              All {{ count() }} selected. <button class="link-btn" (click)="clearSelection()">Clear</button>
+              {{ t('allNSelected', { n: count() }) }}
+              <button class="link-btn" (click)="clearSelection()">{{ t('clear') }}</button>
             </span>
           } @else if (allOnPageSelected() && count() > rows().length) {
             <span class="bulk-across">
-              All {{ rows().length }} on this page selected.
-              <button class="link-btn" (click)="selectAllAcross.set(true)">Select all {{ count() }}</button>
+              {{ t('allOnPageSelected', { n: rows().length }) }}
+              <button class="link-btn" (click)="selectAllAcross.set(true)">{{ t('selectAllN', { n: count() }) }}</button>
             </span>
           }
         </div>
@@ -98,7 +108,7 @@ import { ViewService } from './view.service';
       <div class="table-wrap" [class.is-loading]="loading()">
         @if (loading()) {
           <div class="loading-overlay">
-            <span class="loading-pill"><span class="spinner"></span>Loading…</span>
+            <span class="loading-pill"><span class="spinner"></span>{{ t('loading') }}</span>
           </div>
         }
         <table class="grid">
@@ -138,7 +148,37 @@ import { ViewService } from './view.service';
                 }
                 @for (col of columns(); track col) {
                   <td>
-                    @if (isBool(col)) {
+                    @if (editorKind(row, col); as kind) {
+                      <span class="cell-edit" (click)="$event.stopPropagation()">
+                        @switch (kind) {
+                          @case ('checkbox') {
+                            <input
+                              type="checkbox"
+                              [ngModel]="cellValue(row, col)"
+                              (ngModelChange)="setEdit(row, col, $event)"
+                            />
+                          }
+                          @case ('select') {
+                            <select
+                              [ngModel]="cellValue(row, col)"
+                              (ngModelChange)="setEdit(row, col, $event)"
+                            >
+                              <option [ngValue]="null">—</option>
+                              @for (c of colChoices(col); track c.value) {
+                                <option [ngValue]="c.value">{{ c.label }}</option>
+                              }
+                            </select>
+                          }
+                          @default {
+                            <input
+                              [type]="kind"
+                              [ngModel]="cellValue(row, col)"
+                              (ngModelChange)="setEdit(row, col, $event)"
+                            />
+                          }
+                        }
+                      </span>
+                    } @else if (isBool(col)) {
                       @if (row[col] === true) {
                         <span class="bool bool-true">✓</span>
                       } @else if (row[col] === false) {
@@ -154,17 +194,25 @@ import { ViewService } from './view.service';
               </tr>
             } @empty {
               @if (!loading()) {
-                <tr><td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">No records.</td></tr>
+                <tr><td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">{{ t('noRecords') }}</td></tr>
               }
             }
           </tbody>
         </table>
       </div>
 
+      @if (editCount()) {
+        <div class="edit-bar">
+          <span>{{ t('selectedCount', { n: editCount() }) }}</span>
+          <button class="btn small" [disabled]="savingEdits()" (click)="saveEdits()">{{ t('save') }}</button>
+          <button class="btn small secondary" [disabled]="savingEdits()" (click)="discardEdits()">{{ t('cancel') }}</button>
+        </div>
+      }
+
       <footer class="pager">
-        <button [disabled]="page() <= 1" (click)="go(page() - 1)">‹ Prev</button>
-        <span>Page {{ page() }} / {{ numPages() }} ({{ count() }} total)</span>
-        <button [disabled]="page() >= numPages()" (click)="go(page() + 1)">Next ›</button>
+        <button [disabled]="page() <= 1" (click)="go(page() - 1)">{{ t('prev') }}</button>
+        <span>{{ t('pageInfo', { page: page(), pages: numPages(), count: count() }) }}</span>
+        <button [disabled]="page() >= numPages()" (click)="go(page() + 1)">{{ t('next') }}</button>
       </footer>
 
       @if (showFilter()) {
@@ -186,8 +234,9 @@ import { ViewService } from './view.service';
       @if (pendingBulk(); as pb) {
         <theia-confirm-dialog
           [title]="cap(pb.label)"
-          [message]="'Run ' + pb.label.toLowerCase() + ' on ' + selectionCount() + ' record(s)? This cannot be undone.'"
+          [message]="t('bulkConfirmMsg', { action: cap(pb.label), n: selectionCount() })"
           [confirmLabel]="cap(pb.label)"
+          [cancelLabel]="t('cancel')"
           [danger]="true"
           (confirmed)="confirmBulk()"
           (cancelled)="pendingBulk.set(null)"
@@ -202,6 +251,8 @@ export class ModelListComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private viewService = inject(ViewService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   // In-flight requests, cancelled on navigation / re-load so a late response
   // from a previous model or page can't overwrite the current view.
   private schemaSub?: Subscription;
@@ -222,6 +273,12 @@ export class ModelListComponent implements OnInit, OnDestroy {
   showFilter = signal(false);
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
+
+  // --- inline list editing (list_editable) -------------------------------
+  /** Pending cell edits: pk -> {field: newValue}. */
+  edits = signal<Map<unknown, Record<string, unknown>>>(new Map());
+  savingEdits = signal(false);
+  editCount = computed(() => this.edits().size);
 
   // --- row selection / bulk actions --------------------------------------
   selectable = computed(() => !!this.schema()?.list.selectable);
@@ -334,11 +391,11 @@ export class ModelListComponent implements OnInit, OnDestroy {
       : { ids: [...this.selected()] as (number | string)[] };
     this.api.runAction(action.endpoint, body).subscribe({
       next: () => {
-        this.toast.success(cap(action.label) + ' — done.');
+        this.toast.success(this.t('actionDoneToast', { action: cap(action.label) }));
         this.clearSelection();
         this.load();
       },
-      error: () => this.toast.error('Action failed.'),
+      error: () => this.toast.error(this.t('actionFailed')),
     });
   }
 
@@ -419,7 +476,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
     return t === 'date' || t === 'datetime' || t === 'time' ? t : null;
   }
 
-  formatDate = formatDateValue;
+  formatDate = this.i18n.formatDate;
 
   colLabel(col: string): string {
     return this.schema()?.list.labels?.[col] ?? this.fieldByName(col)?.label ?? col;
@@ -444,9 +501,10 @@ export class ModelListComponent implements OnInit, OnDestroy {
 
   private load(): void {
     this.syncUrl();
-    // Row selection is per result set — drop it when the rows change (page,
-    // search, filter, sort, reload).
+    // Row selection + pending cell edits are per result set — drop them when the
+    // rows change (page, search, filter, sort, reload).
     this.clearSelection();
+    this.edits.set(new Map());
     // Tell the server which columns are shown so it serializes only those (a much
     // narrower query) instead of every field. Re-fetched when columns/view change.
     const params: Record<string, string | number> = {
@@ -516,5 +574,87 @@ export class ModelListComponent implements OnInit, OnDestroy {
       return String((value as { label: unknown }).label);
     }
     return String(value);
+  }
+
+  // --- inline list editing -----------------------------------------------
+  private editableCols(): string[] {
+    return this.schema()?.list.editable ?? [];
+  }
+
+  /** The inline editor kind for a cell, or null if the column isn't editable in
+   *  place. Relations/json/textareas stay read-only in the list. The return value
+   *  doubles as the input `type` for the default (text-like) case. */
+  editorKind(_row: Record<string, unknown>, col: string): string | null {
+    if (!this.editableCols().includes(col) || !this.schema()?.perms.change) {
+      return null;
+    }
+    const f = this.fieldByName(col);
+    if (!f || !f.editable) {
+      return null;
+    }
+    switch (f.type) {
+      case 'boolean':
+        return 'checkbox';
+      case 'choice':
+        return 'select';
+      case 'fk':
+      case 'm2m':
+      case 'json':
+      case 'text':
+      case 'image':
+      case 'file':
+        return null;
+      default:
+        return inputTypeFor(f.type);
+    }
+  }
+
+  colChoices(col: string) {
+    return this.fieldByName(col)?.choices ?? [];
+  }
+
+  cellValue(row: Record<string, unknown>, col: string): unknown {
+    const edit = this.edits().get(row['pk']);
+    if (edit && col in edit) {
+      return edit[col];
+    }
+    let v = row[col];
+    if (this.fieldByName(col)?.type === 'datetime' && typeof v === 'string') {
+      v = v.slice(0, 16); // ISO -> datetime-local
+    }
+    return v;
+  }
+
+  setEdit(row: Record<string, unknown>, col: string, value: unknown): void {
+    const pk = row['pk'];
+    const next = new Map(this.edits());
+    next.set(pk, { ...(next.get(pk) ?? {}), [col]: value });
+    this.edits.set(next);
+  }
+
+  discardEdits(): void {
+    this.edits.set(new Map());
+  }
+
+  saveEdits(): void {
+    const entries = [...this.edits().entries()];
+    if (!entries.length) {
+      return;
+    }
+    this.savingEdits.set(true);
+    forkJoin(
+      entries.map(([pk, changes]) => this.api.update(this.modelKey, String(pk), changes)),
+    ).subscribe({
+      next: () => {
+        this.savingEdits.set(false);
+        this.toast.success(this.t('saved'));
+        this.edits.set(new Map());
+        this.load();
+      },
+      error: () => {
+        this.savingEdits.set(false);
+        this.toast.error(this.t('couldNotSave'));
+      },
+    });
   }
 }

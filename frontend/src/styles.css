@@ -13,6 +13,27 @@
   --sidebar-bg: #eef0f4;
 }
 
+/* Dark theme. Applied via [data-theme="dark"] on <html>, set before paint by the
+   inline bootstrap in index.html and kept in sync by SettingsService. `auto`
+   resolves to light/dark against the OS, so only the two concrete values appear
+   here. The topbar is dark in both themes, only a touch deeper in dark mode. */
+[data-theme="dark"] {
+  --bg: #14171c;
+  --panel: #1c2027;
+  --border: #2c313b;
+  --accent: #6b86e8;
+  --text: #e6e9ef;
+  --muted: #9aa3b2;
+  --topbar-bg: #0f1216;
+  --topbar-text: #eef1f6;
+  --topbar-muted: #aab2c2;
+  --sidebar-bg: #171b21;
+}
+
+/* Home/app cards carry a light pastel background (cardColor) in both themes, so
+   their label stays dark for contrast regardless of theme. */
+[data-theme="dark"] .model-card { color: #1f2430; }
+
 * { box-sizing: border-box; }
 
 body {
@@ -31,8 +52,11 @@ body {
   background: var(--topbar-bg); color: var(--topbar-text);
   padding: 0.6rem 1.2rem;
 }
-.topbar-title { font-weight: 600; color: var(--topbar-text); text-decoration: none; }
+.topbar-title { font-weight: 600; color: var(--topbar-text); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
 .topbar-title:hover { opacity: 0.85; }
+/* Brand logo: a fixed-height slot so the sticky bar never resizes; the image is
+   contained within it, preserving its aspect ratio whatever its native size. */
+.topbar-logo { height: 1.6rem; max-height: 1.6rem; max-width: 8rem; width: auto; object-fit: contain; display: block; }
 .topbar-greet { color: var(--topbar-muted); font-size: 0.9rem; flex: 1; display: flex; align-items: baseline; gap: 0.5rem; }
 .topbar-email { color: var(--topbar-text); font-size: 0.85rem; }
 .topbar-right { display: flex; align-items: center; gap: 0.9rem; margin-left: auto; }
@@ -71,14 +95,25 @@ body {
 .nav-group { margin-bottom: 1rem; }
 /* app name: a real section header (and a link to the app's landing page) */
 .sidebar a.nav-group-title {
-  display: block; gap: 0; white-space: normal; text-decoration: none; cursor: pointer;
+  display: flex; align-items: center; gap: 0.4rem; white-space: normal;
+  text-decoration: none; cursor: pointer;
   font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--text); font-weight: 800; padding: 0.3rem 0.6rem 0.35rem;
   margin-bottom: 0.2rem; border-bottom: 1px solid var(--border); border-radius: 0;
 }
+.nav-group-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sidebar a.nav-group-title:hover { background: none; color: var(--accent); }
-/* models sit visually under their app header */
-.nav-group > a { margin-left: 0.35rem; }
+/* models sit visually under their app header (inside the per-group model
+   drag-drop list); the app header itself keeps the same small indent */
+.nav-group > a.nav-group-title,
+.nav-group .nav-modellist > a { margin-left: 0.35rem; }
+
+/* drag-drop list wrappers must be a positioning context so the in-place drag
+   preview (cdkDragPreviewContainer="parent") is placed correctly. */
+.nav-grouplist, .nav-modellist { position: relative; }
+/* the whole app block is draggable to reorder apps */
+.nav-grouplist .nav-group.cdk-drag { /* block is the drag unit */ }
+.group-drag { font-size: 0.9rem; }
 /* nav item has a full label (default) and an initials badge (rail) */
 .nav-ini {
   display: none;
@@ -91,10 +126,23 @@ body {
 /* collapsed = compact initials rail (desktop) */
 .sidebar.collapsed { width: 56px; padding: 1rem 0.4rem; align-items: center; }
 .sidebar.collapsed .nav-lbl,
+.sidebar.collapsed .nav-drag,
 .sidebar.collapsed a.nav-group-title { display: none; }
 .sidebar.collapsed a { justify-content: center; gap: 0; padding: 0.3rem; }
-.sidebar.collapsed .nav-group > a { margin-left: 0; }
+.sidebar.collapsed .nav-group > a,
+.sidebar.collapsed .nav-group [cdkDropList] > a { margin-left: 0; }
 .sidebar.collapsed .nav-ini { display: inline-flex; }
+
+/* drag handle on the RIGHT of a nav item — only this grabs to reorder; the rest
+   of the row stays a normal navigation link. Subtle until hover. */
+.nav-drag {
+  flex: 0 0 auto; cursor: grab; color: var(--muted);
+  font-size: 0.95rem; line-height: 1; padding: 0 0.1rem; opacity: 0;
+  touch-action: none; user-select: none;
+}
+.sidebar a:hover .nav-drag { opacity: 0.6; }
+.nav-drag:hover { opacity: 1; }
+.nav-drag:active { cursor: grabbing; }
 .sidebar.collapsed .nav-group { margin-bottom: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
 
 .sidebar-backdrop { display: none; }
@@ -322,10 +370,12 @@ body {
 .bool-false { color: #e03131; }
 
 /* top-bar view selector */
-.view-select {
+.view-select, .lang-select, .theme-select {
   font: inherit; font-size: 0.85rem; padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel); color: var(--text); cursor: pointer;
 }
+.lang-select { max-width: 8rem; }
 
 /* multiselect (checkbox group, e.g. MenuView models) */
 .multiselect {
@@ -368,6 +418,26 @@ body {
 .model-card:hover .fav-star { opacity: 0.65; }
 .fav-star.on { color: #f0a500; opacity: 1; }
 .fav-star:hover { transform: scale(1.2); opacity: 1; }
+/* drag handle on a favorite card — grab to reorder; subtle until hover */
+.card-drag {
+  flex: 0 0 auto; cursor: grab; color: var(--muted);
+  font-size: 1rem; line-height: 1; opacity: 0;
+  touch-action: none; user-select: none;
+}
+.model-card:hover .card-drag { opacity: 0.55; }
+.card-drag:hover { opacity: 1; }
+.card-drag:active { cursor: grabbing; }
+
+/* drag-and-drop (CDK) shared visuals: reorderable nav items + favorite cards */
+.cdk-drag-preview {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); border-radius: 8px;
+  background: var(--panel); opacity: 0.95;
+}
+.cdk-drag-placeholder { opacity: 0.35; }
+.cdk-drag-animating { transition: transform 180ms cubic-bezier(0, 0, 0.2, 1); }
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
+}
 
 /* hierarchy tree (lazy, expandable) */
 .tree-grid {
@@ -565,3 +635,61 @@ body {
   .tree-row .tree-type { min-width: 0; }
   .tree-row .tree-name { flex: 1 1 100%; order: -1; }
 }
+
+/* ---- Tier 1: fieldsets, list_editable, inlines ---- */
+
+/* form sections (fieldsets) */
+.form-section { border: none; padding: 0; margin: 0 0 0.5rem; }
+.form-section.titled {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.75rem 1rem 0.25rem; margin-bottom: 1rem; background: var(--panel);
+}
+.section-title {
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); font-weight: 700; padding: 0; margin-bottom: 0.5rem;
+}
+.section-title.toggle { cursor: pointer; user-select: none; }
+.section-title.toggle:hover { color: var(--accent); }
+.section-caret { display: inline-block; width: 1rem; color: var(--muted); }
+.section-desc { font-size: 0.85rem; color: var(--muted); margin: -0.25rem 0 0.6rem; }
+
+/* list_editable: inline cells + save bar */
+.cell-edit input[type="text"], .cell-edit input[type="number"], .cell-edit input[type="email"],
+.cell-edit input[type="url"], .cell-edit input[type="date"], .cell-edit input[type="time"],
+.cell-edit input[type="datetime-local"], .cell-edit select {
+  font: inherit; padding: 0.25rem 0.4rem; border: 1px solid var(--border);
+  border-radius: 5px; background: var(--panel); color: var(--text); max-width: 14rem;
+}
+.edit-bar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.75rem; margin-top: 0.5rem;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* inlines (related child rows on the form) */
+.inline { margin: 0.5rem 0 1.25rem; }
+.inline-title {
+  font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); font-weight: 700; margin: 0 0 0.5rem;
+}
+.inline-grid th { white-space: nowrap; }
+.inline-grid .req { color: #e03131; margin-left: 0.15rem; font-style: normal; }
+.inline-del-col { width: 1%; white-space: nowrap; text-align: center; }
+/* in a tabular inline, drop the per-cell field chrome — the column header labels it */
+.inline-grid theia-field .field-label,
+.inline-grid theia-field .help { display: none; }
+.inline-grid theia-field .field { margin: 0; max-width: none; gap: 0; }
+.inline-grid theia-field .field input,
+.inline-grid theia-field .field select,
+.inline-grid theia-field .field textarea { width: 100%; }
+.inline-grid td { vertical-align: top; }
+/* stacked inline: each row is a bordered block of labelled fields */
+.inline-block {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.75rem 1rem 0.25rem; margin-bottom: 0.75rem; background: var(--panel);
+}
+.row-deleted { opacity: 0.5; }
+.inline-grid tr.row-deleted td { text-decoration: line-through; }
+.inline-add { margin-top: 0.25rem; }

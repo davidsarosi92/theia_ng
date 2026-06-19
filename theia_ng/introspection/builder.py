@@ -55,6 +55,8 @@ def _registry_structure(site: TheiaSite) -> list[dict[str, Any]]:
 
 def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
     """Lightweight payload for the left nav. Only models the user may view."""
+    from django.conf import settings as django_settings
+
     import theia_ng
     from theia_ng.cache import cached_structure
 
@@ -71,9 +73,14 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
         models_out.append({**entry, "perms": perms})
     return {
         "schema_version": SCHEMA_VERSION,
-        # version here (a live API call) as well as in the injected index config,
-        # so the topbar shows it even if the cached index.html predates the field.
-        "site": {"title": site.site_title, "version": theia_ng.__version__},
+        # version/logo here (a live API call) as well as in the injected index
+        # config, so the topbar shows them even if the cached index.html predates
+        # the field.
+        "site": {
+            "title": site.site_title,
+            "version": theia_ng.__version__,
+            "logo_url": (getattr(django_settings, "THEIA_NG", {}) or {}).get("LOGO_URL") or "",
+        },
         "models": models_out,
         "views": _menu_views({m["key"] for m in models_out}),
     }
@@ -398,6 +405,109 @@ def _actions_ir(model: type[Model], admin: ModelAdmin) -> list[dict[str, Any]]:
     return actions
 
 
+def _fieldsets_ir(admin: ModelAdmin) -> list[dict[str, Any]]:
+    """Form sections from ``ModelAdmin.fieldsets``. Field rows that group several
+    fields on one line (Django allows ``("a", "b")``) are flattened — the SPA
+    stacks fields vertically. A ``"collapse"`` class marks the section collapsible."""
+    out: list[dict[str, Any]] = []
+    for entry in admin.fieldsets or []:
+        name, opts = entry
+        opts = opts or {}
+        fields: list[str] = []
+        for f in opts.get("fields", []):
+            if isinstance(f, (list, tuple)):
+                fields.extend(f)
+            else:
+                fields.append(f)
+        classes = opts.get("classes", []) or []
+        out.append({
+            "title": name,
+            "fields": fields,
+            "description": opts.get("description"),
+            "collapsible": "collapse" in classes,
+        })
+    return out
+
+
+def _inline_fk_name(
+    parent_model: type[Model], child_model: type[Model], declared: str | None
+) -> str | None:
+    """The child FK field name pointing back to the parent (declared, or the sole
+    candidate auto-detected)."""
+    from django.db.models import ForeignKey, OneToOneField
+
+    if declared:
+        return declared
+    candidates = [
+        f.name
+        for f in child_model._meta.concrete_fields
+        if isinstance(f, (ForeignKey, OneToOneField)) and f.related_model is parent_model
+    ]
+    return candidates[0] if len(candidates) == 1 else (candidates[0] if candidates else None)
+
+
+def inline_field_names(child_model: type[Model], inline, fk_name: str) -> list[str]:
+    """Names of the child fields an inline shows (minus the parent FK), in order.
+    Shared by the IR builder and the CRUD serializer so they never drift."""
+    readonly = set(inline.readonly_fields)
+    excluded = set(inline.exclude)
+    field_objs = [*child_model._meta.concrete_fields, *child_model._meta.many_to_many]
+    if inline.fields is not None:
+        valid = {f.name for f in field_objs}
+        return [n for n in inline.fields if n in valid and n != fk_name]
+    names: list[str] = []
+    for f in field_objs:
+        if f.name == fk_name or getattr(f, "auto_created", False):
+            continue
+        editable = f.editable and f.name not in excluded
+        if editable or f.name in readonly:
+            names.append(f.name)
+    return names
+
+
+def _inline_child_specs(child_model: type[Model], inline, fk_name: str) -> list[dict[str, Any]]:
+    """FieldSpecs for an inline's child fields (minus the parent FK)."""
+    names = inline_field_names(child_model, inline, fk_name)
+    readonly = set(inline.readonly_fields)
+    specs: list[dict[str, Any]] = []
+    for name in names:
+        field = child_model._meta.get_field(name)
+        s = _field_descriptor(field, child_model, inline)
+        if name in readonly:
+            s["read_only"] = True
+            s["editable"] = False
+        specs.append(s)
+    return specs
+
+
+def _inlines_ir(parent_model: type[Model], admin: ModelAdmin) -> list[dict[str, Any]]:
+    """Descriptors for each declared inline (child model + form fields)."""
+    out: list[dict[str, Any]] = []
+    seen: dict[str, int] = {}
+    for inline_cls in admin.inlines or []:
+        inline = inline_cls()
+        child = inline.model
+        fk_name = _inline_fk_name(parent_model, child, inline.fk_name)
+        if not fk_name:
+            continue  # no resolvable link to the parent — skip rather than break
+        child_key = _model_key(child)
+        # Unique key when the same child model is inlined more than once.
+        n = seen.get(child_key, 0)
+        seen[child_key] = n + 1
+        key = child_key if n == 0 else f"{child_key}#{n}"
+        out.append({
+            "key": key,
+            "model": child_key,
+            "fk_field": fk_name,
+            "title": inline.verbose_name_plural or str(child._meta.verbose_name_plural),
+            "style": inline.style if inline.style in ("tabular", "stacked") else "tabular",
+            "can_delete": bool(inline.can_delete),
+            "extra": int(inline.extra),
+            "fields": _inline_child_specs(child, inline, fk_name),
+        })
+    return out
+
+
 def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     """User-independent model descriptor (cacheable; excludes ``perms``)."""
     key = _model_key(model)
@@ -461,8 +571,13 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
             "ordering": list(admin.ordering),
             "per_page": admin.list_per_page,
             "selectable": admin.list_selectable,
+            # Columns editable in place (intersected with list_display).
+            "editable": [c for c in admin.list_editable if c in admin.list_display],
         },
         "fields": fields,
+        # Form sections (None -> flat form) and related-child editors.
+        "fieldsets": _fieldsets_ir(admin) if admin.fieldsets else None,
+        "inlines": _inlines_ir(model, admin),
         "actions": _actions_ir(model, admin),
         # Whether this model participates in a hierarchy tree (offers a "Hierarchy"
         # view). True if it has a parent and/or children declared.

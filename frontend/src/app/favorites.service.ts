@@ -34,11 +34,26 @@ export class FavoritesService {
   toggle(key: string): void {
     const cur = this.favorites();
     const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
-    this.favorites.set(next); // optimistic
+    this.persist(next, cur);
+  }
+
+  /** Reorder favorites given the new order of the *visible* subset (the home
+   *  page only shows favorites the user may still see). Non-visible favorite
+   *  keys keep their slots, so a reorder never drops a temporarily hidden one. */
+  reorder(visibleOrdered: string[]): void {
+    const cur = this.favorites();
+    const visible = new Set(visibleOrdered);
+    let i = 0;
+    const next = cur.map((k) => (visible.has(k) ? visibleOrdered[i++] : k));
+    this.persist(next, cur);
+  }
+
+  /** Optimistically set + persist (PUT replaces the list); revert on failure. */
+  private persist(next: string[], prev: string[]): void {
+    this.favorites.set(next);
     this.api.saveFavorites(next).subscribe({
-      // Reconcile with the server's canonical order/dedupe; revert on failure.
       next: (r) => this.favorites.set(r.favorites ?? next),
-      error: () => this.favorites.set(cur),
+      error: () => this.favorites.set(prev),
     });
   }
 }
