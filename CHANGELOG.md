@@ -4,6 +4,20 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.1] — 2026-06-19
+### Added
+- **"Reset order"** control at the bottom of the sidebar — restores the default
+  (name) ordering by clearing the saved app-group and per-group model order. Only
+  shown when a custom order exists. Translated in all 9 languages.
+
+### Fixed
+- **Dark theme polish.** Several surfaces were hardcoded light and broke in dark
+  mode: dialogs (now `var(--panel)`/`var(--text)` — previously near-invisible),
+  form inputs/selects/textareas, search boxes, the relation picker panel/trigger
+  and option rows, secondary/plain buttons, log-filter selects, and chips. The
+  list **row hover** was a glaring near-white in dark mode; it now uses a subtle,
+  theme-aware accent tint (`--hover`).
+
 ## [0.13.0] — 2026-06-19
 ### Added
 - **Inlines** (`theia_ng.Inline`, `TabularInline`/`StackedInline` style) — edit a
@@ -301,6 +315,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.13.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.1
 [0.13.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.0
 [0.12.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.1
 [0.12.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.0

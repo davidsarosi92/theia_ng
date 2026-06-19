@@ -183,6 +183,11 @@ const THEIA_APP = 'theia_ng';
                   </div>
                 }
               </div>
+              @if (settings.hasCustomNavOrder()) {
+                <button type="button" class="nav-reset" (click)="settings.resetNavOrder()">
+                  ↺ {{ t('resetOrder') }}
+                </button>
+              }
             </aside>
             <div class="sidebar-backdrop" (click)="closeSidebar()"></div>
             <main class="content">

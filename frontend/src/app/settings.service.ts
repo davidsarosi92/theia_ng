@@ -102,6 +102,18 @@ export class SettingsService {
     this.persist({ nav_app_order: order });
   }
 
+  /** Clear both sidebar orders, restoring the default (name) ordering. */
+  resetNavOrder(): void {
+    this.navAppOrder.set([]);
+    this.navOrder.set([]);
+    this.persist({ nav_app_order: [], nav_order: [] });
+  }
+
+  /** Whether the user has a custom sidebar order (so a Reset control can show). */
+  hasCustomNavOrder(): boolean {
+    return this.navAppOrder().length > 0 || this.navOrder().length > 0;
+  }
+
   /** The concrete theme in effect right now (`auto` resolved against the OS). */
   resolvedTheme(): 'light' | 'dark' {
     const pref = this.theme();
