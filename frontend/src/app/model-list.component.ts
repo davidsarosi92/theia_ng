@@ -64,7 +64,11 @@ import { ViewService } from './view.service';
 
       @if (selectable() && bulkActions().length) {
         <div class="bulk-bar">
-          <select class="bulk-select" #act>
+          <select
+            class="bulk-select"
+            [value]="selectedAction()"
+            (change)="selectedAction.set($any($event.target).value)"
+          >
             <option value="">— Bulk action —</option>
             @for (a of bulkActions(); track a.key) {
               <option [value]="a.key">{{ cap(a.label) }}</option>
@@ -72,8 +76,8 @@ import { ViewService } from './view.service';
           </select>
           <button
             class="btn secondary small"
-            [disabled]="!selectionCount() || !act.value"
-            (click)="runBulk(act.value)"
+            [disabled]="!selectionCount() || !selectedAction()"
+            (click)="runBulk(selectedAction())"
           >Apply</button>
           @if (selectionCount()) {
             <span class="bulk-count">{{ selectionCount() }} selected</span>
@@ -227,6 +231,9 @@ export class ModelListComponent implements OnInit, OnDestroy {
   selectAllAcross = signal(false);
   /** A dangerous bulk action awaiting confirmation. */
   pendingBulk = signal<ActionSpec | null>(null);
+  /** The bulk action chosen in the dropdown (a signal so the zoneless app
+   *  re-evaluates the Apply button when the selection changes). */
+  selectedAction = signal('');
 
   /** Selection-less actions ('none') run from the toolbar; selection-driven ones
    *  ('required'/'optional') run from the bulk bar. */

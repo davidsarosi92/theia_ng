@@ -4,6 +4,12 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.12.1] — 2026-06-19
+### Fixed
+- The bulk **Apply button did nothing** — under zoneless change detection, the
+  action `<select>` value isn't reactive, so the button's enabled state and the
+  chosen action were stale. The dropdown is now bound to a signal.
+
 ## [0.12.0] — 2026-06-19
 ### Added
 - **Row selection + bulk actions** in the list (django-admin style):
@@ -242,6 +248,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.12.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.1
 [0.12.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.0
 [0.11.6]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.6
 [0.11.5]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.5
