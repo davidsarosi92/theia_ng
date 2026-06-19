@@ -1,5 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
@@ -130,11 +131,15 @@ import { ViewService } from './view.service';
     }
   `,
 })
-export class ModelListComponent implements OnInit {
+export class ModelListComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewService = inject(ViewService);
+  // In-flight requests, cancelled on navigation / re-load so a late response
+  // from a previous model or page can't overwrite the current view.
+  private schemaSub?: Subscription;
+  private listSub?: Subscription;
 
   modelKey = '';
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
@@ -172,11 +177,20 @@ export class ModelListComponent implements OnInit {
       this.slug = params.get('modelKey') ?? '';
       this.modelKey = slugToKey(this.slug);
       this.restoreFromUrl();
-      this.api.getSchema(this.modelKey).subscribe((s) => {
+      // Drop any pending request from the previous model so its late response
+      // can't land on (and overwrite) the new page.
+      this.schemaSub?.unsubscribe();
+      this.listSub?.unsubscribe();
+      this.schemaSub = this.api.getSchema(this.modelKey).subscribe((s) => {
         this.schema.set(s);
         this.load();
       });
     });
+  }
+
+  ngOnDestroy(): void {
+    this.schemaSub?.unsubscribe();
+    this.listSub?.unsubscribe();
   }
 
   /** Restore list view state (search/sort/page/filters) from the URL query, so
@@ -276,7 +290,8 @@ export class ModelListComponent implements OnInit {
       params[f.field] = f.value as string | number;
     }
     this.loading.set(true);
-    this.api.list(this.modelKey, params).subscribe({
+    this.listSub?.unsubscribe(); // supersede any in-flight list request
+    this.listSub = this.api.list(this.modelKey, params).subscribe({
       next: (resp) => {
         this.rows.set(resp.results);
         this.count.set(resp.count);

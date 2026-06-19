@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.6] — 2026-06-19
+### Fixed
+- **Stale-response race on navigation.** Opening a slow list/detail and then
+  switching to another model (or record) before it loaded could let the late
+  response overwrite the page you'd moved to. In-flight schema/list/retrieve
+  requests are now cancelled (XHR aborted) on navigation and on re-load, so only
+  the current view's response is applied.
+
 ## [0.11.5] — 2026-06-19
 ### Changed
 - **Pager (prev/next) buttons** now follow the secondary-button convention
@@ -219,6 +227,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.11.6]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.6
 [0.11.5]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.5
 [0.11.4]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.4
 [0.11.3]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.3

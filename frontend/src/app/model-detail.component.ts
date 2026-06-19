@@ -1,6 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
@@ -84,12 +85,16 @@ import { ViewService } from './view.service';
     }
   `,
 })
-export class ModelDetailComponent implements OnInit {
+export class ModelDetailComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewService = inject(ViewService);
   private toast = inject(ToastService);
+  // In-flight loads, cancelled on navigation so a slow record's late response
+  // can't land on a record you've already navigated away from.
+  private schemaSub?: Subscription;
+  private retrieveSub?: Subscription;
 
   modelKey = '';
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
@@ -114,7 +119,10 @@ export class ModelDetailComponent implements OnInit {
       this.pk = params.get('pk') ?? 'new';
       this.isNew = this.pk === 'new';
       this.loading.set(true);
-      this.api.getSchema(this.modelKey).subscribe({
+      // Cancel a pending load from the previous record/model.
+      this.schemaSub?.unsubscribe();
+      this.retrieveSub?.unsubscribe();
+      this.schemaSub = this.api.getSchema(this.modelKey).subscribe({
         next: (s) => {
           this.schema.set(s);
           this.buildForm(s);
@@ -122,7 +130,7 @@ export class ModelDetailComponent implements OnInit {
             this.applyMode();
             this.loading.set(false);
           } else {
-            this.api.retrieve(this.modelKey, this.pk).subscribe({
+            this.retrieveSub = this.api.retrieve(this.modelKey, this.pk).subscribe({
               next: (data) => {
                 this.populate(data);
                 this.loading.set(false);
@@ -140,6 +148,11 @@ export class ModelDetailComponent implements OnInit {
       this.viewMode = q.get('mode') === 'view';
       this.applyMode();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.schemaSub?.unsubscribe();
+    this.retrieveSub?.unsubscribe();
   }
 
   get leaf(): string {
