@@ -356,7 +356,15 @@ def _action_descriptor(model: type[Model], admin: ModelAdmin, key: str) -> dict[
     """One action's IR: label, endpoint, selection mode, and its form fields."""
     method = getattr(admin, key, None)
     meta = getattr(method, "_theia_action", None)
-    base = {"key": key, "label": key, "endpoint": f"action/{_model_key(model)}/{key}/"}
+    # `requires` is the permission the SPA gates the action on; custom actions
+    # run under change permission (matching ActionView).
+    base = {
+        "key": key,
+        "label": key,
+        "endpoint": f"action/{_model_key(model)}/{key}/",
+        "dangerous": False,
+        "requires": "change",
+    }
     if not meta:
         return {**base, "selection": "required", "fields": []}
     return {
@@ -365,6 +373,29 @@ def _action_descriptor(model: type[Model], admin: ModelAdmin, key: str) -> dict[
         "selection": meta["selection"],
         "fields": [_action_field_descriptor(f, model) for f in meta["fields"]],
     }
+
+
+# The built-in bulk action every selectable model gets (mirrors django admin's
+# delete_selected). Handled specially by ActionView; gated on delete permission.
+DELETE_SELECTED_ACTION = {
+    "key": "delete_selected",
+    "label": "Delete selected",
+    "endpoint_suffix": "delete_selected",
+    "selection": "required",
+    "dangerous": True,
+    "requires": "delete",
+    "fields": [],
+}
+
+
+def _actions_ir(model: type[Model], admin: ModelAdmin) -> list[dict[str, Any]]:
+    actions = [_action_descriptor(model, admin, a) for a in admin.actions]
+    if admin.list_selectable:
+        actions.insert(
+            0,
+            {**DELETE_SELECTED_ACTION, "endpoint": f"action/{_model_key(model)}/delete_selected/"},
+        )
+    return actions
 
 
 def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
@@ -429,9 +460,10 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
             "search_fields": list(admin.search_fields),
             "ordering": list(admin.ordering),
             "per_page": admin.list_per_page,
+            "selectable": admin.list_selectable,
         },
         "fields": fields,
-        "actions": [_action_descriptor(model, admin, a) for a in admin.actions],
+        "actions": _actions_ir(model, admin),
         # Whether this model participates in a hierarchy tree (offers a "Hierarchy"
         # view). True if it has a parent and/or children declared.
         "tree": bool(admin.tree_parent or admin.tree_children),

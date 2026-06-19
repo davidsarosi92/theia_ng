@@ -361,8 +361,33 @@ class MessageAdmin(theia_ng.ModelAdmin):
 `ActionField` types reuse the IR field types (`string`, `text`, `integer`,
 `decimal`, `boolean`, `choice`, plus `fk` / `m2m` with `relation="app.model"`
 for a searchable picker). The SPA renders the form with the same widgets as the
-record form, validates `required` fields server-side, and shows toolbar buttons
-for `none` / `optional` actions on the list page.
+record form and validates `required` fields server-side. Selection-less (`none`)
+actions are toolbar buttons; selection-driven ones appear in the bulk bar below.
+
+## Bulk actions & row selection
+
+The list has row checkboxes and a bulk action bar (django-admin style), on by
+default. Toggle per model with `list_selectable`:
+
+```python
+@theia_ng.register(Stock)
+class StockAdmin(theia_ng.ModelAdmin):
+    list_selectable = True          # default; set False to hide checkboxes
+    actions = ["deactivate"]        # selection-driven actions show in the bulk bar
+
+    def deactivate(self, request, queryset):
+        return {"updated": queryset.update(is_active=False)}
+```
+
+- A built-in **"Delete selected"** action is always available (gated on delete
+  permission); your `actions` with selection `"required"`/`"optional"` join it in
+  the bar.
+- The header checkbox selects every row **on the page**. When a page is fully
+  selected, a banner offers **"Select all N"** — running the action then operates
+  on every record matching the current filters/search (the server rebuilds that
+  queryset from the same filters; it isn't sent a giant id list).
+- Dangerous actions (like delete) confirm first. Actions are gated on the
+  permission they need (`change` for custom actions, `delete` for the built-in).
 
 ## Audit log
 

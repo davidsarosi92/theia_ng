@@ -122,6 +122,36 @@ def _custom_filter_instances(admin) -> list:
     return [f() for f in admin.list_filter if isinstance(f, type) and issubclass(f, ListFilter)]
 
 
+def apply_list_filters(qs, model, admin, params, request: HttpRequest):
+    """Apply search + field/custom filters from ``params`` (a dict-like: the list
+    view's ``request.GET``, or an action body's ``filters`` dict). Ordering and
+    pagination stay with the caller. Shared by the list view and bulk actions so
+    a "select all matching" action operates on exactly the listed rows."""
+    search = params.get("search")
+    if search and admin.search_fields:
+        q = Q()
+        for name in admin.search_fields:
+            q |= Q(**{f"{name}__icontains": search})
+        qs = qs.filter(q)
+
+    for name in admin.list_filter:
+        if not isinstance(name, str) or name not in params:
+            continue  # custom ListFilter classes are applied below
+        value = params[name]
+        field = _filter_field(model, name)
+        if isinstance(field, models.BooleanField):
+            qs = qs.filter(**{name: str(value).lower() in ("true", "1", "yes", "on")})
+        elif isinstance(field, (models.DateField, models.DateTimeField)):
+            qs = _apply_date_filter(qs, name, field, str(value))
+        else:
+            qs = qs.filter(**{name: value})
+
+    for flt in _custom_filter_instances(admin):
+        if flt.parameter_name in params:
+            qs = flt.queryset(request, qs, params[flt.parameter_name])
+    return qs
+
+
 def _resolve_lookup(obj, path: str) -> Any:
     """Follow a ``house__company__name`` lookup across relations, None-safe."""
     cur = obj
@@ -222,34 +252,8 @@ class DataListView(_BaseModelView):
         if prefetch:
             qs = qs.prefetch_related(*prefetch)
 
-        # search
-        search = request.GET.get("search")
-        if search and self.admin.search_fields:
-            q = Q()
-            for name in self.admin.search_fields:
-                q |= Q(**{f"{name}__icontains": search})
-            qs = qs.filter(q)
-
-        # filters
         try:
-            for name in self.admin.list_filter:
-                if not isinstance(name, str):
-                    continue  # custom ListFilter classes are applied below
-                if name not in request.GET:
-                    continue
-                value: object = request.GET[name]
-                field = _filter_field(self.model, name)
-                if isinstance(field, models.BooleanField):
-                    qs = qs.filter(**{name: str(value).lower() in ("true", "1", "yes", "on")})
-                elif isinstance(field, (models.DateField, models.DateTimeField)):
-                    qs = _apply_date_filter(qs, name, field, str(value))
-                else:
-                    qs = qs.filter(**{name: value})
-
-            # custom filters (theia_ng.ListFilter subclasses in list_filter)
-            for flt in _custom_filter_instances(self.admin):
-                if flt.parameter_name in request.GET:
-                    qs = flt.queryset(request, qs, request.GET[flt.parameter_name])
+            qs = apply_list_filters(qs, self.model, self.admin, request.GET, request)
 
             # ordering
             ordering = request.GET.get("ordering")
@@ -503,6 +507,39 @@ class ActionView(_BaseModelView):
     """
 
     def post(self, request: HttpRequest, model_key: str, action_key: str):
+        body = _json_body(request) or {}
+        params = body.get("params", {}) or {}
+        ids = body.get("ids", []) or []
+        # "Select all matching": operate on the whole filtered queryset (the rows
+        # the list is showing), reconstructed server-side from the same filters —
+        # not a (possibly huge) list of ids.
+        select_all = bool(body.get("all"))
+        if select_all:
+            queryset = apply_list_filters(
+                self.admin.get_queryset(request),
+                self.model,
+                self.admin,
+                body.get("filters", {}) or {},
+                request,
+            )
+        else:
+            queryset = self.model._default_manager.filter(pk__in=ids)
+
+        # Built-in bulk delete (mirrors django admin's delete_selected).
+        if action_key == "delete_selected":
+            if not self.admin.list_selectable or not self.admin.has_delete_permission(request):
+                return _forbidden()
+            count = queryset.count()
+            queryset.delete()
+            audit.record(
+                request,
+                "action",
+                model_key,
+                object_repr=f"delete_selected ({count} objects)",
+                changes={"action": "delete_selected", "all": select_all, "count": count},
+            )
+            return JsonResponse({"detail": "ok", "result": {"deleted": count}})
+
         if action_key not in self.admin.actions:
             raise Http404(f"Action {action_key!r} is not registered")
         if not self.admin.has_change_permission(request):
@@ -511,11 +548,6 @@ class ActionView(_BaseModelView):
         method = getattr(self.admin, action_key, None)
         if not callable(method):
             return JsonResponse({"detail": "Action not implemented"}, status=501)
-
-        body = _json_body(request) or {}
-        ids = body.get("ids", [])
-        params = body.get("params", {}) or {}
-        queryset = self.model._default_manager.filter(pk__in=ids)
 
         # Parameterized actions (declared with @theia_ng.action) validate their
         # required fields and receive the collected params as a third argument.
@@ -528,15 +560,15 @@ class ActionView(_BaseModelView):
             }
             if errors:
                 return JsonResponse({"errors": errors}, status=400)
-            result = method(request, queryset, params)
-        else:
-            result = method(request, queryset)
+
+        n = queryset.count() if select_all else len(ids)
+        result = method(request, queryset, params) if meta else method(request, queryset)
         audit.record(
             request,
             "action",
             model_key,
-            object_repr=f"{action_key} ({len(ids)} objects)",
-            changes={"action": action_key, "ids": [str(i) for i in ids], "params": params},
+            object_repr=f"{action_key} ({n} objects)",
+            changes={"action": action_key, "all": select_all, "ids": [str(i) for i in ids], "params": params},
         )
         return JsonResponse(
             {

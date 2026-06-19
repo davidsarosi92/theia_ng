@@ -92,6 +92,8 @@ export interface ListConfig {
   search_fields: string[];
   ordering: string[];
   per_page: number;
+  /** Row checkboxes + bulk actions are available for this model. */
+  selectable?: boolean;
 }
 
 /** A custom action. Parameterized actions carry form ``fields``; ``selection``
@@ -103,6 +105,10 @@ export interface ActionSpec {
   endpoint: string;
   selection: 'none' | 'optional' | 'required';
   fields: FieldSpec[];
+  /** Needs a confirm step (e.g. delete). */
+  dangerous?: boolean;
+  /** Permission the action needs; the SPA hides it unless perms[requires] is true. */
+  requires?: keyof Perms;
 }
 
 export interface ModelSchema {

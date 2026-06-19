@@ -82,3 +82,62 @@ def test_plain_action_still_two_arg(admin_client, category):
     assert resp.status_code == 200
     s.refresh_from_db()
     assert s.is_active is False
+
+
+def test_schema_exposes_delete_selected_and_selectable(admin_client):
+    schema = admin_client.get(SCHEMA).json()
+    assert schema["list"]["selectable"] is True
+    actions = {a["key"]: a for a in schema["actions"]}
+    delete = actions["delete_selected"]
+    assert delete["selection"] == "required"
+    assert delete["dangerous"] is True
+    assert delete["requires"] == "delete"
+    # custom actions advertise the permission they need
+    assert actions["deactivate"]["requires"] == "change"
+
+
+def test_delete_selected_by_ids(admin_client, category):
+    a = Stock.objects.create(name="A", category=category)
+    b = Stock.objects.create(name="B", category=category)
+    c = Stock.objects.create(name="C", category=category)
+    resp = admin_client.post(
+        ACTION.format(key="delete_selected"),
+        data=json.dumps({"ids": [a.pk, b.pk]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200, resp.content
+    assert resp.json()["result"]["deleted"] == 2
+    assert list(Stock.objects.values_list("pk", flat=True)) == [c.pk]
+
+
+def test_delete_selected_all_matching_filter(admin_client, category):
+    other = Category.objects.create(name="Other")
+    Stock.objects.create(name="A", category=category)
+    Stock.objects.create(name="B", category=category)
+    keep = Stock.objects.create(name="C", category=other)
+    # "select all matching" the category filter -> deletes only that category
+    resp = admin_client.post(
+        ACTION.format(key="delete_selected"),
+        data=json.dumps({"all": True, "filters": {"category": category.pk}}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200, resp.content
+    assert resp.json()["result"]["deleted"] == 2
+    assert list(Stock.objects.values_list("pk", flat=True)) == [keep.pk]
+
+
+def test_delete_selected_requires_delete_permission(category):
+    # a user without delete permission is forbidden
+    staff = User.objects.create_user("staff", password="x")
+    staff.is_staff = True
+    staff.save()
+    Stock.objects.create(name="A", category=category)
+    client = Client()
+    client.force_login(staff)
+    resp = client.post(
+        ACTION.format(key="delete_selected"),
+        data=json.dumps({"ids": [Stock.objects.first().pk]}),
+        content_type="application/json",
+    )
+    assert resp.status_code in (403, 302)
+    assert Stock.objects.count() == 1  # nothing deleted

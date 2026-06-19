@@ -152,9 +152,13 @@ export class ApiService {
 
   runAction(
     endpoint: string,
-    ids: (number | string)[],
-    params: Record<string, unknown> = {},
+    body: {
+      ids?: (number | string)[];
+      all?: boolean;
+      filters?: Record<string, string | number>;
+      params?: Record<string, unknown>;
+    },
   ): Observable<unknown> {
-    return this.http.post(this.apiBase + endpoint, { ids, params });
+    return this.http.post(this.apiBase + endpoint, body);
   }
 }

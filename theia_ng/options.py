@@ -80,6 +80,9 @@ class ModelAdmin:
 
     # --- custom actions (server-side) -------------------------------------
     actions: list[str] = []
+    # Row checkboxes + bulk actions in the list (a built-in "Delete selected" plus
+    # any `actions` usable with a selection). Set False to hide them for a model.
+    list_selectable: bool = True
 
     # --- hierarchy tree ----------------------------------------------------
     # Render this model inside a parent→children tree (e.g. Registration →

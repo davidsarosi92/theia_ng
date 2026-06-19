@@ -1,18 +1,20 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
+import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { ActionSpec, FieldSpec, ModelSchema } from './models';
+import { ToastService } from './toast.service';
 import { cap, formatDateValue, slugToKey } from './util';
 import { ViewService } from './view.service';
 
 @Component({
   selector: 'theia-model-list',
   standalone: true,
-  imports: [RouterLink, FilterDialogComponent, ActionDialogComponent],
+  imports: [RouterLink, FilterDialogComponent, ActionDialogComponent, ConfirmDialogComponent],
   template: `
     @if (schema(); as s) {
       <nav class="breadcrumb">
@@ -60,6 +62,35 @@ import { ViewService } from './view.service';
         </table>
       }
 
+      @if (selectable() && bulkActions().length) {
+        <div class="bulk-bar">
+          <select class="bulk-select" #act>
+            <option value="">— Bulk action —</option>
+            @for (a of bulkActions(); track a.key) {
+              <option [value]="a.key">{{ cap(a.label) }}</option>
+            }
+          </select>
+          <button
+            class="btn secondary small"
+            [disabled]="!selectionCount() || !act.value"
+            (click)="runBulk(act.value)"
+          >Apply</button>
+          @if (selectionCount()) {
+            <span class="bulk-count">{{ selectionCount() }} selected</span>
+          }
+          @if (selectAllAcross()) {
+            <span class="bulk-across">
+              All {{ count() }} selected. <button class="link-btn" (click)="clearSelection()">Clear</button>
+            </span>
+          } @else if (allOnPageSelected() && count() > rows().length) {
+            <span class="bulk-across">
+              All {{ rows().length }} on this page selected.
+              <button class="link-btn" (click)="selectAllAcross.set(true)">Select all {{ count() }}</button>
+            </span>
+          }
+        </div>
+      }
+
       <div class="table-wrap" [class.is-loading]="loading()">
         @if (loading()) {
           <div class="loading-overlay">
@@ -69,6 +100,16 @@ import { ViewService } from './view.service';
         <table class="grid">
           <thead>
             <tr>
+              @if (selectable()) {
+                <th class="sel-col">
+                  <input
+                    type="checkbox"
+                    [checked]="allOnPageSelected()"
+                    [indeterminate]="someOnPageSelected()"
+                    (change)="toggleAllOnPage($any($event.target).checked)"
+                  />
+                </th>
+              }
               @for (col of columns(); track col) {
                 <th
                   [class.sortable]="isSortable(col)"
@@ -81,7 +122,16 @@ import { ViewService } from './view.service';
           </thead>
           <tbody>
             @for (row of rows(); track row['pk']) {
-              <tr class="clickable" (click)="open(row['pk'])">
+              <tr class="clickable" [class.selected]="isSelected(row['pk'])" (click)="open(row['pk'])">
+                @if (selectable()) {
+                  <td class="sel-col" (click)="$event.stopPropagation()">
+                    <input
+                      type="checkbox"
+                      [checked]="isSelected(row['pk'])"
+                      (change)="toggleRow(row['pk'], $any($event.target).checked)"
+                    />
+                  </td>
+                }
                 @for (col of columns(); track col) {
                   <td>
                     @if (isBool(col)) {
@@ -100,7 +150,7 @@ import { ViewService } from './view.service';
               </tr>
             } @empty {
               @if (!loading()) {
-                <tr><td [attr.colspan]="columns().length">No records.</td></tr>
+                <tr><td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">No records.</td></tr>
               }
             }
           </tbody>
@@ -128,6 +178,17 @@ import { ViewService } from './view.service';
           (closed)="activeAction.set(null)"
         />
       }
+
+      @if (pendingBulk(); as pb) {
+        <theia-confirm-dialog
+          [title]="cap(pb.label)"
+          [message]="'Run ' + pb.label.toLowerCase() + ' on ' + selectionCount() + ' record(s)? This cannot be undone.'"
+          [confirmLabel]="cap(pb.label)"
+          [danger]="true"
+          (confirmed)="confirmBulk()"
+          (cancelled)="pendingBulk.set(null)"
+        />
+      }
     }
   `,
 })
@@ -136,6 +197,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewService = inject(ViewService);
+  private toast = inject(ToastService);
   // In-flight requests, cancelled on navigation / re-load so a late response
   // from a previous model or page can't overwrite the current view.
   private schemaSub?: Subscription;
@@ -157,10 +219,19 @@ export class ModelListComponent implements OnInit, OnDestroy {
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
 
-  /** Actions runnable without a row selection (the list has no row-select yet);
-   *  selection-less ('none') and 'optional' actions show as toolbar buttons. */
+  // --- row selection / bulk actions --------------------------------------
+  selectable = computed(() => !!this.schema()?.list.selectable);
+  /** Selected pks on the current page. */
+  selected = signal<Set<unknown>>(new Set());
+  /** "Select all matching" across every page (operates on the filtered queryset). */
+  selectAllAcross = signal(false);
+  /** A dangerous bulk action awaiting confirmation. */
+  pendingBulk = signal<ActionSpec | null>(null);
+
+  /** Selection-less actions ('none') run from the toolbar; selection-driven ones
+   *  ('required'/'optional') run from the bulk bar. */
   toolbarActions(): ActionSpec[] {
-    return (this.schema()?.actions ?? []).filter((a) => a.selection !== 'required');
+    return (this.schema()?.actions ?? []).filter((a) => a.selection === 'none');
   }
 
   openAction(action: ActionSpec): void {
@@ -170,6 +241,98 @@ export class ModelListComponent implements OnInit, OnDestroy {
   onActionDone(): void {
     this.activeAction.set(null);
     this.load();
+  }
+
+  /** Selection-driven actions for the bulk bar, gated on the needed permission. */
+  bulkActions(): ActionSpec[] {
+    const perms = this.schema()?.perms;
+    return (this.schema()?.actions ?? []).filter(
+      (a) => a.selection !== 'none' && (!a.requires || !!perms?.[a.requires]),
+    );
+  }
+
+  selectionCount(): number {
+    return this.selectAllAcross() ? this.count() : this.selected().size;
+  }
+
+  isSelected(pk: unknown): boolean {
+    return this.selected().has(pk);
+  }
+
+  allOnPageSelected(): boolean {
+    const r = this.rows();
+    return r.length > 0 && r.every((row) => this.selected().has(row['pk']));
+  }
+
+  someOnPageSelected(): boolean {
+    return this.selected().size > 0 && !this.allOnPageSelected();
+  }
+
+  toggleRow(pk: unknown, checked: boolean): void {
+    const next = new Set(this.selected());
+    checked ? next.add(pk) : next.delete(pk);
+    this.selected.set(next);
+    this.selectAllAcross.set(false);
+  }
+
+  toggleAllOnPage(checked: boolean): void {
+    const next = new Set(this.selected());
+    for (const row of this.rows()) {
+      checked ? next.add(row['pk']) : next.delete(row['pk']);
+    }
+    this.selected.set(next);
+    this.selectAllAcross.set(false);
+  }
+
+  clearSelection(): void {
+    this.selected.set(new Set());
+    this.selectAllAcross.set(false);
+  }
+
+  runBulk(key: string): void {
+    const action = this.bulkActions().find((a) => a.key === key);
+    if (!action || !this.selectionCount()) {
+      return;
+    }
+    if (action.dangerous) {
+      this.pendingBulk.set(action);
+      return;
+    }
+    this.execBulk(action);
+  }
+
+  confirmBulk(): void {
+    const action = this.pendingBulk();
+    this.pendingBulk.set(null);
+    if (action) {
+      this.execBulk(action);
+    }
+  }
+
+  /** Filter/search params identifying the listed rows, for "select all matching". */
+  private filterParams(): Record<string, string | number> {
+    const params: Record<string, string | number> = {};
+    if (this.searchTerm()) {
+      params['search'] = this.searchTerm();
+    }
+    for (const f of this.filters()) {
+      params[f.field] = f.value as string | number;
+    }
+    return params;
+  }
+
+  private execBulk(action: ActionSpec): void {
+    const body = this.selectAllAcross()
+      ? { all: true, filters: this.filterParams() }
+      : { ids: [...this.selected()] as (number | string)[] };
+    this.api.runAction(action.endpoint, body).subscribe({
+      next: () => {
+        this.toast.success(cap(action.label) + ' — done.');
+        this.clearSelection();
+        this.load();
+      },
+      error: () => this.toast.error('Action failed.'),
+    });
   }
 
   ngOnInit(): void {
@@ -274,6 +437,9 @@ export class ModelListComponent implements OnInit, OnDestroy {
 
   private load(): void {
     this.syncUrl();
+    // Row selection is per result set — drop it when the rows change (page,
+    // search, filter, sort, reload).
+    this.clearSelection();
     // Tell the server which columns are shown so it serializes only those (a much
     // narrower query) instead of every field. Re-fetched when columns/view change.
     const params: Record<string, string | number> = {

@@ -68,7 +68,7 @@ export class ActionDialogComponent implements OnInit {
   run(): void {
     this.running.set(true);
     this.errors.set({});
-    this.api.runAction(this.action.endpoint, this.ids, this.form.value).subscribe({
+    this.api.runAction(this.action.endpoint, { ids: this.ids, params: this.form.value }).subscribe({
       next: (res) => {
         this.running.set(false);
         this.toast.success(this.action.label + ' — done.');

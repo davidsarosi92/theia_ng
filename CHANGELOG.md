@@ -4,6 +4,21 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] — 2026-06-19
+### Added
+- **Row selection + bulk actions** in the list (django-admin style):
+  - row checkboxes and a header "select all on this page" checkbox;
+  - a **bulk action bar** to run a selection-driven action over the checked rows;
+  - a built-in **"Delete selected"** action (gated on delete permission), plus any
+    `ModelAdmin.actions` with a `required`/`optional` selection mode;
+  - **"Select all N matching"** — when a page is fully selected, a banner offers to
+    operate on every record matching the current filters/search, not just the page;
+    the server rebuilds that queryset from the same filters (`{"all": true,
+    "filters": {…}}`) instead of receiving a huge id list;
+  - toggle per model with `ModelAdmin.list_selectable` (default `True`).
+  Custom actions advertise the permission they need (`requires`) and whether they
+  need a confirm step (`dangerous`); the SPA hides/guards them accordingly.
+
 ## [0.11.6] — 2026-06-19
 ### Fixed
 - **Stale-response race on navigation.** Opening a slow list/detail and then
@@ -227,6 +242,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.12.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.0
 [0.11.6]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.6
 [0.11.5]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.5
 [0.11.4]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.11.4
