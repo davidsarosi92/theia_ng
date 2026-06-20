@@ -59,6 +59,7 @@ ships inside the wheel.
   on open) that pre-selects current assignments and works purely by pk
 - **Toast notifications** for every operation (green success / red error,
   top-right, auto-dismiss); **Save and continue editing**
+- **Skeleton loaders** on the list and home cards while data loads (no empty flash)
 - `get_queryset`, **`list_select_related` / `list_prefetch_related`**, and
   **object-level permissions** hooks for row scoping and N+1 avoidance
 - Per-model display control: `display_field` / `display()` for relation labels

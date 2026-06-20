@@ -111,7 +111,7 @@ body {
 .sidebar a.nav-group-title:hover { background: none; color: var(--accent); }
 /* models sit visually under their app header (inside the per-group model
    drag-drop list); the app header itself keeps the same small indent */
-.nav-group > a.nav-group-title,
+.nav-group > a,
 .nav-group .nav-modellist > a { margin-left: 0.35rem; }
 
 /* drag-drop list wrappers must be a positioning context so the in-place drag
@@ -645,6 +645,21 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* skeleton loaders (list rows + home cards) — a subtle shimmer placeholder */
+.skeleton {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--text) 8%, transparent) 25%,
+    color-mix(in srgb, var(--text) 16%, transparent) 37%,
+    color-mix(in srgb, var(--text) 8%, transparent) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+  border-radius: 6px; display: block;
+}
+@keyframes skeleton-shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+.skel-line { height: 0.8rem; width: 80%; }
+.skel-row td { vertical-align: middle; }
+.skel-card { height: 58px; border-radius: 10px; }
+
 /* Version footnote in the topbar, just after the title. */
 .topbar-version {
   color: var(--topbar-muted); font-size: 0.7rem; font-weight: 500;
@@ -747,6 +762,12 @@ body {
   font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--muted); font-weight: 700; margin: 0 0 0.5rem;
 }
+/* don't clip a relation cell's open dropdown inside the inline (keeps labels +
+   the searchable picker; inline tables are narrow so we drop the h-scroll here).
+   The .grid base sets overflow:hidden for rounded corners — that's the real
+   clipper, so the inline grid itself must allow overflow. */
+.inline-table-wrap { overflow: visible; }
+.inline-grid { overflow: visible; }
 .inline-grid th { white-space: nowrap; }
 .inline-grid .req { color: #e03131; margin-left: 0.15rem; font-style: normal; }
 .inline-del-col { width: 1%; white-space: nowrap; text-align: center; }

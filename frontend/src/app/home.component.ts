@@ -27,6 +27,14 @@ const THEIA_APP = 'theia_ng';
   template: `
     <h2>{{ brand.title() }}</h2>
 
+    @if (loading()) {
+      <section class="home-group">
+        <div class="card-grid">
+          @for (i of skeletonCards; track i) { <span class="skeleton skel-card"></span> }
+        </div>
+      </section>
+    }
+
     @if (favorites().length) {
       <section class="home-group">
         <h3 class="home-group-title">★ {{ t('favorites') }}</h3>
@@ -79,27 +87,29 @@ const THEIA_APP = 'theia_ng';
     }
 
     <!-- Theia NG Admin: Activity + its models (Menu views), pinned to the bottom. -->
-    <section class="home-group">
-      <h3 class="home-group-title">{{ adminTitle() }}</h3>
-      <div class="card-grid">
-        <a class="model-card" routerLink="/logs" [style.background]="cardColor('theia_ng.activity')">
-          <span class="card-label">{{ t('activity') }}</span>
-        </a>
-        @if (adminGroup(); as ag) {
-          @for (m of ag.models; track m.key) {
-            <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)">
-              <span class="card-label">{{ cap(m.verbose_name) }}</span>
-              <button
-                class="fav-star"
-                [class.on]="isFav(m.key)"
-                (click)="toggleFav($event, m.key)"
-                [attr.aria-label]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
-              >{{ isFav(m.key) ? '★' : '☆' }}</button>
-            </a>
+    @if (!loading()) {
+      <section class="home-group">
+        <h3 class="home-group-title">{{ adminTitle() }}</h3>
+        <div class="card-grid">
+          <a class="model-card" routerLink="/logs" [style.background]="cardColor('theia_ng.activity')">
+            <span class="card-label">{{ t('activity') }}</span>
+          </a>
+          @if (adminGroup(); as ag) {
+            @for (m of ag.models; track m.key) {
+              <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)">
+                <span class="card-label">{{ cap(m.verbose_name) }}</span>
+                <button
+                  class="fav-star"
+                  [class.on]="isFav(m.key)"
+                  (click)="toggleFav($event, m.key)"
+                  [attr.aria-label]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
+                >{{ isFav(m.key) ? '★' : '☆' }}</button>
+              </a>
+            }
           }
-        }
-      </div>
-    </section>
+        </div>
+      </section>
+    }
   `,
 })
 export class HomeComponent implements OnInit {
@@ -112,6 +122,8 @@ export class HomeComponent implements OnInit {
   cap = cap;
   slug = keyToSlug;
   cardColor = cardColor;
+  loading = signal(true);
+  skeletonCards = [0, 1, 2, 3, 4, 5, 6, 7];
 
   private models = signal<RegistryModel[]>([]);
   /** Same models as the sidebar: permitted set, narrowed by the active view. */
@@ -134,9 +146,13 @@ export class HomeComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.api.getRegistry().subscribe((r) => {
-      this.models.set(r.models);
-      this.vs.setViews(r.views ?? []);
+    this.api.getRegistry().subscribe({
+      next: (r) => {
+        this.models.set(r.models);
+        this.vs.setViews(r.views ?? []);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
   }
 

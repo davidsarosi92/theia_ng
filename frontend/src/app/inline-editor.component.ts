@@ -33,7 +33,7 @@ let _uid = 0;
       <h3 class="inline-title">{{ inline.title }}</h3>
 
       @if (inline.style === 'tabular') {
-        <div class="table-wrap">
+        <div class="table-wrap inline-table-wrap">
           <table class="grid inline-grid">
             <thead>
               <tr>

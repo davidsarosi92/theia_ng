@@ -106,7 +106,7 @@ import { ViewService } from './view.service';
       }
 
       <div class="table-wrap" [class.is-loading]="loading()">
-        @if (loading()) {
+        @if (loading() && rows().length) {
           <div class="loading-overlay">
             <span class="loading-pill"><span class="spinner"></span>{{ t('loading') }}</span>
           </div>
@@ -135,6 +135,14 @@ import { ViewService } from './view.service';
             </tr>
           </thead>
           <tbody>
+            @if (loading() && !rows().length) {
+              @for (i of skeletonRows; track i) {
+                <tr class="skel-row">
+                  @if (selectable()) { <td class="sel-col"></td> }
+                  @for (col of columns(); track col) { <td><span class="skeleton skel-line"></span></td> }
+                </tr>
+              }
+            }
             @for (row of rows(); track row['pk']) {
               <tr class="clickable" [class.selected]="isSelected(row['pk'])" (click)="open(row['pk'])">
                 @if (selectable()) {
@@ -273,6 +281,8 @@ export class ModelListComponent implements OnInit, OnDestroy {
   showFilter = signal(false);
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
+  /** Placeholder rows shown while the first page loads (skeleton). */
+  skeletonRows = [0, 1, 2, 3, 4, 5, 6, 7];
 
   // --- inline list editing (list_editable) -------------------------------
   /** Pending cell edits: pk -> {field: newValue}. */
