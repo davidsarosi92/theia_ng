@@ -18,26 +18,24 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from django.conf import settings
 from django.core.cache import cache
 
 import theia_ng
-
-
-def _conf() -> dict:
-    return getattr(settings, "THEIA_NG", {}) or {}
+from theia_ng.siteconfig import cache_buster, conf
 
 
 def _ttl() -> int:
-    return int(_conf().get("SCHEMA_TTL", 300))
+    return int(conf().get("SCHEMA_TTL", 300))
 
 
 def _version() -> str:
-    return str(_conf().get("CACHE_VERSION", theia_ng.__version__))
+    return str(conf().get("CACHE_VERSION", theia_ng.__version__))
 
 
 def _key(suffix: str) -> str:
-    return f"theia_ng:ir:v{_version()}:{suffix}"
+    # `cache_buster` (bumped by the admin "clear cache" action) is folded in so a
+    # flush invalidates only Theia's IR keys, without touching CACHE_VERSION.
+    return f"theia_ng:ir:v{_version()}.{cache_buster()}:{suffix}"
 
 
 def cached_structure(suffix: str, builder: Callable[[], Any]) -> Any:

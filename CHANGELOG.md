@@ -4,6 +4,31 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] — 2026-06-20
+### Added
+- **Settings page** (gear icon in the top bar). Per-user preferences — UI
+  **language**, **theme**, and **timezone** — moved here from the top bar (the
+  sticky bar no longer carries the language/theme selectors).
+- **Admin overrides of the deploy config.** Superusers can override
+  `THEIA_NG['SITE_TITLE']`, `LOGO_URL`, `SCHEMA_TTL` and `CACHE_VERSION` from the
+  Settings page; the override is stored in a new `SiteConfig` singleton and
+  layered over `settings.py` everywhere config is read (cache keys, topbar
+  title/logo, injected SPA config). Each field shows its `settings.py` default as
+  a hint, with a one-click **Reset to defaults**. Migration `0007`.
+- **Manual schema-cache flush** — a "Clear schema cache" button (superusers)
+  invalidates the cached IR immediately by bumping a cache generation folded into
+  the cache key, without touching `CACHE_VERSION`.
+- **Live brand updates** — editing the site title/logo updates the topbar (and
+  home heading) immediately, no reload.
+- **`LOGO_URL` accepts a static path** — a bare path like `admin/imgs/logo.png` is
+  resolved via Django `static()`; absolute URLs / `data:` URIs pass through.
+
+### Changed
+- The **menu-view selector** is now a top-bar **button that opens a picker dialog**
+  instead of a `<select>`.
+- **Mobile top bar**: the version footnote is hidden and the view-picker collapses
+  to an icon-only button.
+
 ## [0.13.1] — 2026-06-19
 ### Added
 - **"Reset order"** control at the bottom of the sidebar — restores the default
@@ -315,6 +340,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.14.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.14.0
 [0.13.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.1
 [0.13.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.0
 [0.12.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.12.1

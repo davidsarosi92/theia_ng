@@ -9,6 +9,8 @@ import {
   ModelSchema,
   Perms,
   Registry,
+  SiteConfigPayload,
+  SiteConfigValues,
   TreeChildrenResponse,
   TreeResponse,
   UserSettings,
@@ -60,6 +62,25 @@ export class ApiService {
   /** Persist a subset of settings; returns the merged settings. */
   saveSettings(patch: Partial<UserSettings>): Observable<UserSettings> {
     return this.http.patch<UserSettings>(this.url('settings/'), patch);
+  }
+
+  // --- site config (admin-only: override settings.py THEIA_NG) ---
+  getSiteConfig(): Observable<SiteConfigPayload> {
+    return this.http.get<SiteConfigPayload>(this.url('site-config/'));
+  }
+
+  saveSiteConfig(patch: Partial<SiteConfigValues>): Observable<SiteConfigPayload> {
+    return this.http.patch<SiteConfigPayload>(this.url('site-config/'), patch);
+  }
+
+  /** Reset all overrides back to settings.py. */
+  resetSiteConfig(): Observable<SiteConfigPayload> {
+    return this.http.delete<SiteConfigPayload>(this.url('site-config/'));
+  }
+
+  /** Flush the cached IR (bumps the cache-buster). */
+  clearSchemaCache(): Observable<{ cache_buster: number }> {
+    return this.http.post<{ cache_buster: number }>(this.url('site-config/clear-cache/'), {});
   }
 
   // --- audit log ---

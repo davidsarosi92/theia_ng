@@ -9,11 +9,11 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { BrandService } from './brand.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
 import { I18nService } from './i18n.service';
 import { RegistryModel } from './models';
-import { getConfig } from './theia-config';
 import { cap, cardColor, keyToSlug } from './util';
 import { ViewService } from './view.service';
 
@@ -25,7 +25,7 @@ const THEIA_APP = 'theia_ng';
   standalone: true,
   imports: [RouterLink, CdkDropList, CdkDrag, CdkDragHandle],
   template: `
-    <h2>{{ title }}</h2>
+    <h2>{{ brand.title() }}</h2>
 
     @if (favorites().length) {
       <section class="home-group">
@@ -107,8 +107,8 @@ export class HomeComponent implements OnInit {
   private vs = inject(ViewService);
   private favs = inject(FavoritesService);
   private i18n = inject(I18nService);
+  protected brand = inject(BrandService);
   protected t = this.i18n.t;
-  title = getConfig().siteTitle;
   cap = cap;
   slug = keyToSlug;
   cardColor = cardColor;

@@ -39,6 +39,23 @@ export interface Registry {
 
 export type ThemePref = 'auto' | 'light' | 'dark';
 
+/** Admin-editable site config (overrides settings.py THEIA_NG). */
+export interface SiteConfigValues {
+  site_title: string;
+  logo_url: string;
+  schema_ttl: number | null;
+  cache_version: string;
+}
+export interface SiteConfigPayload {
+  /** settings.py values a reset restores to (shown as hints). */
+  defaults: { site_title: string; logo_url: string; schema_ttl: number; cache_version: string };
+  /** Current DB overrides (empty/null = not overridden). */
+  overrides: SiteConfigValues;
+  /** Resolved values in effect now. */
+  effective: { site_title: string; logo_url: string; schema_ttl: number; cache_version: string };
+  cache_buster: number;
+}
+
 /** A selectable UI language (code + native label), advertised by the backend. */
 export interface LanguageOption {
   code: string;

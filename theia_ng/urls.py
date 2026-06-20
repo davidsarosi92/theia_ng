@@ -13,7 +13,14 @@ from __future__ import annotations
 
 from django.urls import include, path, re_path
 
-from theia_ng.api import auth_views, favorites_views, log_views, schema_views, settings_views
+from theia_ng.api import (
+    auth_views,
+    favorites_views,
+    log_views,
+    schema_views,
+    settings_views,
+    siteconfig_views,
+)
 from theia_ng.api.crud_views import (
     ActionView,
     DataDetailView,
@@ -35,6 +42,8 @@ api_patterns = [
     path("logout/", auth_views.logout_view, name="logout"),
     path("favorites/", favorites_views.favorites, name="favorites"),
     path("settings/", settings_views.settings, name="settings"),
+    path("site-config/", siteconfig_views.site_config, name="site-config"),
+    path("site-config/clear-cache/", siteconfig_views.clear_cache, name="clear-cache"),
     path("logs/", log_views.logs, name="logs"),
     path("schema/", schema_views.schema_registry, name="schema-registry"),
     re_path(rf"^schema/{_KEY}/$", schema_views.schema_model, name="schema-model"),

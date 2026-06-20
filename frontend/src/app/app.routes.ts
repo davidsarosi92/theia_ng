@@ -6,11 +6,13 @@ import { LogComponent } from './log.component';
 import { ModelDetailComponent } from './model-detail.component';
 import { ModelListComponent } from './model-list.component';
 import { ModelTreeComponent } from './model-tree.component';
+import { SettingsPageComponent } from './settings-page.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   // Literal / prefixed routes must precede the :modelKey catch-all.
   { path: 'logs', component: LogComponent },
+  { path: 'settings', component: SettingsPageComponent },
   { path: 'app/:appLabel', component: AppHomeComponent },
   { path: ':modelKey', component: ModelListComponent },
   // The hierarchy tree rooted at this record's topmost ancestor.

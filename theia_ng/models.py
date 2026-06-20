@@ -150,3 +150,35 @@ class UserSettings(models.Model):
 
     def __str__(self) -> str:
         return f"Settings for {self.user}"
+
+
+class SiteConfig(models.Model):
+    """Site-level Theia NG settings, editable from the admin to override the
+    ``THEIA_NG`` deploy config (settings.py). A singleton (always pk=1).
+
+    Each field is blank/null by default → fall back to settings.py. ``cache_buster``
+    is bumped by the "clear cache" action to flush the IR cache without changing
+    ``CACHE_VERSION``. Only the runtime-safe keys are exposed (LIST_PROVIDER /
+    MOUNT_PREFIX are structural and stay deploy-only)."""
+
+    SINGLETON_PK = 1
+
+    site_title = models.CharField(max_length=200, blank=True)
+    logo_url = models.CharField(max_length=500, blank=True)
+    # Empty/null => settings.py value.
+    schema_ttl = models.IntegerField(null=True, blank=True)
+    cache_version = models.CharField(max_length=50, blank=True)
+    # Bumped to flush the cached IR (folded into the cache key).
+    cache_buster = models.PositiveIntegerField(default=0)
+    modified = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Site config"
+        verbose_name_plural = "Site config"
+
+    def save(self, *args, **kwargs):
+        self.pk = self.SINGLETON_PK  # enforce a single row
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return "Theia NG site config"

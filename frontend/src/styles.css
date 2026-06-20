@@ -409,6 +409,41 @@ body {
 }
 .lang-select { max-width: 8rem; }
 
+/* topbar menu-view picker button (opens the views modal) */
+.topbar-viewbtn {
+  font: inherit; font-size: 0.85rem; padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel); color: var(--text); cursor: pointer;
+}
+.topbar-viewbtn:hover { border-color: var(--accent); color: var(--accent); }
+/* desktop: show the view name; mobile: collapse to just the icon (see @media) */
+.topbar-viewbtn .vb-icon { display: none; }
+/* views picker modal */
+.view-dialog { width: 320px; }
+.view-list { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+.view-list li {
+  padding: 0.55rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+}
+.view-list li:hover { background: var(--hover); }
+.view-list li.sel { background: var(--chip-bg); color: var(--accent); font-weight: 600; }
+
+/* topbar settings (gear) link — language + theme moved into the Settings page */
+.topbar-settings {
+  color: var(--topbar-text); text-decoration: none; font-size: 1.15rem;
+  line-height: 1; opacity: 0.85; flex: 0 0 auto;
+}
+.topbar-settings:hover { opacity: 1; }
+
+/* Settings page cards */
+.settings-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 1.25rem 1.5rem 0.75rem; margin-bottom: 1.25rem; max-width: 560px;
+}
+.settings-title {
+  font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); font-weight: 700; margin: 0 0 1rem;
+}
+
 /* multiselect (checkbox group, e.g. MenuView models) */
 .multiselect {
   display: flex; flex-direction: column; gap: 0.2rem;
@@ -635,7 +670,11 @@ body {
 /* ── responsive: phones & narrow viewports ───────────────────────────── */
 @media (max-width: 768px) {
   .topbar { padding: 0.5rem 0.8rem; }
-  .username, .topbar-greet { display: none; }
+  .username, .topbar-greet, .topbar-version { display: none; }
+  /* view picker collapses to an icon-only button on narrow screens */
+  .topbar-viewbtn .vb-label { display: none; }
+  .topbar-viewbtn .vb-icon { display: inline; }
+  .topbar-viewbtn { padding: 0.25rem 0.45rem; font-size: 1rem; }
   .content { padding: 1rem; }
 
   /* sidebar becomes an off-canvas drawer that overlays the content */

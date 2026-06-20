@@ -34,11 +34,17 @@ ships inside the wheel.
 - `ModelAdmin`-style config: `list_display` (incl. **computed columns** and
   **relation lookups** like `house__company__name`), `list_filter` (field
   filters + **custom filters** + **date presets**), `search_fields`, `ordering`,
-  `readonly_fields`, `exclude`, `raw_id_fields`, `actions`, `relation_filters`
+  `readonly_fields`, `exclude`, `raw_id_fields`, `actions`, `relation_filters`,
+  **`fieldsets`**, **`list_editable`**, **`inlines`**
+- **Inlines** — edit related child rows on the parent's form (`theia_ng.Inline`,
+  tabular or stacked); created / updated / deleted in one transaction
+- **Fieldsets** — group form fields into sections (optional heading, description,
+  collapsible) — and **`list_editable`** — edit cells inline in the list
 - **Relation-spanning lookups** (`a__b__c`) in `list_display` / `list_filter`:
   labelled, sortable, and filterable with no extra code
 - **Date filters** with relative presets (today, last 2 / 7 / 30 days, last year)
-  or a specific day (time optional); locale-aware date rendering in lists
+  or a specific day (time optional); **locale- and timezone-aware** date rendering
+  in the user's chosen language and timezone
 - **Parameterized actions** — actions that pop a form (text, choices, relation
   pickers, …) and run server-side; `selection="none"` for global actions like a
   broadcast
@@ -64,13 +70,21 @@ ships inside the wheel.
   which of their fields), switchable from the top bar; always narrowed by perms
 - **Favorites** — each user stars their own home-page shortcuts (server-side,
   per user; intersected with what they may see)
+- **Per-user personalization** (server-side, follows the user across devices):
+  **UI language** (9 built-in languages, runtime-translated), **dark / light /
+  auto theme**, timezone, and **drag-to-reorder** the sidebar (app groups +
+  models) and home favorites — with a one-click "Reset order"
+- **Settings page** — per-user preferences plus, for superusers, **admin overrides
+  of the deploy config** (site title, logo, schema-cache TTL, cache version) with
+  a reset-to-`settings.py` and a manual **schema-cache flush**
+- **Configurable brand logo** before the title (a static path or any URL)
 - Session login built into the SPA, gated by the `theia_ng.access` permission
 - **Responsive** throughout: collapsible sidebar (full → compact initials rail →
   off-canvas drawer on mobile), scrollable tables; a per-user greeting in the bar
 - Sidebar grouped by Django app; **app names link to a per-app landing page** of
-  their model cards; sticky top bar with sign-out
+  their model cards; sticky top bar with a settings gear and sign-out
 - Optional **admin.py discovery** — reuse existing `django.contrib.admin`
-  registrations (compatible options only) via `DISCOVER_ADMIN_FILES`
+  registrations (incl. **fieldsets, list_editable, inlines**) via `DISCOVER_ADMIN_FILES`
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
   both lazy, so the core never imports DRF
 
@@ -134,8 +148,9 @@ class CategoryAdmin(theia_ng.ModelAdmin):
     search_fields = ["name"]
 ```
 
-**4. Migrate** (creates the `theia_ng.access` permission and the `MenuView`
-table used by sidebar views — run this after upgrading too):
+**4. Migrate** (creates the `theia_ng.access` permission and Theia's own tables —
+`MenuView` for sidebar views, `UserSettings` for per-user preferences, `SiteConfig`
+for admin config overrides — run this after upgrading too):
 
 ```bash
 python manage.py migrate
@@ -152,6 +167,8 @@ All optional, via a `THEIA_NG` dict in settings:
 ```python
 THEIA_NG = {
     "SITE_TITLE": "My Admin",   # shown in the top bar
+    "LOGO_URL": "img/logo.png", # logo before the title; a static path (resolved
+                                # via static()) or any absolute URL / data: URI
     "MOUNT_PREFIX": "/theia/",  # usually auto-detected from the request
     "SCHEMA_TTL": 300,          # IR cache TTL in seconds (0 disables caching)
     "CACHE_VERSION": "1",       # bump to invalidate the IR cache on deploy
@@ -163,6 +180,13 @@ THEIA_NG = {
     # "LIST_PROVIDER": "fastberry.list_provider.ListProvider",
 }
 ```
+
+`SITE_TITLE`, `LOGO_URL`, `SCHEMA_TTL` and `CACHE_VERSION` are **overridable at
+runtime from the Settings page** (superusers): the override is stored in the
+`SiteConfig` row and layered over `settings.py`, with a one-click reset back to
+these values and a button to flush the schema cache. `LIST_PROVIDER` and
+`MOUNT_PREFIX` are structural and stay deploy-only. See
+[Personalization & settings](#personalization--settings).
 
 By default the list endpoint inspects each model's relation labels — the row's
 `__str__`, computed `@display` columns, and every FK's target `__str__`
@@ -211,6 +235,84 @@ class ArticleAdmin(theia_ng.ModelAdmin):
   searchable picker. Relations whose target model isn't registered fall back to
   this automatically.
 
+## Fieldsets
+
+Group form fields into sections (django-admin's `fieldsets`). A `"collapse"`
+class makes the section collapsible (collapsed by default); fields you don't list
+still render (so a required-on-create field is never hidden):
+
+```python
+@theia_ng.register(Article)
+class ArticleAdmin(theia_ng.ModelAdmin):
+    fieldsets = [
+        (None, {"fields": ["title", "category", "body"]}),
+        ("Advanced", {
+            "fields": ["slug", "internal_notes"],
+            "classes": ["collapse"],
+            "description": "Rarely changed.",
+        }),
+    ]
+```
+
+## Inline editing in the list (`list_editable`)
+
+Make non-relation columns editable in place on the list. They must also be in
+`list_display`; a save bar commits all edited rows at once, and a row click still
+opens the record:
+
+```python
+@theia_ng.register(Stock)
+class StockAdmin(theia_ng.ModelAdmin):
+    list_display = ["title", "quantity", "is_active"]
+    list_editable = ["quantity", "is_active"]
+```
+
+## Inlines
+
+Edit a parent's related child rows right on its form (django-admin's inlines).
+Subclass `theia_ng.Inline`, point it at the child model, and list it in the
+parent's `inlines`. The child's foreign key back to the parent is auto-detected
+(set `fk_name` if ambiguous) and filled in on save; rows are created / updated /
+deleted in the **same transaction** as the parent (an invalid child rolls the
+whole save back):
+
+```python
+class ItemInline(theia_ng.Inline):
+    model = OrderItem
+    fields = ["product", "qty", "price"]   # the parent FK is excluded
+    extra = 1                              # blank rows offered for adding
+    style = "tabular"                      # "tabular" (grid) | "stacked"
+    # can_delete, readonly_fields, exclude, raw_id_fields, fk_name also supported
+
+@theia_ng.register(Order)
+class OrderAdmin(theia_ng.ModelAdmin):
+    inlines = [ItemInline]
+```
+
+Each inline cell reuses the normal field widgets, so child FK / choice / boolean
+fields edit exactly like the main form. Tabular inlines lay rows out as a grid
+(labels become column headers); stacked inlines render each row as a labelled
+block.
+
+## Personalization & settings
+
+A **Settings page** (gear icon in the top bar) holds:
+
+- **Per-user preferences** — UI **language** (English, Hungarian, German, French,
+  Chinese, Korean, Russian, Spanish, Turkish), **theme** (dark / light / auto,
+  following the OS), and **timezone**. Stored server-side per user (they follow
+  the user across devices); the defaults come from Django (`get_language()`,
+  `TIME_ZONE`). Dates and numbers render in the chosen locale and timezone.
+- **Site settings** (superusers) — override `THEIA_NG['SITE_TITLE']`, `LOGO_URL`,
+  `SCHEMA_TTL` and `CACHE_VERSION` from the UI; each shows its `settings.py`
+  default as a hint, with a **Reset to defaults** that drops the override.
+- **Maintenance** (superusers) — **Clear schema cache**, flushing the cached IR
+  immediately (without bumping `CACHE_VERSION`).
+
+The sidebar (app groups and the models within them) and the home favorites are
+**drag-to-reorder** (a handle on each item; the rest of the row still navigates),
+saved per user, with a **Reset order** control to restore the default ordering.
+
 ## Scoping rows: `get_queryset`
 
 Override the base queryset for both the list and detail (e.g. multi-tenant
@@ -258,8 +360,8 @@ Admins can define named **views** that narrow the left sidebar: which models
 appear, and optionally which of each model's fields are shown (in the list and
 the form). A view only ever *narrows* within what the user may already see —
 permissions are checked first, then the view intersects. Staff switch the active
-view from a dropdown in the top bar; "Full" (everything permitted) is always
-available.
+view from a button in the top bar that opens a picker dialog (an icon-only button
+on mobile); "Full" (everything permitted) is always available.
 
 Views are stored in the built-in `MenuView` model and managed through the admin
 itself (no code) — so they're maintainable at runtime. Nothing to configure;
@@ -417,13 +519,15 @@ On startup, after your `theia.py` registrations, Theia imports every app/package
 Copied (same meaning in both): `list_display` (real fields + `a__b` lookups
 only), `list_filter` (plain field-name filters only), `search_fields`,
 `ordering`, `list_per_page`, `readonly_fields`, `exclude`, `raw_id_fields`,
-`fields` (flat lists), `list_select_related` (when an explicit list).
+`fields` (flat lists), `list_select_related` (when an explicit list),
+**`fieldsets`**, **`list_editable`**, and **`inlines`** (`TabularInline` /
+`StackedInline`, mapped to `theia_ng.Inline`).
 
 Dropped (Django-specific / not portable): callable or admin-method `list_display`
-columns, `SimpleListFilter` classes, `actions`, inlines, fieldsets, widgets,
-`date_hierarchy`, `autocomplete_fields`, etc. A discovered model renders with
-safe defaults rather than broken columns. Explicit `theia.py` registrations
-always win, and one broken `admin.py` never breaks the rest.
+columns, `SimpleListFilter` classes, `actions`, custom widgets, `date_hierarchy`,
+`autocomplete_fields`, etc. A discovered model renders with safe defaults rather
+than broken columns. Explicit `theia.py` registrations always win, and one broken
+`admin.py` never breaks the rest.
 
 ## Optional: DRF delegation
 

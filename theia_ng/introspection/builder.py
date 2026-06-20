@@ -55,10 +55,9 @@ def _registry_structure(site: TheiaSite) -> list[dict[str, Any]]:
 
 def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
     """Lightweight payload for the left nav. Only models the user may view."""
-    from django.conf import settings as django_settings
-
     import theia_ng
     from theia_ng.cache import cached_structure
+    from theia_ng.siteconfig import logo_url as theia_logo_url
 
     structure = cached_structure("registry", lambda: _registry_structure(site))
     models_out = []
@@ -79,7 +78,7 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
         "site": {
             "title": site.site_title,
             "version": theia_ng.__version__,
-            "logo_url": (getattr(django_settings, "THEIA_NG", {}) or {}).get("LOGO_URL") or "",
+            "logo_url": theia_logo_url(),
         },
         "models": models_out,
         "views": _menu_views({m["key"] for m in models_out}),

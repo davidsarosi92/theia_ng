@@ -9,12 +9,13 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { BrandService } from './brand.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
 import { I18nService } from './i18n.service';
 import { LoadingService } from './loading.service';
 import { LoginComponent } from './login.component';
-import { AuthState, RegistryModel, ThemePref } from './models';
+import { AuthState, RegistryModel } from './models';
 import { SettingsService } from './settings.service';
 import { ToastHostComponent } from './toast-host.component';
 import { getConfig } from './theia-config';
@@ -44,8 +45,8 @@ const THEIA_APP = 'theia_ng';
           <header class="topbar">
             <button class="nav-toggle" (click)="toggleSidebar()" [attr.aria-label]="t('toggleMenu')">☰</button>
             <a class="topbar-title" routerLink="/">
-              @if (logoUrl) { <img class="topbar-logo" [src]="logoUrl" alt="" /> }
-              <span>{{ siteTitle }}</span>
+              @if (brand.logo()) { <img class="topbar-logo" [src]="brand.logo()" alt="" /> }
+              <span>{{ brand.title() }}</span>
             </a>
             @if (version) { <span class="topbar-version">v{{ version }}</span> }
             @if (firstName() || username()) {
@@ -56,42 +57,15 @@ const THEIA_APP = 'theia_ng';
             }
             <div class="topbar-right">
               @if (vs.views().length) {
-                <select
-                  class="view-select"
-                  [value]="vs.active()"
-                  (change)="vs.setActive($any($event.target).value)"
-                >
-                  <option value="">{{ t('fullView') }}</option>
-                  @for (v of vs.views(); track v.name) {
-                    <option [value]="v.name">{{ v.name }}</option>
-                  }
-                </select>
+                <button class="topbar-viewbtn" (click)="viewPickerOpen.set(true)" [title]="t('views')" [attr.aria-label]="t('views')">
+                  <span class="vb-icon" aria-hidden="true">▦</span>
+                  <span class="vb-label">{{ vs.active() || t('fullView') }} ▾</span>
+                </button>
               }
-              @if (settings.availableLanguages().length) {
-                <select
-                  class="lang-select"
-                  [attr.aria-label]="t('language')"
-                  [value]="i18n.lang()"
-                  (change)="settings.setLanguage($any($event.target).value)"
-                >
-                  @for (l of settings.availableLanguages(); track l.code) {
-                    <option [value]="l.code">{{ l.label }}</option>
-                  }
-                </select>
-              }
-              <select
-                class="theme-select"
-                [attr.aria-label]="t('theme')"
-                [value]="settings.theme()"
-                (change)="setTheme($any($event.target).value)"
-              >
-                <option value="auto">{{ t('themeAuto') }}</option>
-                <option value="light">{{ t('themeLight') }}</option>
-                <option value="dark">{{ t('themeDark') }}</option>
-              </select>
               <span class="topbar-busy" [class.active]="loading.active()" aria-hidden="true" [title]="t('working')">
                 <span class="spinner"></span>
               </span>
+              <a class="topbar-settings" routerLink="/settings" (click)="onNav()" [title]="t('settings')" [attr.aria-label]="t('settings')">⚙</a>
               <button class="link-btn" (click)="logout()">{{ t('signOut') }}</button>
             </div>
           </header>
@@ -194,6 +168,19 @@ const THEIA_APP = 'theia_ng';
               <router-outlet />
             </main>
           </div>
+
+          @if (viewPickerOpen()) {
+            <div class="dialog-backdrop" (click)="viewPickerOpen.set(false)"></div>
+            <div class="dialog view-dialog">
+              <h3>{{ t('views') }}</h3>
+              <ul class="view-list">
+                <li [class.sel]="!vs.active()" (click)="pickView('')">{{ t('fullView') }}</li>
+                @for (v of vs.views(); track v.name) {
+                  <li [class.sel]="vs.active() === v.name" (click)="pickView(v.name)">{{ v.name }}</li>
+                }
+              </ul>
+            </div>
+          }
         </div>
       } @else {
         <theia-login (loggedIn)="onLoggedIn()" />
@@ -209,10 +196,11 @@ export class AppComponent implements OnInit {
   private favorites = inject(FavoritesService);
   protected settings = inject(SettingsService);
   protected i18n = inject(I18nService);
+  protected brand = inject(BrandService);
   protected t = this.i18n.t;
-  siteTitle = getConfig().siteTitle;
   version = getConfig().version;
-  logoUrl = getConfig().logoUrl;
+  /** View picker modal open (replaces the topbar menu-view <select>). */
+  viewPickerOpen = signal(false);
   cap = cap;
   slug = keyToSlug;
   models = signal<RegistryModel[]>([]);
@@ -348,8 +336,10 @@ export class AppComponent implements OnInit {
     }
   }
 
-  setTheme(theme: string): void {
-    this.settings.setTheme(theme as ThemePref);
+  /** Choose a menu view from the picker modal, then close it. */
+  pickView(name: string): void {
+    this.vs.setActive(name);
+    this.viewPickerOpen.set(false);
   }
 
   logout(): void {
@@ -366,13 +356,11 @@ export class AppComponent implements OnInit {
   private loadRegistry(): void {
     this.api.getRegistry().subscribe({
       next: (r) => {
-        this.siteTitle = r.site.title || this.siteTitle;
+        // Brand title/logo: live registry values (robust to a stale index.html),
+        // also kept reactive so editing them on the Settings page updates the topbar.
+        this.brand.set(r.site.title, r.site.logo_url);
         // Prefer the live API version (robust to a stale, cached index.html).
         this.version = r.site.version || this.version;
-        // Same for the logo — a live value overrides a stale injected config.
-        if (r.site.logo_url !== undefined) {
-          this.logoUrl = r.site.logo_url;
-        }
         this.models.set(r.models);
         this.vs.setViews(r.views ?? []);
       },

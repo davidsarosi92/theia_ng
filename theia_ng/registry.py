@@ -31,13 +31,12 @@ class TheiaSite:
 
     @property
     def site_title(self) -> str:
-        """Top-bar title. ``THEIA_NG['SITE_TITLE']`` (deploy config) wins over a
-        programmatic default, so the same source feeds the registry payload and
-        the SPA's injected config — no more two-source mismatch."""
-        from django.conf import settings
+        """Top-bar title. An admin ``SiteConfig`` override wins, then
+        ``THEIA_NG['SITE_TITLE']`` (deploy config), then a programmatic default —
+        the same source feeds the registry payload and the SPA's injected config."""
+        from theia_ng.siteconfig import conf
 
-        conf = getattr(settings, "THEIA_NG", {}) or {}
-        return conf.get("SITE_TITLE") or self._site_title
+        return conf().get("SITE_TITLE") or self._site_title
 
     @site_title.setter
     def site_title(self, value: str) -> None:
