@@ -11,12 +11,13 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 
+import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
 import { I18nService } from './i18n.service';
 import { InlineEditorComponent } from './inline-editor.component';
-import { FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
+import { ActionSpec, FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
 import { ToastService } from './toast.service';
 import { cap, slugToKey } from './util';
 import { ViewService } from './view.service';
@@ -38,6 +39,7 @@ interface FieldsetGroup {
     FieldInputComponent,
     ConfirmDialogComponent,
     InlineEditorComponent,
+    ActionDialogComponent,
   ],
   template: `
     @if (loading()) {
@@ -60,6 +62,15 @@ interface FieldsetGroup {
           <button type="button" class="btn secondary" (click)="back()">{{ t('backArrow') }}</button>
         </div>
       </header>
+
+      <!-- custom object actions below the title, wrapping onto new rows -->
+      @if (!isNew && detailActions().length) {
+        <div class="detail-toolbar">
+          @for (a of detailActions(); track a.key) {
+            <button type="button" class="btn secondary" [disabled]="runningAction()" (click)="runDetailAction(a)">{{ cap(a.label) }}</button>
+          }
+        </div>
+      }
 
       @if (errors()['__all__']; as nonField) {
         <div class="errors">{{ nonField.join(' ') }}</div>
@@ -130,6 +141,28 @@ interface FieldsetGroup {
           (cancelled)="confirmingDelete.set(false)"
         />
       }
+
+      <!-- detail (object) action with a parameter form, run on this record -->
+      @if (activeDetailAction(); as a) {
+        <theia-action-dialog
+          [action]="a"
+          [ids]="[pk]"
+          (done)="onDetailActionDone()"
+          (closed)="activeDetailAction.set(null)"
+        />
+      }
+      <!-- dangerous, no-parameter detail action: confirm then run -->
+      @if (pendingDetailAction(); as a) {
+        <theia-confirm-dialog
+          [title]="cap(a.label)"
+          [message]="cap(a.label) + '?'"
+          [confirmLabel]="cap(a.label)"
+          [cancelLabel]="t('cancel')"
+          [danger]="true"
+          (confirmed)="execDetailAction(a)"
+          (cancelled)="pendingDetailAction.set(null)"
+        />
+      }
     }
   `,
 })
@@ -161,10 +194,63 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   saving = signal(false);
   confirmingDelete = signal(false);
   loading = signal(false);
+  // Object actions run on this single record (from buttons in the header).
+  activeDetailAction = signal<ActionSpec | null>(null);   // parameterized -> dialog
+  pendingDetailAction = signal<ActionSpec | null>(null);  // dangerous, no fields -> confirm
+  runningAction = signal(false);
   @ViewChildren(InlineEditorComponent) private inlineEditors!: QueryList<InlineEditorComponent>;
 
   inlines(): InlineConfig[] {
     return this.schema()?.inlines ?? [];
+  }
+
+  /** Object actions for this model, gated on their required permission. */
+  detailActions(): ActionSpec[] {
+    const perms = this.schema()?.perms;
+    return (this.schema()?.actions ?? []).filter(
+      (a) => a.detail && (!a.requires || !!perms?.[a.requires as keyof typeof perms]),
+    );
+  }
+
+  /** Run an object action on this record: parameterized ones pop a form,
+   *  dangerous ones confirm, the rest run immediately. */
+  runDetailAction(a: ActionSpec): void {
+    if (a.fields?.length) {
+      this.activeDetailAction.set(a);
+    } else if (a.dangerous) {
+      this.pendingDetailAction.set(a);
+    } else {
+      this.execDetailAction(a);
+    }
+  }
+
+  /** POST the (no-form) action over just this record, then reload it. */
+  execDetailAction(a: ActionSpec): void {
+    this.pendingDetailAction.set(null);
+    this.runningAction.set(true);
+    this.api.runAction(a.endpoint, { ids: [this.pk] }).subscribe({
+      next: () => {
+        this.runningAction.set(false);
+        this.toast.success(this.t('actionDoneToast', { action: cap(a.label) }));
+        this.reload();
+      },
+      error: () => {
+        this.runningAction.set(false);
+        this.toast.error(this.t('actionFailed'));
+      },
+    });
+  }
+
+  /** A parameterized object action finished (the dialog already toasted). */
+  onDetailActionDone(): void {
+    this.activeDetailAction.set(null);
+    this.reload();
+  }
+
+  private reload(): void {
+    if (!this.isNew) {
+      this.api.retrieve(this.modelKey, this.pk).subscribe((data) => this.populate(data));
+    }
   }
 
   /** Existing child rows for an inline, from the loaded record's `inlines` blob. */

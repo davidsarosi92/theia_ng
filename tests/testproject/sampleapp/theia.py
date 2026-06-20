@@ -20,7 +20,7 @@ class StockAdmin(theia_ng.ModelAdmin):
             "description": "Optional details.",
         }),
     ]
-    actions = ["deactivate", "bulk_add"]
+    actions = ["deactivate", "bulk_add", "archive", "rename_to"]
     # Only show Spaces that belong to the Stock's currently-selected house.
     relation_filters = {"spaces": {"house": "house"}}
     # Leaf of the House → Space/Stock hierarchy (default reverse accessor: stock_set).
@@ -28,6 +28,20 @@ class StockAdmin(theia_ng.ModelAdmin):
 
     def deactivate(self, request, queryset):
         return {"updated": queryset.update(is_active=False)}
+
+    # Object action (detail page), dangerous, no params.
+    @theia_ng.action(label="Archive", detail=True, dangerous=True)
+    def archive(self, request, queryset, params):
+        return {"archived": queryset.update(is_active=False)}
+
+    # Object action with a parameter beyond the record itself.
+    @theia_ng.action(
+        label="Rename to",
+        detail=True,
+        fields=[theia_ng.ActionField("name", "string", label="New name", required=True)],
+    )
+    def rename_to(self, request, queryset, params):
+        return {"renamed": queryset.update(name=params["name"])}
 
     # Parameterized, selection-less action: collects a small form and creates a
     # Stock from it (exercises string + fk relation + decimal + boolean fields).

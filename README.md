@@ -466,6 +466,37 @@ for a searchable picker). The SPA renders the form with the same widgets as the
 record form and validates `required` fields server-side. Selection-less (`none`)
 actions are toolbar buttons; selection-driven ones appear in the bulk bar below.
 
+### Object (detail) actions
+
+`detail=True` makes an action run on a **single record** and show up as a button
+on that record's **detail page** (not in the list's bulk bar) — the equivalent of
+a custom button on django-admin's change page. The `queryset` it receives holds
+just that one record; its `fields` are the inputs *beyond the record itself*
+(e.g. a copy target). `dangerous=True` adds a confirm step.
+
+```python
+@theia_ng.register(House)
+class HouseAdmin(theia_ng.ModelAdmin):
+    actions = ["copy_stocks", "clear_modules"]
+
+    @theia_ng.action(
+        label="Copy stock(s) to house",
+        detail=True,                              # button on the House page
+        fields=[theia_ng.ActionField("target", "fk", relation="structure.house",
+                                     required=True)],
+    )
+    def copy_stocks(self, request, queryset, params):
+        source = queryset.first()                 # the open record
+        ...
+
+    @theia_ng.action(label="Clear modules", detail=True, dangerous=True)
+    def clear_modules(self, request, queryset, params):
+        queryset.first().modules.clear()
+```
+
+The detail buttons sit below the record title and wrap onto new rows when they
+don't fit.
+
 ## Bulk actions & row selection
 
 The list has row checkboxes and a bulk action bar (django-admin style), on by

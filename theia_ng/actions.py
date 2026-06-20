@@ -63,11 +63,19 @@ def action(
     *,
     fields: list[ActionField] | None = None,
     selection: str = "required",
+    detail: bool = False,
+    dangerous: bool = False,
 ) -> Callable:
     """Mark a ModelAdmin method as a parameterized action.
 
     Decorated actions are called ``method(request, queryset, params)`` (plain,
     undecorated actions stay ``method(request, queryset)``).
+
+    ``detail=True`` makes it an **object action**: it runs on a single record and
+    appears as a button on that record's detail page (not in the list's bulk bar).
+    The ``queryset`` it receives then contains exactly that one record; any
+    ``fields`` are the extra inputs beyond the record itself (e.g. a target). Set
+    ``dangerous=True`` to require a confirm step before it runs.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -75,6 +83,8 @@ def action(
             "label": label or func.__name__.replace("_", " ").capitalize(),
             "fields": list(fields or []),
             "selection": selection,
+            "detail": detail,
+            "dangerous": dangerous,
         }
         return func
 

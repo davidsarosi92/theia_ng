@@ -84,6 +84,32 @@ def test_plain_action_still_two_arg(admin_client, category):
     assert s.is_active is False
 
 
+def test_detail_actions_in_schema(admin_client):
+    actions = {a["key"]: a for a in admin_client.get(SCHEMA).json()["actions"]}
+    # object actions are flagged `detail` (the SPA shows them on the detail page)
+    assert actions["archive"]["detail"] is True
+    assert actions["archive"]["dangerous"] is True
+    assert actions["rename_to"]["detail"] is True
+    assert [f["name"] for f in actions["rename_to"]["fields"]] == ["name"]
+    # list/bulk actions are not detail actions
+    assert actions["deactivate"]["detail"] is False
+    assert actions["delete_selected"]["detail"] is False
+
+
+def test_detail_action_runs_on_single_record(admin_client, category):
+    a = Stock.objects.create(name="A", category=category, is_active=True)
+    b = Stock.objects.create(name="B", category=category, is_active=True)
+    # run the detail action over just this record (ids=[a.pk]), like the detail page
+    resp = admin_client.post(
+        ACTION.format(key="rename_to"),
+        data=json.dumps({"ids": [a.pk], "params": {"name": "Renamed"}}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200, resp.content
+    a.refresh_from_db(); b.refresh_from_db()
+    assert a.name == "Renamed" and b.name == "B"
+
+
 def test_schema_exposes_delete_selected_and_selectable(admin_client):
     schema = admin_client.get(SCHEMA).json()
     assert schema["list"]["selectable"] is True

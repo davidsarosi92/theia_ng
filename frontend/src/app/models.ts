@@ -174,6 +174,9 @@ export interface ActionSpec {
   dangerous?: boolean;
   /** Permission the action needs; the SPA hides it unless perms[requires] is true. */
   requires?: keyof Perms;
+  /** Object action: shown as a button on a single record's detail page (run on
+   *  that record), instead of in the list's toolbar / bulk bar. */
+  detail?: boolean;
 }
 
 export interface ModelSchema {

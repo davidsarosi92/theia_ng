@@ -295,7 +295,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
   /** Selection-less actions ('none') run from the toolbar; selection-driven ones
    *  ('required'/'optional') run from the bulk bar. */
   toolbarActions(): ActionSpec[] {
-    return (this.schema()?.actions ?? []).filter((a) => a.selection === 'none');
+    return (this.schema()?.actions ?? []).filter((a) => a.selection === 'none' && !a.detail);
   }
 
   openAction(action: ActionSpec): void {
@@ -311,7 +311,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
   bulkActions(): ActionSpec[] {
     const perms = this.schema()?.perms;
     return (this.schema()?.actions ?? []).filter(
-      (a) => a.selection !== 'none' && (!a.requires || !!perms?.[a.requires]),
+      (a) => a.selection !== 'none' && !a.detail && (!a.requires || !!perms?.[a.requires]),
     );
   }
 

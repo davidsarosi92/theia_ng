@@ -370,6 +370,8 @@ def _action_descriptor(model: type[Model], admin: ModelAdmin, key: str) -> dict[
         "endpoint": f"action/{_model_key(model)}/{key}/",
         "dangerous": False,
         "requires": "change",
+        # Object action: runs on one record from its detail page (not the list bar).
+        "detail": False,
     }
     if not meta:
         return {**base, "selection": "required", "fields": []}
@@ -377,6 +379,8 @@ def _action_descriptor(model: type[Model], admin: ModelAdmin, key: str) -> dict[
         **base,
         "label": meta["label"],
         "selection": meta["selection"],
+        "dangerous": bool(meta.get("dangerous")),
+        "detail": bool(meta.get("detail")),
         "fields": [_action_field_descriptor(f, model) for f in meta["fields"]],
     }
 
@@ -390,6 +394,7 @@ DELETE_SELECTED_ACTION = {
     "selection": "required",
     "dangerous": True,
     "requires": "delete",
+    "detail": False,
     "fields": [],
 }
 

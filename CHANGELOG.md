@@ -4,6 +4,16 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] — 2026-06-20
+### Added
+- **Object (detail) actions** — `@theia_ng.action(detail=True)` marks an action
+  that runs on a **single record** and appears as a button on that record's
+  **detail page** (instead of the list's toolbar / bulk bar). Its `fields` are the
+  inputs *beyond the record itself* (e.g. a copy target), collected in the usual
+  action form; `dangerous=True` adds a confirm step. This mirrors django-admin's
+  per-object change-page buttons. The buttons sit below the record title and wrap
+  onto new rows when they don't fit.
+
 ## [0.14.0] — 2026-06-20
 ### Added
 - **Settings page** (gear icon in the top bar). Per-user preferences — UI
@@ -340,6 +350,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.15.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.15.0
 [0.14.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.14.0
 [0.13.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.1
 [0.13.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.13.0
