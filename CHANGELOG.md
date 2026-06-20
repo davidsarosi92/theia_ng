@@ -4,30 +4,23 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.1] — 2026-06-20
+### Changed
+- **List loading is now skeleton-only.** The list dropped the floating loading
+  pill/spinner; instead the skeleton placeholder takes over on **every** page
+  load (not just the first). Each skeleton row is a single bar spanning the whole
+  row. On page change the stale rows (and their PKs) no longer linger under a
+  spinner — they're replaced by the skeleton immediately, then refreshed with the
+  new page. (The detail page and the top-bar still use the pill/spinner.)
+
 ## [0.16.0] — 2026-06-20
 ### Added
 - **Skeleton loaders** — the list (first page) and the home cards show a subtle
-  shimmer placeholder while loading, instead of an empty flash. (Re-loads over
-  existing rows keep the in-place loading pill.)
+  shimmer placeholder while loading, instead of an empty flash.
 
 ### Fixed
 - **Inline relation fields** now open the modal "Choose…" picker instead of the
   inline dropdown panel, which a tabular inline's horizontal scroll could clip.
-- **Sidebar "Activity" link** had lost its indentation (sat flush-left, looking
-  like it left the admin group) after the reorderable-nav change — it's aligned
-  with the other group items again.
-
-## [0.16.0] — 2026-06-20
-### Added
-- **Skeleton loaders** — the list (first page) and the home cards show a subtle
-  shimmer placeholder while loading, instead of an empty flash. (Re-loads over
-  existing rows keep the in-place loading pill.)
-
-### Fixed
-- **Inline relation dropdown was clipped.** A relation field's open picker panel
-  in a tabular inline got cut off by the grid's `overflow: hidden` (used for
-  rounded corners); the inline grid now allows overflow so the dropdown shows in
-  full.
 - **Sidebar "Activity" link** had lost its indentation (sat flush-left, looking
   like it left the admin group) after the reorderable-nav change — it's aligned
   with the other group items again.
@@ -378,6 +371,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.16.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.1
 [0.16.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.0
 [0.15.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.15.0
 [0.14.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.14.0

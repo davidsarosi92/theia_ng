@@ -105,12 +105,7 @@ import { ViewService } from './view.service';
         </div>
       }
 
-      <div class="table-wrap" [class.is-loading]="loading()">
-        @if (loading() && rows().length) {
-          <div class="loading-overlay">
-            <span class="loading-pill"><span class="spinner"></span>{{ t('loading') }}</span>
-          </div>
-        }
+      <div class="table-wrap">
         <table class="grid">
           <thead>
             <tr>
@@ -135,14 +130,13 @@ import { ViewService } from './view.service';
             </tr>
           </thead>
           <tbody>
-            @if (loading() && !rows().length) {
+            @if (loading()) {
               @for (i of skeletonRows; track i) {
                 <tr class="skel-row">
-                  @if (selectable()) { <td class="sel-col"></td> }
-                  @for (col of columns(); track col) { <td><span class="skeleton skel-line"></span></td> }
+                  <td class="skel-cell" [attr.colspan]="colSpan()"><span class="skeleton skel-line"></span></td>
                 </tr>
               }
-            }
+            } @else {
             @for (row of rows(); track row['pk']) {
               <tr class="clickable" [class.selected]="isSelected(row['pk'])" (click)="open(row['pk'])">
                 @if (selectable()) {
@@ -201,9 +195,8 @@ import { ViewService } from './view.service';
                 }
               </tr>
             } @empty {
-              @if (!loading()) {
-                <tr><td [attr.colspan]="columns().length + (selectable() ? 1 : 0)">{{ t('noRecords') }}</td></tr>
-              }
+              <tr><td [attr.colspan]="colSpan()">{{ t('noRecords') }}</td></tr>
+            }
             }
           </tbody>
         </table>
@@ -281,8 +274,10 @@ export class ModelListComponent implements OnInit, OnDestroy {
   showFilter = signal(false);
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
-  /** Placeholder rows shown while the first page loads (skeleton). */
+  /** Placeholder rows shown while a page loads (skeleton). */
   skeletonRows = [0, 1, 2, 3, 4, 5, 6, 7];
+  /** Total column count, for full-width skeleton / empty rows. */
+  colSpan = computed(() => this.columns().length + (this.selectable() ? 1 : 0));
 
   // --- inline list editing (list_editable) -------------------------------
   /** Pending cell edits: pk -> {field: newValue}. */

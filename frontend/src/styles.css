@@ -656,8 +656,11 @@ body {
   border-radius: 6px; display: block;
 }
 @keyframes skeleton-shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
-.skel-line { height: 0.8rem; width: 80%; }
+/* Full-row skeleton bar: one shimmer line spanning the whole row, shown in
+   place of the table rows on every page load (no separate spinner). */
+.skel-line { height: 0.9rem; width: 100%; }
 .skel-row td { vertical-align: middle; }
+.skel-cell { padding: 0.6rem 0.75rem; }
 .skel-card { height: 58px; border-radius: 10px; }
 
 /* Version footnote in the topbar, just after the title. */
