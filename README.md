@@ -56,7 +56,8 @@ ships inside the wheel.
 - M2M selections shown as a **table** above the picker; breadcrumbs + Back so you
   always know where you are
 - **raw_id fields** get a modal table picker (searchable, paginated, loads only
-  on open) that pre-selects current assignments and works purely by pk
+  on open) that pre-selects current assignments and works purely by pk; a raw FK
+  with a value also offers **View / Edit** buttons to jump to the related record
 - **Toast notifications** for every operation (green success / red error,
   top-right, auto-dismiss); **Save and continue editing**
 - **Skeleton loaders** on the list and home cards while data loads (no empty

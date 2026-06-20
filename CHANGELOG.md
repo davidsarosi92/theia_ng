@@ -4,6 +4,15 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.2] — 2026-06-20
+### Added
+- **View / Edit shortcuts on raw_id FK fields.** A `raw_id_fields` FK shows just
+  the id (great for huge tables), but now — when it has a value and its target is
+  registered — **View** and **Edit** buttons appear before **Choose…**, so you
+  can jump straight to the related record instead of hunting for it. Same
+  permission gating as the normal relation widget (View needs `view`, Edit needs
+  `change`); shown for FK only (not multi-valued raw M2M).
+
 ## [0.16.1] — 2026-06-20
 ### Changed
 - **List loading is now skeleton-only.** The list dropped the floating loading
@@ -371,6 +380,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.16.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.2
 [0.16.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.1
 [0.16.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.0
 [0.15.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.15.0

@@ -1,12 +1,14 @@
 import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
-import { Choice, FieldSpec, RelationValue } from './models';
+import { ApiService } from './api.service';
+import { Choice, FieldSpec, Perms, RelationValue } from './models';
 import { RelationPickerDialogComponent } from './relation-picker-dialog.component';
 import { RelationSelectComponent } from './relation-select.component';
 import { WidgetKind, inputTypeFor, widgetFor } from './field-widgets';
-import { cap } from './util';
+import { cap, keyToSlug } from './util';
 
 @Component({
   selector: 'theia-field',
@@ -79,6 +81,14 @@ import { cap } from './util';
                  only loads when opened (keeps the form light for huge tables). -->
             <div class="raw-rel">
               <span class="raw-rel-val">{{ rawLabel() || '—' }}</span>
+              @if (field.type === 'fk' && rawSingleId() !== null) {
+                @if (targetPerms()?.view) {
+                  <button type="button" class="rel-act" (click)="viewRaw($event)">View</button>
+                }
+                @if (targetPerms()?.change) {
+                  <button type="button" class="rel-act" (click)="editRaw($event)">Edit</button>
+                }
+              }
               <button
                 type="button"
                 class="btn small secondary"
@@ -141,12 +151,16 @@ export class FieldInputComponent implements OnInit {
   cap = cap;
 
   private destroyRef = inject(DestroyRef);
+  private router = inject(Router);
+  private api = inject(ApiService);
   /** model_field_select: the model keys currently chosen in the sibling field. */
   selectedKeys = signal<string[]>([]);
   /** Bumped on control value changes so checkbox state re-renders (zoneless). */
   private rev = signal(0);
   /** raw_id picker open state. */
   pickerOpen = signal(false);
+  /** Permissions on a raw FK's target — drive its View/Edit shortcut buttons. */
+  targetPerms = signal<Perms | undefined>(undefined);
 
   ngOnInit(): void {
     const widget = this.field.widget;
@@ -156,6 +170,15 @@ export class FieldInputComponent implements OnInit {
       this.control.valueChanges
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(() => this.rev.update((n) => n + 1));
+      // Fetch target perms so a raw FK with a value can offer View/Edit shortcuts
+      // (same gating as the non-raw relation widget).
+      const target = this.field.relation?.target;
+      if (target && this.field.relation?.registered !== false) {
+        this.api
+          .permsFor(target)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe((perms) => this.targetPerms.set(perms));
+      }
     }
     if (widget === 'multiselect' || widget === 'model_field_select') {
       // The form control isn't a signal: re-render checkbox state whenever its
@@ -268,6 +291,41 @@ export class FieldInputComponent implements OnInit {
 
   rawHasValue(): boolean {
     return this.currentIds().length > 0;
+  }
+
+  /** The single pk of a raw FK (null for empty or M2M), for View/Edit shortcuts. */
+  rawSingleId(): number | string | null {
+    this.rev(); // track for re-render in zoneless
+    if (this.field.type !== 'fk') {
+      return null;
+    }
+    const ids = this.currentIds();
+    return ids.length ? ids[0] : null;
+  }
+
+  viewRaw(event: Event): void {
+    event.stopPropagation();
+    this.navigateToRaw('view');
+  }
+
+  editRaw(event: Event): void {
+    event.stopPropagation();
+    this.navigateToRaw('edit');
+  }
+
+  /** Open the related record's page; remember where to return. */
+  private navigateToRaw(mode: 'view' | 'edit'): void {
+    const id = this.rawSingleId();
+    const target = this.field.relation?.target;
+    if (id === null || !target) {
+      return;
+    }
+    const queryParams: Record<string, string> = { ret: this.router.url };
+    if (mode === 'view') {
+      queryParams['mode'] = 'view';
+    }
+    this.router.navigate(['/', keyToSlug(target), id], { queryParams });
+    window.scrollTo({ top: 0 });
   }
 
   /** Apply a pick from the modal: FK sets the pk, M2M replaces with the full set. */
