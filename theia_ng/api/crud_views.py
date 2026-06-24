@@ -210,17 +210,40 @@ def _custom_filter_instances(admin) -> list:
     return [f() for f in admin.list_filter if isinstance(f, type) and issubclass(f, ListFilter)]
 
 
+def _lookup_spawns_duplicates(model, lookup: str) -> bool:
+    """True if filtering ``model`` on ``lookup`` joins a to-many relation, which
+    yields duplicate rows that must be collapsed with ``.distinct()``. Mirrors
+    Django admin's helper of the same name without importing ``django.contrib.admin``
+    (theia_ng depends only on ``django.contrib.auth``)."""
+    opts = model._meta
+    for part in lookup.split("__"):
+        try:
+            field = opts.get_field(opts.pk.name if part == "pk" else part)
+        except FieldDoesNotExist:
+            continue  # query lookup (icontains, …), not a field — stop following
+        path_infos = getattr(field, "path_infos", None)
+        if path_infos:
+            opts = path_infos[-1].to_opts
+            if any(p.m2m for p in path_infos):
+                return True
+    return False
+
+
 def apply_list_filters(qs, model, admin, params, request: HttpRequest):
     """Apply search + field/custom filters from ``params`` (a dict-like: the list
     view's ``request.GET``, or an action body's ``filters`` dict). Ordering and
     pagination stay with the caller. Shared by the list view and bulk actions so
     a "select all matching" action operates on exactly the listed rows."""
+    needs_distinct = False
     search = params.get("search")
     if search and admin.search_fields:
         q = Q()
         for name in admin.search_fields:
             q |= Q(**{f"{name}__icontains": search})
         qs = qs.filter(q)
+        needs_distinct = needs_distinct or any(
+            _lookup_spawns_duplicates(model, name) for name in admin.search_fields
+        )
 
     for name in admin.list_filter:
         if not isinstance(name, str) or name not in params:
@@ -233,10 +256,16 @@ def apply_list_filters(qs, model, admin, params, request: HttpRequest):
             qs = _apply_date_filter(qs, name, field, str(value))
         else:
             qs = qs.filter(**{name: value})
+        needs_distinct = needs_distinct or _lookup_spawns_duplicates(model, name)
 
     for flt in _custom_filter_instances(admin):
         if flt.parameter_name in params:
             qs = flt.queryset(request, qs, params[flt.parameter_name])
+
+    # A to-many join (search across a reverse FK / M2M, or such a list_filter) emits
+    # one row per related match — collapse so an object appears once.
+    if needs_distinct:
+        qs = qs.distinct()
     return qs
 
 
@@ -516,6 +545,8 @@ class RelationOptionsView(View):
             for name in target_admin.search_fields:
                 q |= Q(**{f"{name}__icontains": search})
             qs = qs.filter(q)
+            if any(_lookup_spawns_duplicates(target, name) for name in target_admin.search_fields):
+                qs = qs.distinct()
 
         try:
             qs = qs.order_by("pk")

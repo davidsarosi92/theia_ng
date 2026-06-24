@@ -14,6 +14,7 @@ import { Router } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { ApiService } from './api.service';
+import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, ListResponse, Perms, RelationValue } from './models';
 import { keyToSlug } from './util';
 
@@ -39,12 +40,12 @@ const key = (id: unknown): string => String(id);
                 <td class="rel-table-actions">
                   @if (!isReadonly()) {
                     @if (targetPerms()?.view) {
-                      <button type="button" class="rel-act" (click)="openView(s, $event)">View</button>
+                      <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
                     }
                     @if (targetPerms()?.change) {
-                      <button type="button" class="rel-act" (click)="openEdit(s, $event)">Edit</button>
+                      <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
                     }
-                    <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">Delete</button>
+                    <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
                   }
                 </td>
               </tr>
@@ -63,11 +64,11 @@ const key = (id: unknown): string => String(id);
           <!-- The selected value lives in the (clickable) trigger, like a combobox. -->
           <div class="rel-trigger" (click)="toggle($event)">
             @if (multi) {
-              <span class="placeholder">Add…</span>
+              <span class="placeholder">{{ t('addPlaceholder') }}</span>
             } @else if (selectedItems()[0]; as s) {
               <span>{{ s.label }}</span>
             } @else {
-              <span class="placeholder">Select…</span>
+              <span class="placeholder">{{ t('selectPlaceholder') }}</span>
             }
             <span class="caret">▾</span>
           </div>
@@ -75,12 +76,12 @@ const key = (id: unknown): string => String(id);
           @if (!multi && selectedItems()[0]; as s) {
             <div class="rel-fk-actions">
               @if (targetPerms()?.view) {
-                <button type="button" class="rel-act" (click)="openView(s, $event)">View</button>
+                <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
               }
               @if (targetPerms()?.change) {
-                <button type="button" class="rel-act" (click)="openEdit(s, $event)">Edit</button>
+                <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
               }
-              <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">Delete</button>
+              <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
             </div>
           }
         </div>
@@ -91,7 +92,7 @@ const key = (id: unknown): string => String(id);
           <input
             class="rel-search"
             type="text"
-            placeholder="Search…"
+            [placeholder]="t('search')"
             [value]="searchTerm()"
             (click)="$event.stopPropagation()"
             (input)="onSearch($any($event.target).value)"
@@ -103,12 +104,12 @@ const key = (id: unknown): string => String(id);
                 {{ o.label }}
               </li>
             } @empty {
-              @if (!loading()) { <li class="muted">No matches.</li> }
+              @if (!loading()) { <li class="muted">{{ t('noMatches') }}</li> }
             }
-            @if (loading()) { <li class="muted">Loading…</li> }
+            @if (loading()) { <li class="muted">{{ t('loading') }}</li> }
           </ul>
           <div class="rel-foot">
-            {{ multi ? selectedItems().length + ' selected · ' : '' }}{{ count() }} total
+            {{ multi ? t('selectedCount', { n: selectedItems().length }) + ' · ' : '' }}{{ t('totalCount', { count: count() }) }}
           </div>
         </div>
       }
@@ -118,11 +119,11 @@ const key = (id: unknown): string => String(id);
           <div class="confirm-card" (click)="$event.stopPropagation()">
             <p>Remove <strong>{{ item.label }}</strong> <span class="muted">#{{ item.id }}</span>?</p>
             <div class="confirm-actions">
-              <button type="button" class="btn secondary" (click)="unlink(item)">Remove link</button>
+              <button type="button" class="btn secondary" (click)="unlink(item)">{{ t('removeLink') }}</button>
               @if (targetPerms()?.delete) {
-                <button type="button" class="btn danger" (click)="deleteEntity(item)">Delete entity</button>
+                <button type="button" class="btn danger" (click)="deleteEntity(item)">{{ t('deleteEntity') }}</button>
               }
-              <button type="button" (click)="cancelDelete()">Cancel</button>
+              <button type="button" (click)="cancelDelete()">{{ t('cancel') }}</button>
             </div>
           </div>
         </div>
@@ -158,6 +159,8 @@ export class RelationSelectComponent implements OnInit {
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private host = inject(ElementRef<HTMLElement>);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
 
   key = key;
   multi = false;

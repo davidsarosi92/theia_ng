@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, inject, output, signal } from '@angular/core';
 
 import { ApiService } from './api.service';
+import { I18nService } from './i18n.service';
 
 type Id = number | string;
 
@@ -61,8 +62,8 @@ type Id = number | string;
 
       @if (multi) {
         <div class="actions">
-          <button type="button" class="btn" (click)="apply()">Apply</button>
-          <button type="button" (click)="closed.emit()">Cancel</button>
+          <button type="button" class="btn" (click)="apply()">{{ t('apply') }}</button>
+          <button type="button" (click)="closed.emit()">{{ t('cancel') }}</button>
         </div>
       }
     </div>
@@ -70,6 +71,8 @@ type Id = number | string;
 })
 export class RelationPickerDialogComponent implements OnInit {
   private api = inject(ApiService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
 
   /** The relation's options endpoint (e.g. ``data/app.model/``). */
   @Input({ required: true }) endpoint!: string;

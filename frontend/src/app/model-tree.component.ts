@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { I18nService } from './i18n.service';
 import { TreeNode } from './models';
 import { TreeNodeComponent } from './tree-node.component';
 import { cap, slugToKey } from './util';
@@ -12,16 +13,16 @@ import { cap, slugToKey } from './util';
   imports: [RouterLink, TreeNodeComponent],
   template: `
     <nav class="breadcrumb">
-      <a routerLink="/">Home</a>
+      <a routerLink="/">{{ t('home') }}</a>
       <span class="sep">/</span>
       <a [routerLink]="['/', slug]">{{ cap(rootLabel()) }}</a>
       <span class="sep">/</span>
-      <span>Hierarchy</span>
+      <span>{{ t('hierarchy') }}</span>
     </nav>
 
     <header class="list-header">
-      <h2>Hierarchy</h2>
-      <button type="button" class="btn secondary" (click)="back()">← Back</button>
+      <h2>{{ t('hierarchy') }}</h2>
+      <button type="button" class="btn secondary" (click)="back()">{{ t('backArrow') }}</button>
     </header>
 
     @if (root(); as r) {
@@ -36,7 +37,7 @@ import { cap, slugToKey } from './util';
         />
       </div>
     } @else {
-      <p>Nothing to show.</p>
+      <p>{{ t('noRecords') }}</p>
     }
   `,
 })
@@ -44,6 +45,8 @@ export class ModelTreeComponent implements OnInit {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
 
   cap = cap;
   modelKey = '';

@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, Perms, RelationValue } from './models';
 import { RelationPickerDialogComponent } from './relation-picker-dialog.component';
 import { RelationSelectComponent } from './relation-select.component';
@@ -83,10 +84,10 @@ import { cap, keyToSlug } from './util';
               <span class="raw-rel-val">{{ rawLabel() || '—' }}</span>
               @if (field.type === 'fk' && rawSingleId() !== null) {
                 @if (targetPerms()?.view) {
-                  <button type="button" class="rel-act" (click)="viewRaw($event)">View</button>
+                  <button type="button" class="rel-act" (click)="viewRaw($event)">{{ t('view') }}</button>
                 }
                 @if (targetPerms()?.change) {
-                  <button type="button" class="rel-act" (click)="editRaw($event)">Edit</button>
+                  <button type="button" class="rel-act" (click)="editRaw($event)">{{ t('edit') }}</button>
                 }
               }
               <button
@@ -94,9 +95,9 @@ import { cap, keyToSlug } from './util';
                 class="btn small secondary"
                 [disabled]="control.disabled"
                 (click)="pickerOpen.set(true)"
-              >Choose…</button>
+              >{{ t('choose') }}</button>
               @if (rawHasValue() && !control.disabled) {
-                <button type="button" class="raw-rel-clear" (click)="clearRaw()" aria-label="Clear">✕</button>
+                <button type="button" class="raw-rel-clear" (click)="clearRaw()" [attr.aria-label]="t('clear')">✕</button>
               }
             </div>
             @if (pickerOpen()) {
@@ -153,6 +154,8 @@ export class FieldInputComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private router = inject(Router);
   private api = inject(ApiService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
   /** model_field_select: the model keys currently chosen in the sibling field. */
   selectedKeys = signal<string[]>([]);
   /** Bumped on control value changes so checkbox state re-renders (zoneless). */

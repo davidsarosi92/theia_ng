@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import { ApiService } from './api.service';
 import { FieldInputComponent } from './field-input.component';
+import { I18nService } from './i18n.service';
 import { ActionSpec } from './models';
 import { ToastService } from './toast.service';
 
@@ -31,8 +32,8 @@ import { ToastService } from './toast.service';
         }
 
         <div class="confirm-actions">
-          <button type="submit" class="btn" [disabled]="running()">Run</button>
-          <button type="button" (click)="closed.emit()">Cancel</button>
+          <button type="submit" class="btn" [disabled]="running()">{{ t('run') }}</button>
+          <button type="button" (click)="closed.emit()">{{ t('cancel') }}</button>
         </div>
       </form>
     </div>
@@ -41,6 +42,8 @@ import { ToastService } from './toast.service';
 export class ActionDialogComponent implements OnInit {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
 
   @Input({ required: true }) action!: ActionSpec;
   /** Selected row ids (for selection-based actions; empty for 'none'). */

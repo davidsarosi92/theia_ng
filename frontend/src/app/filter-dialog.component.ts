@@ -1,7 +1,8 @@
-import { Component, Input, output, signal } from '@angular/core';
+import { Component, Input, inject, output, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 
 import { FieldInputComponent } from './field-input.component';
+import { I18nService } from './i18n.service';
 import { CustomFilter, FieldSpec, ModelSchema } from './models';
 
 export interface AppliedFilter {
@@ -78,13 +79,16 @@ type Entry = FieldEntry | CustomEntry;
       }
 
       <div class="actions">
-        <button type="button" class="btn" [disabled]="!valid()" (click)="apply()">OK</button>
-        <button type="button" (click)="closed.emit()">Cancel</button>
+        <button type="button" class="btn" [disabled]="!valid()" (click)="apply()">{{ t('ok') }}</button>
+        <button type="button" (click)="closed.emit()">{{ t('cancel') }}</button>
       </div>
     </div>
   `,
 })
 export class FilterDialogComponent {
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
+
   @Input({ required: true }) schema!: ModelSchema;
   applied = output<AppliedFilter>();
   closed = output<void>();

@@ -8,10 +8,18 @@ import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { I18nService } from './i18n.service';
+import { MessageKey } from './i18n/messages';
 import { inputTypeFor } from './field-widgets';
 import { ActionSpec, FieldSpec, ModelSchema } from './models';
 import { ToastService } from './toast.service';
 import { cap, slugToKey } from './util';
+
+/** Built-in (theia-shipped) bulk action keys → i18n key. Lets us translate their
+ *  server-provided English labels in the UI; unlisted (custom) actions fall back
+ *  to their own label. */
+const BUILTIN_ACTION_LABELS: Record<string, MessageKey> = {
+  delete_selected: 'deleteSelected',
+};
 import { ViewService } from './view.service';
 
 @Component({
@@ -36,7 +44,7 @@ import { ViewService } from './view.service';
         <h2>{{ cap(s.verbose_name) }}</h2>
         <div class="list-actions">
           @for (a of toolbarActions(); track a.key) {
-            <button class="btn secondary" (click)="openAction(a)">{{ cap(a.label) }}</button>
+            <button class="btn secondary" (click)="openAction(a)">{{ actionLabel(a) }}</button>
           }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
             <button class="btn secondary" (click)="showFilter.set(true)">+ {{ t('filter') }}</button>
@@ -80,7 +88,7 @@ import { ViewService } from './view.service';
           >
             <option value="">{{ t('bulkActionPlaceholder') }}</option>
             @for (a of bulkActions(); track a.key) {
-              <option [value]="a.key">{{ cap(a.label) }}</option>
+              <option [value]="a.key">{{ actionLabel(a) }}</option>
             }
           </select>
           <button
@@ -234,9 +242,9 @@ import { ViewService } from './view.service';
 
       @if (pendingBulk(); as pb) {
         <theia-confirm-dialog
-          [title]="cap(pb.label)"
-          [message]="t('bulkConfirmMsg', { action: cap(pb.label), n: selectionCount() })"
-          [confirmLabel]="cap(pb.label)"
+          [title]="actionLabel(pb)"
+          [message]="t('bulkConfirmMsg', { action: actionLabel(pb), n: selectionCount() })"
+          [confirmLabel]="actionLabel(pb)"
           [cancelLabel]="t('cancel')"
           [danger]="true"
           (confirmed)="confirmBulk()"
@@ -305,6 +313,14 @@ export class ModelListComponent implements OnInit, OnDestroy {
 
   openAction(action: ActionSpec): void {
     this.activeAction.set(action);
+  }
+
+  /** Display label for an action. Theia's built-in actions (e.g. delete_selected)
+   *  carry an English server label, so translate those client-side by key; custom
+   *  app-defined actions keep their own label. */
+  actionLabel(action: ActionSpec): string {
+    const key = BUILTIN_ACTION_LABELS[action.key];
+    return key ? this.t(key) : this.cap(action.label);
   }
 
   onActionDone(): void {
@@ -396,7 +412,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
       : { ids: [...this.selected()] as (number | string)[] };
     this.api.runAction(action.endpoint, body).subscribe({
       next: () => {
-        this.toast.success(this.t('actionDoneToast', { action: cap(action.label) }));
+        this.toast.success(this.t('actionDoneToast', { action: this.actionLabel(action) }));
         this.clearSelection();
         this.load();
       },

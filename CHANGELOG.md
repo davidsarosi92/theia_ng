@@ -4,6 +4,24 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] — 2026-06-24
+### Fixed
+- **Search no longer duplicates rows across to-many relations.** When
+  `search_fields` (or a `list_filter`) spans a reverse FK / M2M, the join emitted
+  one row per related match, so a record could appear many times (e.g. a user
+  shown once per registration). The list and the relation-option search now apply
+  `.distinct()` whenever a lookup spawns duplicates — mirroring Django admin —
+  while to-one lookups (local fields, forward FKs) stay join-free and unaffected.
+
+### Changed
+- **Fully localized UI chrome.** Action buttons and labels that were still
+  hardcoded English — **View / Edit / Delete / Run / OK / Apply / Cancel /
+  Choose… / Remove link / Delete entity**, plus the relation picker's
+  placeholders (Add… / Select… / No matches…) and the hierarchy tree's controls —
+  now go through the runtime i18n dictionary in all **9 languages**. The built-in
+  **Delete selected** bulk action is translated by key, while custom (app-defined)
+  actions keep their own server label.
+
 ## [0.16.2] — 2026-06-20
 ### Added
 - **View / Edit shortcuts on raw_id FK fields.** A `raw_id_fields` FK shows just

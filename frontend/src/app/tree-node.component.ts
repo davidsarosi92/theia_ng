@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
+import { I18nService } from './i18n.service';
 import { ChildGroup, TreeNode } from './models';
 import { ToastService } from './toast.service';
 import { cap, keyToSlug } from './util';
@@ -31,22 +32,22 @@ interface GroupState {
       <span class="tree-name">{{ node.label }}</span>
       <span class="tree-acts">
         @if (node.perms.view) {
-          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }">View</a>
+          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }">{{ t('view') }}</a>
         }
         @if (node.perms.change) {
-          <a class="btn small" [routerLink]="link()" [queryParams]="{ ret: ret }">Edit</a>
+          <a class="btn small" [routerLink]="link()" [queryParams]="{ ret: ret }">{{ t('edit') }}</a>
         }
         @if (node.perms.delete) {
-          <button type="button" class="btn small danger" (click)="remove()">Delete</button>
+          <button type="button" class="btn small danger" (click)="remove()">{{ t('delete') }}</button>
         }
       </span>
     </div>
 
     @if (confirming()) {
       <theia-confirm-dialog
-        title="Delete record"
-        [message]="'Delete this ' + node.model_label + ' (' + node.label + ')? This cannot be undone.'"
-        confirmLabel="Delete"
+        [title]="t('deleteRecordTitle')"
+        [message]="t('deleteRecordMsg')"
+        [confirmLabel]="t('delete')"
         [danger]="true"
         (confirmed)="doRemove()"
         (cancelled)="confirming.set(false)"
@@ -66,13 +67,13 @@ interface GroupState {
               <input
                 class="tree-search"
                 type="text"
-                placeholder="Search…"
+                [placeholder]="t('search')"
                 [value]="state(g).search"
                 (input)="onSearch(g, $any($event.target).value)"
               />
             }
             @if (state(g).loading) {
-              <div class="tree-muted">Loading…</div>
+              <div class="tree-muted">{{ t('loading') }}</div>
             } @else {
               @for (child of state(g).rows; track child.key + ':' + child.pk) {
                 <theia-tree-node
@@ -84,7 +85,7 @@ interface GroupState {
                   [onChanged]="onChanged"
                 />
               } @empty {
-                <div class="tree-muted">No records.</div>
+                <div class="tree-muted">{{ t('noRecords') }}</div>
               }
               @if (state(g).numPages > 1) {
                 <div class="tree-pager">
@@ -103,6 +104,8 @@ interface GroupState {
 export class TreeNodeComponent implements OnInit {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private i18n = inject(I18nService);
+  protected t = this.i18n.t;
 
   @Input({ required: true }) node!: TreeNode;
   @Input() depth = 0;
