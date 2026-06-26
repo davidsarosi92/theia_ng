@@ -129,6 +129,7 @@ import { cap, keyToSlug } from './util';
               [control]="control"
               [initial]="initial"
               [form]="form"
+              [exclude]="exclude"
               [locked]="field.relation?.registered === false"
             />
           }
@@ -149,6 +150,9 @@ export class FieldInputComponent implements OnInit {
   @Input({ required: true }) control!: FormControl;
   @Input() initial: RelationValue | RelationValue[] | null = null;
   @Input() form?: FormGroup;
+  /** Option ids to hide from a relation dropdown (passed through to the relation
+   *  select) — e.g. values already chosen in sibling inline rows. */
+  @Input() exclude: (number | string)[] = [];
   cap = cap;
 
   private destroyRef = inject(DestroyRef);

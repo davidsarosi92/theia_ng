@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, WritableSignal, inject, signal } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, WritableSignal, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import { FieldInputComponent } from './field-input.component';
@@ -53,6 +53,7 @@ let _uid = 0;
                         [control]="ctrl(row, f.name)"
                         [initial]="initialRel(row, f)"
                         [form]="row.group"
+                        [exclude]="excludeFor(row, f)"
                       />
                     </td>
                   }
@@ -77,6 +78,7 @@ let _uid = 0;
                 [control]="ctrl(row, f.name)"
                 [initial]="initialRel(row, f)"
                 [form]="row.group"
+                [exclude]="excludeFor(row, f)"
               />
             }
             @if (inline.can_delete) {
@@ -94,7 +96,7 @@ let _uid = 0;
     </section>
   `,
 })
-export class InlineEditorComponent implements OnInit {
+export class InlineEditorComponent implements OnChanges {
   @Input({ required: true }) inline!: InlineConfig;
   /** Existing child rows (serialized like a detail record: pk + values, with
    *  relations as {id,label}). */
@@ -104,14 +106,43 @@ export class InlineEditorComponent implements OnInit {
   protected t = this.i18n.t;
   rows = signal<InlineRow[]>([]);
 
-  ngOnInit(): void {
-    const existing = this.initialRows.map((r) => this.buildRow(r));
-    const blanks = Array.from({ length: this.inline.extra }, () => this.buildRow({}));
-    this.rows.set([...existing, ...blanks]);
+  /** (Re)seed the editable rows from ``initialRows``. Runs on first render and
+   *  whenever the parent passes a fresh array — e.g. after the detail page
+   *  reloads following a save or a custom action — so the inline reflects the
+   *  current server state instead of staying stale. The parent only swaps the
+   *  array reference on reload (not during editing), so in-progress rows aren't
+   *  clobbered mid-edit. */
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['initialRows']) {
+      const existing = this.initialRows.map((r) => this.buildRow(r));
+      const blanks = Array.from({ length: this.inline.extra }, () => this.buildRow({}));
+      this.rows.set([...existing, ...blanks]);
+    }
   }
 
   ctrl(row: InlineRow, name: string): FormControl {
     return row.group.get(name) as FormControl;
+  }
+
+  /** Ids already chosen for ``field`` in the OTHER (non-deleted) rows, so a
+   *  to-one relation isn't offered twice across the inline — prevents assigning
+   *  the same related record (e.g. the same Module to a House) on two rows. Only
+   *  meaningful for FK fields; other field types get no exclusions. */
+  excludeFor(row: InlineRow, field: FieldSpec): (number | string)[] {
+    if (field.type !== 'fk') {
+      return [];
+    }
+    const out: (number | string)[] = [];
+    for (const r of this.rows()) {
+      if (r.uid === row.uid || r.deleted()) {
+        continue;
+      }
+      const v = r.group.get(field.name)?.value;
+      if (v !== null && v !== undefined && v !== '') {
+        out.push(v as number | string);
+      }
+    }
+    return out;
   }
 
   /** Relation initial (labels) for a row's FK/M2M picker. */

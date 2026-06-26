@@ -4,6 +4,22 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.1] — 2026-06-26
+### Fixed
+- **Inlines now refresh after a save or custom action.** The inline editor only
+  seeded its rows once (on init), so after the detail page reloaded — e.g.
+  following a detail action like *Add / remove module group*, or a normal save —
+  the inline kept showing stale rows and the change didn't appear. It now
+  re-seeds whenever the parent passes fresh rows on reload, while leaving
+  in-progress edits untouched (the parent only swaps the array on reload, not
+  while you type).
+- **An inline relation can't be assigned twice.** A to-one (FK) field in an
+  inline now hides the values already chosen in its other rows — including the
+  already-saved ones — so e.g. the same Module can no longer be added to a House
+  on two rows. Implemented as a generic `exclude` on the relation dropdown
+  (relation select → field → inline editor); the row's own current selection is
+  never hidden.
+
 ## [0.17.0] — 2026-06-24
 ### Fixed
 - **Search no longer duplicates rows across to-many relations.** When

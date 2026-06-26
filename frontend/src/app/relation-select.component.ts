@@ -98,7 +98,7 @@ const key = (id: unknown): string => String(id);
             (input)="onSearch($any($event.target).value)"
           />
           <ul class="rel-options" (scroll)="onScroll($event)">
-            @for (o of options(); track key(o.id)) {
+            @for (o of visibleOptions(); track key(o.id)) {
               <li [class.sel]="isSelected(o.id)" (click)="choose(o, $event)">
                 @if (multi) { <span class="check">{{ isSelected(o.id) ? '☑' : '☐' }}</span> }
                 {{ o.label }}
@@ -152,6 +152,10 @@ export class RelationSelectComponent implements OnInit {
   }
   /** Parent form, used to read sibling values for dependent options. */
   @Input() form?: FormGroup;
+  /** Option ids to hide from the dropdown — values already chosen elsewhere
+   *  (e.g. sibling inline rows), so the same relation can't be assigned twice.
+   *  This row's own current selection is never hidden. */
+  @Input() exclude: (number | string)[] = [];
   /** Forbid interaction (unregistered M2M target): show items read-only, no add. */
   @Input() locked = false;
 
@@ -266,6 +270,17 @@ export class RelationSelectComponent implements OnInit {
 
   isSelected(id: number | string): boolean {
     return this.selectedIds().some((v) => key(v) === key(id));
+  }
+
+  /** Options to render: the loaded options minus any ``exclude`` ids, except the
+   *  current selection (which must stay visible/selected). */
+  visibleOptions(): Option[] {
+    if (!this.exclude.length) {
+      return this.options();
+    }
+    const blocked = new Set(this.exclude.map((id) => key(id)));
+    const mine = new Set(this.selectedIds().map((id) => key(id)));
+    return this.options().filter((o) => mine.has(key(o.id)) || !blocked.has(key(o.id)));
   }
 
   /** No interaction: view mode (disabled control) or a locked (unregistered) field. */
