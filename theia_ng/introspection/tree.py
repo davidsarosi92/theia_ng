@@ -201,18 +201,24 @@ def build_full_subtree(
     obj: Model,
     request: HttpRequest,
     *,
+    from_root: bool = True,
     max_nodes: int = 2000,
 ) -> dict[str, Any]:
-    """The whole hierarchy around ``obj`` — rooted at its topmost ancestor and
-    expanded down through every ``tree_children`` — assembled eagerly in one pass
-    (no lazy per-node loading). Powers the compact hierarchy on the detail page;
-    the opened record is flagged ``is_current``. ``truncated`` flags that
-    ``max_nodes`` was hit. Building from the root keeps the view useful even on a
-    leaf record (e.g. a Space), which would otherwise have no descendants."""
+    """The hierarchy around ``obj`` assembled eagerly in one pass (no lazy
+    per-node loading). The opened record is flagged ``is_current``; ``truncated``
+    flags that ``max_nodes`` was hit.
+
+    ``from_root=True`` (page hierarchy section) climbs to ``obj``'s topmost
+    ancestor first, so the view is useful even on a leaf (e.g. a Space).
+    ``from_root=False`` roots at ``obj`` itself and shows only its descendants —
+    used by the placeable ``@compact_tree`` field, which is independent of the
+    full-hierarchy section."""
     from theia_ng.registry import site
 
-    chain = _resolve_lineage(model, admin, obj, site)
-    root_model, root_admin, root_obj = chain[0]
+    if from_root:
+        root_model, root_admin, root_obj = _resolve_lineage(model, admin, obj, site)[0]
+    else:
+        root_model, root_admin, root_obj = model, admin, obj
     current = (_model_key(model), str(obj.pk))
     counter = {"n": 0}
     root = _full_node(root_model, root_admin, root_obj, request, site, counter, max_nodes, current)

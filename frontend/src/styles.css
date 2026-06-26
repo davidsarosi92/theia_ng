@@ -729,11 +729,16 @@ body {
 
 /* ---- Tier 1: fieldsets, list_editable, inlines ---- */
 
-/* form sections (fieldsets) */
+/* form sections (fieldsets) — a clean title with the fields beneath (matching
+   the compact-tree section's look), not a heavy box wrapping everything. */
 .form-section { border: none; padding: 0; margin: 0 0 0.5rem; }
 .form-section.titled {
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 0.75rem 1rem 0.25rem; margin-bottom: 1rem; background: var(--panel);
+  border: none; background: none; padding: 0; margin-bottom: 1.5rem;
+}
+.form-section.titled > .section-title {
+  display: block; width: 100%;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem; margin-bottom: 0.85rem;
 }
 .section-title {
   font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em;
@@ -743,6 +748,10 @@ body {
 .section-title.toggle:hover { color: var(--accent); }
 .section-caret { display: inline-block; width: 1rem; color: var(--muted); }
 .section-desc { font-size: 0.85rem; color: var(--muted); margin: -0.25rem 0 0.6rem; }
+
+/* a placeable @compact_tree field spans the full form width (unlike normal
+   inputs, which are capped) so the indented tree has room. */
+.compact-tree-field { max-width: none; }
 
 /* list_editable: inline cells + save bar */
 .cell-edit input[type="text"], .cell-edit input[type="number"], .cell-edit input[type="email"],

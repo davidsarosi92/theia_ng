@@ -448,6 +448,15 @@ class DataDetailView(_BaseModelView):
         rep = self.adapter.to_representation(instance)
         if getattr(self.admin, "inlines", None):
             rep["inlines"] = _serialize_inlines(self.admin, instance)
+        # Resolve each @compact_tree field's root object for this record, so the
+        # SPA knows which subtree to fetch (or None to hide the element).
+        from theia_ng.introspection.builder import _model_key
+
+        for name, _opts in self.admin.compact_tree_fields():
+            root = getattr(self.admin, name)(instance)
+            rep[name] = (
+                {"key": _model_key(type(root)), "pk": root.pk} if root is not None else None
+            )
         return JsonResponse(rep)
 
     def patch(self, request: HttpRequest, model_key: str, pk: str):
@@ -601,7 +610,12 @@ class TreeFullView(_BaseModelView):
             raise Http404(f"{self.model._meta.object_name} {pk!r} not found")
         if not self.admin.has_view_permission(request, instance):
             return _forbidden()
-        return JsonResponse(build_full_subtree(self.model, self.admin, instance, request))
+        # ?root=self roots at this record (descendants only) for the @compact_tree
+        # field; the default climbs to the topmost ancestor for the page section.
+        from_root = request.GET.get("root") != "self"
+        return JsonResponse(
+            build_full_subtree(self.model, self.admin, instance, request, from_root=from_root)
+        )
 
 
 class TreeChildrenView(_BaseModelView):

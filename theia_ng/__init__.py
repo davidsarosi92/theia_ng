@@ -2,7 +2,7 @@
 
 from theia_ng.actions import ActionField, action
 from theia_ng.filters import ListFilter
-from theia_ng.options import Inline, ModelAdmin, display
+from theia_ng.options import Inline, ModelAdmin, compact_tree, display
 from theia_ng.registry import site
 
 __all__ = [
@@ -10,6 +10,7 @@ __all__ = [
     "ModelAdmin",
     "Inline",
     "display",
+    "compact_tree",
     "ListFilter",
     "action",
     "ActionField",

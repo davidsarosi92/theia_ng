@@ -62,6 +62,9 @@ interface Row {
 export class CompactTreeComponent implements OnInit {
   @Input({ required: true }) modelKey!: string;
   @Input({ required: true }) pk!: string;
+  /** 'full' climbs to the topmost ancestor (page section); 'self' shows only
+   *  this record's descendants (the placeable @compact_tree field). */
+  @Input() scope: 'full' | 'self' = 'full';
 
   private api = inject(ApiService);
   private router = inject(Router);
@@ -85,7 +88,7 @@ export class CompactTreeComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.api.treeFull(this.modelKey, this.pk).subscribe({
+    this.api.treeFull(this.modelKey, this.pk, this.scope).subscribe({
       next: (resp) => {
         this.root.set(resp.root);
         this.truncated.set(resp.truncated);

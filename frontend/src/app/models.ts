@@ -3,7 +3,10 @@
 export type FieldType =
   | 'string' | 'text' | 'integer' | 'decimal' | 'boolean'
   | 'date' | 'datetime' | 'time' | 'email' | 'url' | 'uuid'
-  | 'json' | 'choice' | 'fk' | 'm2m' | 'file' | 'image';
+  | 'json' | 'choice' | 'fk' | 'm2m' | 'file' | 'image'
+  // Synthetic, read-only form element (not a model field): a placeable compact
+  // hierarchy. Its value on a record is { key, pk } of the subtree's root.
+  | 'compact_tree';
 
 export interface Perms {
   view: boolean;

@@ -94,9 +94,21 @@ interface FieldsetGroup {
             @if (g.description) { <p class="section-desc">{{ g.description }}</p> }
             @if (!isCollapsed(g, $index)) {
               @for (field of g.fields; track field.name) {
-                <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" [form]="form" />
-                @if (errors()[field.name]; as fieldErrors) {
-                  <div class="errors">{{ fieldErrors.join(' ') }}</div>
+                @if (field.type === 'compact_tree') {
+                  <div class="field compact-tree-field">
+                    <span class="field-label">{{ field.label }}</span>
+                    @if (field.help_text) { <small class="help">{{ field.help_text }}</small> }
+                    @if (compactTreeRef(field); as ref) {
+                      <theia-compact-tree [modelKey]="ref.key" [pk]="ref.pk" [scope]="'self'" />
+                    } @else {
+                      <p class="section-desc">{{ t('noDescendants') }}</p>
+                    }
+                  </div>
+                } @else {
+                  <theia-field [field]="field" [control]="controlFor(field.name)" [initial]="relationInitial(field)" [form]="form" />
+                  @if (errors()[field.name]; as fieldErrors) {
+                    <div class="errors">{{ fieldErrors.join(' ') }}</div>
+                  }
                 }
               }
             }
@@ -426,9 +438,21 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
     return (this.record()?.[field.name] as RelationValue | RelationValue[] | null) ?? null;
   }
 
+  /** The { key, pk } root the backend resolved for a compact_tree field on this
+   *  record (null hides it). pk is stringified for the routerLink/endpoint. */
+  compactTreeRef(field: FieldSpec): { key: string; pk: string } | null {
+    const ref = this.record()?.[field.name] as { key: string; pk: number | string } | null;
+    return ref ? { key: ref.key, pk: String(ref.pk) } : null;
+  }
+
   private buildForm(s: ModelSchema): void {
     const group: Record<string, FormControl> = {};
     for (const field of s.fields) {
+      // compact_tree is a synthetic display element, not a form control — it
+      // must stay out of the FormGroup (and thus the save payload).
+      if (field.type === 'compact_tree') {
+        continue;
+      }
       if (field.editable || field.read_only) {
         const isArray = field.type === 'm2m' || field.widget === 'multiselect';
         const isObject = field.widget === 'model_field_select';

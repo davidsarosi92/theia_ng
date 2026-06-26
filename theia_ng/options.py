@@ -75,6 +75,27 @@ def display(*, description: str) -> Callable:
     return decorator
 
 
+def compact_tree(*, description: str = "") -> Callable:
+    """Mark a ModelAdmin method as a **compact hierarchy field** — a placeable
+    form element that renders the eager subtree (descendants) of the object the
+    method returns. Drop its name into ``fields``/``fieldsets`` like any field;
+    it is independent of the page's full-hierarchy section and read-only::
+
+        @theia_ng.compact_tree(description="Structure")
+        def structure(self, obj):
+            return obj            # root the tree at this record (default)
+            # return obj.house    # ...or at a related record
+
+    Returning ``None`` hides the element for that record.
+    """
+
+    def decorator(func: Callable) -> Callable:
+        func._theia_compact_tree = {"description": description}  # type: ignore[attr-defined]
+        return func
+
+    return decorator
+
+
 class ModelAdmin:
     """Per-model admin configuration.
 
@@ -195,6 +216,22 @@ class ModelAdmin:
         if self.display_field:
             return str(getattr(obj, self.display_field, "") or "")
         return str(obj)
+
+    def compact_tree_fields(self) -> list[tuple[str, dict]]:
+        """``(name, opts)`` for each ``@compact_tree``-decorated method, in
+        declaration order (subclass first). Used to surface them as synthetic
+        read-only form fields and to resolve each one's root object per record."""
+        seen: set[str] = set()
+        out: list[tuple[str, dict]] = []
+        for klass in type(self).__mro__:
+            for name, attr in vars(klass).items():
+                if name in seen:
+                    continue
+                opts = getattr(attr, "_theia_compact_tree", None)
+                if opts is not None:
+                    seen.add(name)
+                    out.append((name, opts))
+        return out
 
     # --- permission hooks (override to plug in custom auth, e.g. iBar) -----
     # Defaults delegate to django.contrib.auth model permissions. They are the

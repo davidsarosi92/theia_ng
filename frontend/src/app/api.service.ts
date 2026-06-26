@@ -141,10 +141,12 @@ export class ApiService {
     return this.http.get<TreeResponse>(this.url(`tree/${key}/${pk}/`));
   }
 
-  /** The subtree rooted at this record with all descendants assembled eagerly
-   *  in one response (for the compact hierarchy on the detail page). */
-  treeFull(key: string, pk: string): Observable<FullTreeResponse> {
-    return this.http.get<FullTreeResponse>(this.url(`tree-full/${key}/${pk}/`));
+  /** The hierarchy for this record, assembled eagerly in one response. `scope`
+   *  'full' climbs to the topmost ancestor (page section); 'self' roots at this
+   *  record's own descendants (the placeable compact-tree field). */
+  treeFull(key: string, pk: string, scope: 'full' | 'self' = 'full'): Observable<FullTreeResponse> {
+    const suffix = scope === 'self' ? '?root=self' : '';
+    return this.http.get<FullTreeResponse>(this.url(`tree-full/${key}/${pk}/${suffix}`));
   }
 
   /** One child group of a tree node: searched + paginated, `focus` jumps to the

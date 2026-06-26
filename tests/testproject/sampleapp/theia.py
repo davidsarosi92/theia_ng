@@ -78,6 +78,11 @@ class HouseAdmin(theia_ng.ModelAdmin):
     def space_names(self, obj):
         return ", ".join(s.name for s in obj.spaces.all())
 
+    # A placeable compact-tree field: the House's own subtree (descendants).
+    @theia_ng.compact_tree(description="Structure")
+    def structure(self, obj):
+        return obj
+
 
 @theia_ng.register(Space)
 class SpaceAdmin(theia_ng.ModelAdmin):

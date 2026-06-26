@@ -427,10 +427,36 @@ Children **load lazily**: each node shows its child relations as collapsed
 groups with a count; expanding one fetches a **searchable, paginated mini-table**
 (server-side search over the child's `search_fields`, page size = its
 `list_per_page`). Nothing is loaded until you open it, so a node with thousands
-of children stays fast. Each row carries permission-aware **View / Edit /
-Delete** actions, and a child group is hidden entirely if the user can't view
+of children stays fast. A child group is hidden entirely if the user can't view
 that model. `tree_children` uses Django's reverse accessor names (the
 `related_name`, or the default `<model>_set`).
+
+### Compact hierarchy
+
+The detail page also offers a collapsible **compact** hierarchy: instead of
+lazy mini-tables it builds the **whole** tree (from the topmost ancestor, every
+descendant) in a single eager request and renders it as a simple indented table,
+with a single permission-based action per row (Edit if you may change it, else
+View) and no delete. The opened record is marked *(this record)*.
+
+### `@compact_tree` field
+
+To embed a compact tree **among the form fields** (independent of the page
+section above), decorate a method that returns the object to root it at, and drop
+its name into `fields` / `fieldsets` like any field. It is read-only, roots at
+the returned object's **own descendants**, and is hidden when the method returns
+`None`:
+
+```python
+@theia_ng.register(House)
+class HouseAdmin(theia_ng.ModelAdmin):
+    fieldsets = [(None, {"fields": ["name", "company", "structure"]})]
+
+    @theia_ng.compact_tree(description="Structure")
+    def structure(self, obj):
+        return obj            # this House's spaces/stocks
+        # return obj.company  # ...or root higher up
+```
 
 ## Parameterized actions
 

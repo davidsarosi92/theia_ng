@@ -4,6 +4,20 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.0] — 2026-06-26
+### Added
+- **`@theia_ng.compact_tree` — a placeable hierarchy field.** Decorate a method
+  that returns the object to root at, then drop its name into `fields` /
+  `fieldsets`: it renders that object's eager subtree (descendants) as a
+  read-only, indented table among the form fields, independent of the page's
+  full-hierarchy section. Returns `None` to hide it. Backed by `tree-full`'s new
+  `?root=self` mode (root at the record instead of climbing to the ancestor).
+
+### Changed
+- **Fieldsets restyled.** Titled form sections now render as a clean heading with
+  a divider and the fields beneath — matching the compact-tree look — instead of
+  a heavy bordered box wrapping the whole section.
+
 ## [0.18.0] — 2026-06-26
 ### Added
 - **Compact hierarchy on the detail page.** A collapsible *Hierarchy* section on

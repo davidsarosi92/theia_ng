@@ -558,6 +558,24 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
                 fields.append(desc)
                 existing.add(path)
 
+    # Synthetic, read-only form fields for @compact_tree methods — a placeable
+    # hierarchy element (its root object is resolved per-record at serialization).
+    for name, opts in admin.compact_tree_fields():
+        if name in existing:
+            continue
+        fields.append({
+            "name": name,
+            "label": opts.get("description") or _titleize(name),
+            "type": "compact_tree",
+            "required": False,
+            "editable": False,
+            "read_only": True,
+            "help_text": "",
+            "default": None,
+            "widget": None,
+        })
+        existing.add(name)
+
     return {
         "schema_version": SCHEMA_VERSION,
         "key": key,
