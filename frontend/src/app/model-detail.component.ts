@@ -16,6 +16,7 @@ import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
 import { I18nService } from './i18n.service';
+import { CompactTreeComponent } from './compact-tree.component';
 import { InlineEditorComponent } from './inline-editor.component';
 import { ActionSpec, FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
 import { ToastService } from './toast.service';
@@ -40,6 +41,7 @@ interface FieldsetGroup {
     ConfirmDialogComponent,
     InlineEditorComponent,
     ActionDialogComponent,
+    CompactTreeComponent,
   ],
   template: `
     @if (loading()) {
@@ -130,6 +132,21 @@ interface FieldsetGroup {
         </div>
       </form>
 
+      @if (s.tree && !isNew) {
+        <section class="detail-hierarchy">
+          <h3
+            class="section-title toggle"
+            (click)="showHierarchy.set(!showHierarchy())"
+          >
+            <span class="section-caret">{{ showHierarchy() ? '▾' : '▸' }}</span>
+            {{ t('hierarchy') }}
+          </h3>
+          @if (showHierarchy()) {
+            <theia-compact-tree [modelKey]="modelKey" [pk]="pk" />
+          }
+        </section>
+      }
+
       @if (confirmingDelete()) {
         <theia-confirm-dialog
           [title]="t('deleteRecordTitle')"
@@ -193,6 +210,8 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   errors = signal<Record<string, string[]>>({});
   saving = signal(false);
   confirmingDelete = signal(false);
+  /** Whether the compact hierarchy section is expanded (loads on first open). */
+  showHierarchy = signal(false);
   loading = signal(false);
   // Object actions run on this single record (from buttons in the header).
   activeDetailAction = signal<ActionSpec | null>(null);   // parameterized -> dialog

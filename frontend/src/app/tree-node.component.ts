@@ -31,11 +31,10 @@ interface GroupState {
       <span class="tree-type">{{ cap(node.model_label) }}</span>
       <span class="tree-name">{{ node.label }}</span>
       <span class="tree-acts">
-        @if (node.perms.view) {
-          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }">{{ t('view') }}</a>
-        }
         @if (node.perms.change) {
           <a class="btn small" [routerLink]="link()" [queryParams]="{ ret: ret }">{{ t('edit') }}</a>
+        } @else if (node.perms.view) {
+          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }">{{ t('view') }}</a>
         }
         @if (node.perms.delete) {
           <button type="button" class="btn small danger" (click)="remove()">{{ t('delete') }}</button>

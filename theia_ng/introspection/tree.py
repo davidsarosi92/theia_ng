@@ -142,6 +142,88 @@ def build_tree(
     }
 
 
+def _full_node(
+    model: type[Model],
+    admin: ModelAdmin,
+    obj: Model,
+    request: HttpRequest,
+    site: TheiaSite,
+    counter: dict[str, int],
+    max_nodes: int,
+    current: tuple[str, str],
+) -> dict[str, Any]:
+    """One node with its descendants inlined recursively (no pagination). Bounded
+    by a shared ``counter`` against ``max_nodes`` so a huge tree can't run away.
+    ``is_current`` flags the record the view was opened from."""
+    counter["n"] += 1
+    node: dict[str, Any] = {
+        "key": _model_key(model),
+        "model_label": str(model._meta.verbose_name),
+        "pk": obj.pk,
+        "label": admin.display(obj),
+        "perms": _node_perms(admin, request, obj),
+        "is_current": (_model_key(model), str(obj.pk)) == current,
+        "children": [],
+    }
+    if counter["n"] >= max_nodes:
+        return node
+    for accessor in admin.tree_children:
+        resolved = _resolve_child_admin(model, accessor, site)
+        if resolved is None:
+            continue
+        child_model, child_admin = resolved
+        if not child_admin.has_view_permission(request):
+            continue
+        manager = getattr(obj, accessor, None)
+        if manager is None:
+            continue
+        nodes: list[dict[str, Any]] = []
+        truncated = False
+        for child in manager.all().order_by("pk"):
+            if counter["n"] >= max_nodes:
+                truncated = True
+                break
+            nodes.append(_full_node(child_model, child_admin, child, request, site, counter, max_nodes, current))
+        if nodes:
+            node["children"].append({
+                "accessor": accessor,
+                "key": _model_key(child_model),
+                "label": str(child_model._meta.verbose_name_plural),
+                "nodes": nodes,
+                "truncated": truncated,
+            })
+    return node
+
+
+def build_full_subtree(
+    model: type[Model],
+    admin: ModelAdmin,
+    obj: Model,
+    request: HttpRequest,
+    *,
+    max_nodes: int = 2000,
+) -> dict[str, Any]:
+    """The whole hierarchy around ``obj`` — rooted at its topmost ancestor and
+    expanded down through every ``tree_children`` — assembled eagerly in one pass
+    (no lazy per-node loading). Powers the compact hierarchy on the detail page;
+    the opened record is flagged ``is_current``. ``truncated`` flags that
+    ``max_nodes`` was hit. Building from the root keeps the view useful even on a
+    leaf record (e.g. a Space), which would otherwise have no descendants."""
+    from theia_ng.registry import site
+
+    chain = _resolve_lineage(model, admin, obj, site)
+    root_model, root_admin, root_obj = chain[0]
+    current = (_model_key(model), str(obj.pk))
+    counter = {"n": 0}
+    root = _full_node(root_model, root_admin, root_obj, request, site, counter, max_nodes, current)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "root": root,
+        "current": {"key": current[0], "pk": obj.pk},
+        "truncated": counter["n"] >= max_nodes,
+    }
+
+
 class ChildAccessDenied(Exception):
     """The child model exists but the user may not view it."""
 

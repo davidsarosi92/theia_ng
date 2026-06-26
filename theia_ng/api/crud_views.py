@@ -587,6 +587,23 @@ class TreeView(_BaseModelView):
         return JsonResponse(build_tree(self.model, self.admin, instance, request))
 
 
+class TreeFullView(_BaseModelView):
+    """The subtree rooted at a record with all descendants assembled eagerly
+    (no lazy per-node loading), for the compact hierarchy on the detail page.
+    """
+
+    def get(self, request: HttpRequest, model_key: str, pk: str):
+        from theia_ng.introspection.tree import build_full_subtree
+
+        try:
+            instance = self.admin.get_queryset(request).get(pk=pk)
+        except self.model.DoesNotExist:
+            raise Http404(f"{self.model._meta.object_name} {pk!r} not found")
+        if not self.admin.has_view_permission(request, instance):
+            return _forbidden()
+        return JsonResponse(build_full_subtree(self.model, self.admin, instance, request))
+
+
 class TreeChildrenView(_BaseModelView):
     """One child group of a tree node — searched and paginated.
 

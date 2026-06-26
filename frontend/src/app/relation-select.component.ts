@@ -39,11 +39,10 @@ const key = (id: unknown): string => String(id);
                 <td class="rel-table-label">{{ s.label }}</td>
                 <td class="rel-table-actions">
                   @if (!isReadonly()) {
-                    @if (targetPerms()?.view) {
-                      <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
-                    }
                     @if (targetPerms()?.change) {
                       <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
+                    } @else if (targetPerms()?.view) {
+                      <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
                     }
                     <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
                   }
@@ -75,11 +74,10 @@ const key = (id: unknown): string => String(id);
           <!-- FK actions sit beside the trigger (M2M actions are per table row). -->
           @if (!multi && selectedItems()[0]; as s) {
             <div class="rel-fk-actions">
-              @if (targetPerms()?.view) {
-                <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
-              }
               @if (targetPerms()?.change) {
                 <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
+              } @else if (targetPerms()?.view) {
+                <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
               }
               <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
             </div>
@@ -117,7 +115,13 @@ const key = (id: unknown): string => String(id);
       @if (pendingDelete(); as item) {
         <div class="confirm-backdrop" (click)="cancelDelete()">
           <div class="confirm-card" (click)="$event.stopPropagation()">
-            <p>Remove <strong>{{ item.label }}</strong> <span class="muted">#{{ item.id }}</span>?</p>
+            <p>{{ t('relRemovePrompt', { label: item.label }) }}</p>
+            <ul class="confirm-help section-desc">
+              <li><strong>{{ t('removeLink') }}</strong> — {{ t('removeLinkHelp') }}</li>
+              @if (targetPerms()?.delete) {
+                <li><strong>{{ t('deleteEntity') }}</strong> — {{ t('deleteEntityHelp') }}</li>
+              }
+            </ul>
             <div class="confirm-actions">
               <button type="button" class="btn secondary" (click)="unlink(item)">{{ t('removeLink') }}</button>
               @if (targetPerms()?.delete) {

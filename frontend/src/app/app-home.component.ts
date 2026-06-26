@@ -34,7 +34,7 @@ const THEIA_APP = 'theia_ng';
         </a>
       }
       @for (m of models(); track m.key) {
-        <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)">
+        <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)" [title]="t('openCard', { name: cap(m.verbose_name) })">
           <span class="card-label">{{ cap(m.verbose_name) }}</span>
         </a>
       } @empty {

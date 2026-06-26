@@ -83,11 +83,10 @@ import { cap, keyToSlug } from './util';
             <div class="raw-rel">
               <span class="raw-rel-val">{{ rawLabel() || '—' }}</span>
               @if (field.type === 'fk' && rawSingleId() !== null) {
-                @if (targetPerms()?.view) {
-                  <button type="button" class="rel-act" (click)="viewRaw($event)">{{ t('view') }}</button>
-                }
                 @if (targetPerms()?.change) {
                   <button type="button" class="rel-act" (click)="editRaw($event)">{{ t('edit') }}</button>
+                } @else if (targetPerms()?.view) {
+                  <button type="button" class="rel-act" (click)="viewRaw($event)">{{ t('view') }}</button>
                 }
               }
               <button

@@ -47,6 +47,7 @@ const THEIA_APP = 'theia_ng';
               class="model-card"
               [routerLink]="['/', slug(m.key)]"
               [style.background]="cardColor(m.key)"
+              [title]="t('openCard', { name: cap(m.verbose_name) })"
             >
               <span class="card-label">{{ cap(m.verbose_name) }}</span>
               <span
@@ -60,6 +61,7 @@ const THEIA_APP = 'theia_ng';
                 class="fav-star on"
                 (click)="toggleFav($event, m.key)"
                 [attr.aria-label]="t('favRemove', { name: m.verbose_name })"
+                [title]="t('favRemove', { name: m.verbose_name })"
               >★</button>
             </a>
           }
@@ -72,13 +74,14 @@ const THEIA_APP = 'theia_ng';
         <h3 class="home-group-title">{{ cap(g.appName) }}</h3>
         <div class="card-grid">
           @for (m of g.models; track m.key) {
-            <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)">
+            <a class="model-card" [routerLink]="['/', slug(m.key)]" [style.background]="cardColor(m.key)" [title]="t('openCard', { name: cap(m.verbose_name) })">
               <span class="card-label">{{ cap(m.verbose_name) }}</span>
               <button
                 class="fav-star"
                 [class.on]="isFav(m.key)"
                 (click)="toggleFav($event, m.key)"
                 [attr.aria-label]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
+                [title]="isFav(m.key) ? t('favRemove', { name: m.verbose_name }) : t('favAdd', { name: m.verbose_name })"
               >{{ isFav(m.key) ? '★' : '☆' }}</button>
             </a>
           }

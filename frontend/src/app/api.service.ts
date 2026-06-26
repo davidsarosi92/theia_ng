@@ -4,6 +4,7 @@ import { Observable, map, shareReplay } from 'rxjs';
 
 import {
   AuthState,
+  FullTreeResponse,
   ListResponse,
   LogResponse,
   ModelSchema,
@@ -138,6 +139,12 @@ export class ApiService {
   /** The hierarchy tree rooted at this record's topmost ancestor. */
   tree(key: string, pk: string): Observable<TreeResponse> {
     return this.http.get<TreeResponse>(this.url(`tree/${key}/${pk}/`));
+  }
+
+  /** The subtree rooted at this record with all descendants assembled eagerly
+   *  in one response (for the compact hierarchy on the detail page). */
+  treeFull(key: string, pk: string): Observable<FullTreeResponse> {
+    return this.http.get<FullTreeResponse>(this.url(`tree-full/${key}/${pk}/`));
   }
 
   /** One child group of a tree node: searched + paginated, `focus` jumps to the

@@ -4,6 +4,32 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] — 2026-06-26
+### Added
+- **Compact hierarchy on the detail page.** A collapsible *Hierarchy* section on
+  any tree-enabled record builds the **whole** hierarchy — rooted at the topmost
+  ancestor, every descendant expanded — in a single eager request (no lazy
+  per-node loading), rendered as a simple indented table. The opened record is
+  flagged *(this record)*; there is no delete here. Backed by a new
+  `tree-full/<key>/<pk>/` endpoint (`build_full_subtree`, capped at 2000 nodes).
+- **Tooltips on the Home page** for the favorite stars (add/remove) and the model
+  cards (*Open {name}*); the reorder handle already had one.
+
+### Changed
+- **One permission-based action instead of a View/Edit pair.** Tree nodes, the
+  raw_id FK widget and the relation widget now show a single button — **Edit**
+  when you have change permission, otherwise **View** — instead of both.
+- **Relation delete is clearer.** The relation widget's delete prompt now spells
+  out the difference between **Remove link** (unlinks only — the record stays) and
+  **Delete entity** (permanently deletes the record), so the two roles aren't
+  confused. Confirm dialogs gained an optional hint line for the same purpose.
+
+### Fixed
+- **Delete dialog fully translated.** The confirmation dialog now falls back to
+  translated labels when a caller omits one (its **Cancel** button was showing in
+  English), and the relation widget's delete prompt — previously hardcoded
+  English — is localized across all 9 languages.
+
 ## [0.17.1] — 2026-06-26
 ### Fixed
 - **Inlines now refresh after a save or custom action.** The inline editor only

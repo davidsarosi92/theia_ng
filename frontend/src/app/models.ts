@@ -241,6 +241,36 @@ export interface TreeChildrenResponse {
   results: TreeNode[];
 }
 
+/** A node in the eager subtree (theia_ng.introspection.tree.build_full_subtree):
+ *  children are inlined recursively, grouped per relation. */
+export interface FullTreeNode {
+  key: string;
+  model_label: string;
+  pk: number | string;
+  label: string;
+  perms: { view: boolean; change: boolean; delete: boolean };
+  /** True for the record the hierarchy was opened from. */
+  is_current: boolean;
+  children: FullTreeChildGroup[];
+}
+
+export interface FullTreeChildGroup {
+  accessor: string;
+  key: string;
+  /** verbose_name_plural of the child model. */
+  label: string;
+  nodes: FullTreeNode[];
+  /** True if the node cap was hit and some children were omitted. */
+  truncated: boolean;
+}
+
+export interface FullTreeResponse {
+  schema_version: string;
+  root: FullTreeNode;
+  current: { key: string; pk: number | string };
+  truncated: boolean;
+}
+
 /** Relation values serialize as { id, label }; lists for m2m. */
 export interface RelationValue {
   id: number | string;
