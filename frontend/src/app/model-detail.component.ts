@@ -99,7 +99,12 @@ interface FieldsetGroup {
                     <span class="field-label">{{ field.label }}</span>
                     @if (field.help_text) { <small class="help">{{ field.help_text }}</small> }
                     @if (compactTreeRef(field); as ref) {
-                      <theia-compact-tree [modelKey]="ref.key" [pk]="ref.pk" [scope]="'self'" />
+                      <theia-compact-tree
+                        [modelKey]="ref.key"
+                        [pk]="ref.pk"
+                        [scope]="'self'"
+                        [current]="{ key: modelKey, pk: pk }"
+                      />
                     } @else {
                       <p class="section-desc">{{ t('noDescendants') }}</p>
                     }
@@ -143,21 +148,6 @@ interface FieldsetGroup {
           }
         </div>
       </form>
-
-      @if (s.tree && !isNew) {
-        <section class="detail-hierarchy">
-          <h3
-            class="section-title toggle"
-            (click)="showHierarchy.set(!showHierarchy())"
-          >
-            <span class="section-caret">{{ showHierarchy() ? '▾' : '▸' }}</span>
-            {{ t('hierarchy') }}
-          </h3>
-          @if (showHierarchy()) {
-            <theia-compact-tree [modelKey]="modelKey" [pk]="pk" />
-          }
-        </section>
-      }
 
       @if (confirmingDelete()) {
         <theia-confirm-dialog
@@ -222,8 +212,6 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
   errors = signal<Record<string, string[]>>({});
   saving = signal(false);
   confirmingDelete = signal(false);
-  /** Whether the compact hierarchy section is expanded (loads on first open). */
-  showHierarchy = signal(false);
   loading = signal(false);
   // Object actions run on this single record (from buttons in the header).
   activeDetailAction = signal<ActionSpec | null>(null);   // parameterized -> dialog

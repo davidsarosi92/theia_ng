@@ -53,7 +53,7 @@ def test_tree_full_roots_at_top_ancestor(admin_client):
     data = resp.json()
     assert data["root"]["pk"] == house.pk
     assert data["root"]["is_current"] is False
-    assert data["current"] == {"key": "sampleapp.stock", "pk": stock.pk}
+    assert data["current"] == {"key": "sampleapp.stock", "pk": str(stock.pk)}
     stocks = next(g for g in data["root"]["children"] if g["accessor"] == "stock_set")
     assert stocks["nodes"][0]["is_current"] is True
 

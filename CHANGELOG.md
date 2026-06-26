@@ -4,6 +4,17 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.20.0] — 2026-06-26
+### Changed
+- **The compact hierarchy is now opt-in via `@compact_tree` only.** The automatic
+  collapsible hierarchy section on the detail page was removed — a model shows a
+  compact tree only where a `@compact_tree` field is declared and placed. (The
+  lazy **Hierarchy** page link, from `tree_parent`/`tree_children`, is unchanged.)
+
+### Added
+- **`tree-full ?current=<key>:<pk>`** so a `@compact_tree` field rooted at an
+  ancestor still flags the page's actual record as *(this record)*, not the root.
+
 ## [0.19.0] — 2026-06-26
 ### Added
 - **`@theia_ng.compact_tree` — a placeable hierarchy field.** Decorate a method

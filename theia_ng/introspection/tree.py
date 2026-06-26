@@ -202,6 +202,7 @@ def build_full_subtree(
     request: HttpRequest,
     *,
     from_root: bool = True,
+    current: tuple[str, str] | None = None,
     max_nodes: int = 2000,
 ) -> dict[str, Any]:
     """The hierarchy around ``obj`` assembled eagerly in one pass (no lazy
@@ -219,13 +220,16 @@ def build_full_subtree(
         root_model, root_admin, root_obj = _resolve_lineage(model, admin, obj, site)[0]
     else:
         root_model, root_admin, root_obj = model, admin, obj
-    current = (_model_key(model), str(obj.pk))
+    # ``current`` (which node to flag "this record") defaults to ``obj`` itself,
+    # but a placeable @compact_tree field rooted higher up passes the page's actual
+    # record so it — not the root — is highlighted.
+    current = current or (_model_key(model), str(obj.pk))
     counter = {"n": 0}
     root = _full_node(root_model, root_admin, root_obj, request, site, counter, max_nodes, current)
     return {
         "schema_version": SCHEMA_VERSION,
         "root": root,
-        "current": {"key": current[0], "pk": obj.pk},
+        "current": {"key": current[0], "pk": current[1]},
         "truncated": counter["n"] >= max_nodes,
     }
 

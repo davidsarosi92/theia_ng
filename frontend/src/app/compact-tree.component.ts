@@ -65,6 +65,9 @@ export class CompactTreeComponent implements OnInit {
   /** 'full' climbs to the topmost ancestor (page section); 'self' shows only
    *  this record's descendants (the placeable @compact_tree field). */
   @Input() scope: 'full' | 'self' = 'full';
+  /** The node to flag "this record" when the tree roots at an ancestor (so a
+   *  field rooted higher up still highlights the page's actual record). */
+  @Input() current?: { key: string; pk: string };
 
   private api = inject(ApiService);
   private router = inject(Router);
@@ -88,7 +91,7 @@ export class CompactTreeComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.api.treeFull(this.modelKey, this.pk, this.scope).subscribe({
+    this.api.treeFull(this.modelKey, this.pk, this.scope, this.current).subscribe({
       next: (resp) => {
         this.root.set(resp.root);
         this.truncated.set(resp.truncated);

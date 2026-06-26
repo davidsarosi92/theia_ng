@@ -613,8 +613,17 @@ class TreeFullView(_BaseModelView):
         # ?root=self roots at this record (descendants only) for the @compact_tree
         # field; the default climbs to the topmost ancestor for the page section.
         from_root = request.GET.get("root") != "self"
+        # ?current=app.model:pk flags a different node as "this record" (a field
+        # rooted at an ancestor still highlights the page's actual record).
+        current = None
+        raw_current = request.GET.get("current")
+        if raw_current and ":" in raw_current:
+            ckey, cpk = raw_current.rsplit(":", 1)
+            current = (ckey, cpk)
         return JsonResponse(
-            build_full_subtree(self.model, self.admin, instance, request, from_root=from_root)
+            build_full_subtree(
+                self.model, self.admin, instance, request, from_root=from_root, current=current
+            )
         )
 
 

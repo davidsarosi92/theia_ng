@@ -52,3 +52,19 @@ def test_tree_full_root_self_does_not_climb(admin_client):
     assert selfed["root"]["pk"] == stock.pk
     assert selfed["root"]["is_current"] is True
     assert selfed["root"]["children"] == []
+
+
+@pytest.mark.django_db
+def test_tree_full_current_override_highlights_page_record(admin_client):
+    """A field rooted at an ancestor still flags the page's actual record: rooting
+    at the House but passing ?current=<space> marks the Space, not the House."""
+    house = House.objects.create(name="Main")
+    space = Space.objects.create(name="Bar", house=house)
+
+    data = admin_client.get(
+        f"/theia/api/tree-full/sampleapp.house/{house.pk}/"
+        f"?root=self&current=sampleapp.space:{space.pk}"
+    ).json()
+    assert data["root"]["is_current"] is False  # the House root is not the record
+    spaces = next(g for g in data["root"]["children"] if g["accessor"] == "spaces")
+    assert spaces["nodes"][0]["is_current"] is True  # the Space is

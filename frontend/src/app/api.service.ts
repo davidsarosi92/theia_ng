@@ -143,9 +143,22 @@ export class ApiService {
 
   /** The hierarchy for this record, assembled eagerly in one response. `scope`
    *  'full' climbs to the topmost ancestor (page section); 'self' roots at this
-   *  record's own descendants (the placeable compact-tree field). */
-  treeFull(key: string, pk: string, scope: 'full' | 'self' = 'full'): Observable<FullTreeResponse> {
-    const suffix = scope === 'self' ? '?root=self' : '';
+   *  record's own descendants (the placeable compact-tree field). `current`
+   *  flags a different node as "this record" when the tree roots at an ancestor. */
+  treeFull(
+    key: string,
+    pk: string,
+    scope: 'full' | 'self' = 'full',
+    current?: { key: string; pk: string },
+  ): Observable<FullTreeResponse> {
+    const params: string[] = [];
+    if (scope === 'self') {
+      params.push('root=self');
+    }
+    if (current) {
+      params.push(`current=${current.key}:${current.pk}`);
+    }
+    const suffix = params.length ? `?${params.join('&')}` : '';
     return this.http.get<FullTreeResponse>(this.url(`tree-full/${key}/${pk}/${suffix}`));
   }
 
