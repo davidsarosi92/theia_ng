@@ -1,26 +1,26 @@
 import { Component, Input } from '@angular/core';
 
-/** Glyph per logical icon name. Monochrome unicode to match the app's chrome.
- *  Only buttons given one of these names participate in the icon/label toggle. */
-const GLYPHS: Record<string, string> = {
-  save: '✓',
-  saveContinue: '✓',
-  cancel: '✕',
-  back: '←',
-  add: '＋',
-  edit: '✎',
-  view: '👁',
-  delete: '🗑',
-  removeLink: '⊘',
-  deleteEntity: '🗑',
-  filter: '☰',
-  apply: '✓',
-  ok: '✓',
-  run: '▶',
-  choose: '⋯',
-  clear: '✕',
-  prev: '‹',
-  next: '›',
+import { IconComponent } from './icon.component';
+
+/** Logical button-icon name → icon-set name. Only buttons given one of these
+ *  participate in the icon/label toggle. */
+const ICON_FOR: Record<string, string> = {
+  save: 'check',
+  saveContinue: 'check',
+  apply: 'check',
+  ok: 'check',
+  cancel: 'x',
+  clear: 'x',
+  back: 'arrow-left',
+  add: 'plus',
+  edit: 'pencil',
+  view: 'eye',
+  delete: 'trash',
+  deleteEntity: 'trash',
+  removeLink: 'circle-slash',
+  filter: 'funnel',
+  run: 'play',
+  choose: 'search',
 };
 
 /** A button's content as an icon + label pair. Which parts show is driven by the
@@ -30,14 +30,15 @@ const GLYPHS: Record<string, string> = {
 @Component({
   selector: 'theia-blabel',
   standalone: true,
-  template: `@if (glyph()) {<span class="bico" aria-hidden="true">{{ glyph() }}</span>}<span class="btxt">{{ text }}</span>`,
+  imports: [IconComponent],
+  template: `@if (iconName(); as n) {<span class="bico"><theia-icon [name]="n" /></span>}<span class="btxt">{{ text }}</span>`,
 })
 export class ButtonLabelComponent {
-  /** Logical icon name (key of GLYPHS). */
+  /** Logical icon name (key of ICON_FOR). */
   @Input() icon = '';
   @Input() text = '';
 
-  glyph(): string {
-    return GLYPHS[this.icon] ?? '';
+  iconName(): string | null {
+    return ICON_FOR[this.icon] ?? null;
   }
 }

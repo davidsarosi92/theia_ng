@@ -3,6 +3,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 
 import { ButtonLabelComponent } from './button-label.component';
 import { FieldInputComponent } from './field-input.component';
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { CustomFilter, FieldSpec, ModelSchema } from './models';
 
@@ -31,11 +32,11 @@ type Entry = FieldEntry | CustomEntry;
 @Component({
   selector: 'theia-filter-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, FieldInputComponent, ButtonLabelComponent],
+  imports: [ReactiveFormsModule, FieldInputComponent, ButtonLabelComponent, IconComponent],
   template: `
     <div class="dialog-backdrop" (click)="closed.emit()"></div>
     <div class="dialog">
-      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')">✕</button>
+      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')"><theia-icon name="x" /></button>
       <h3>{{ t('addFilter') }}</h3>
 
       <label class="field">

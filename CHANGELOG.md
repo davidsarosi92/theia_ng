@@ -4,6 +4,15 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.23.0] — 2026-06-27
+### Changed
+- **Proper SVG icon set.** Button, relation-widget and dialog icons now come from
+  a single monochrome, stroke-based SVG set (`currentColor`, sized to the font)
+  via a new `theia-icon` component, replacing the unicode/emoji glyphs — so
+  *View*, *Delete* etc. are consistent everywhere instead of rendering as colour
+  emoji on some platforms. The dialog close **✕** and the raw_id clear button use
+  the same set.
+
 ## [0.22.0] — 2026-06-27
 ### Added
 - **Icons reach the relation widgets.** The FK/M2M relation widget and the raw_id

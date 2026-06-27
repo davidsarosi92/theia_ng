@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { ButtonLabelComponent } from './button-label.component';
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, Perms, RelationValue } from './models';
 import { RelationPickerDialogComponent } from './relation-picker-dialog.component';
@@ -15,7 +16,7 @@ import { cap, keyToSlug } from './util';
 @Component({
   selector: 'theia-field',
   standalone: true,
-  imports: [ReactiveFormsModule, RelationSelectComponent, RelationPickerDialogComponent, ButtonLabelComponent],
+  imports: [ReactiveFormsModule, RelationSelectComponent, RelationPickerDialogComponent, ButtonLabelComponent, IconComponent],
   template: `
     <!-- A plain <div>, NOT a <label>: a <label> forwards clicks on non-control
          areas (e.g. the relation trigger) to its first form control — which for
@@ -97,7 +98,7 @@ import { cap, keyToSlug } from './util';
                 (click)="pickerOpen.set(true)"
               ><theia-blabel icon="choose" [text]="t('choose')" /></button>
               @if (rawHasValue() && !control.disabled) {
-                <button type="button" class="raw-rel-clear" (click)="clearRaw()" [attr.aria-label]="t('clear')">✕</button>
+                <button type="button" class="raw-rel-clear" (click)="clearRaw()" [attr.aria-label]="t('clear')"><theia-icon name="x" /></button>
               }
             </div>
             @if (pickerOpen()) {

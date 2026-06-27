@@ -15,6 +15,7 @@ import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxj
 
 import { ApiService } from './api.service';
 import { ButtonLabelComponent } from './button-label.component';
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, ListResponse, Perms, RelationValue } from './models';
 import { keyToSlug } from './util';
@@ -29,7 +30,7 @@ const key = (id: unknown): string => String(id);
 @Component({
   selector: 'theia-relation-select',
   standalone: true,
-  imports: [ButtonLabelComponent],
+  imports: [ButtonLabelComponent, IconComponent],
   template: `
     <div class="rel">
       <!-- M2M: selected rows shown as a table above the picker. -->
@@ -117,7 +118,7 @@ const key = (id: unknown): string => String(id);
       @if (pendingDelete(); as item) {
         <div class="confirm-backdrop" (click)="cancelDelete()">
           <div class="confirm-card" (click)="$event.stopPropagation()">
-            <button type="button" class="dialog-close" (click)="cancelDelete()" [attr.aria-label]="t('close')">✕</button>
+            <button type="button" class="dialog-close" (click)="cancelDelete()" [attr.aria-label]="t('close')"><theia-icon name="x" /></button>
             <p>{{ t('relRemovePrompt', { label: item.label }) }}</p>
             <ul class="confirm-help section-desc">
               <li><strong>{{ t('removeLink') }}</strong> — {{ t('removeLinkHelp') }}</li>

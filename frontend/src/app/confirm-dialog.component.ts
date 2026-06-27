@@ -1,5 +1,6 @@
 import { Component, Input, inject, output } from '@angular/core';
 
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 
 /** A small modal confirmation, replacing the browser's `confirm()` alert.
@@ -8,10 +9,11 @@ import { I18nService } from './i18n.service';
 @Component({
   selector: 'theia-confirm-dialog',
   standalone: true,
+  imports: [IconComponent],
   template: `
     <div class="dialog-backdrop" (click)="cancelled.emit()"></div>
     <div class="dialog confirm-dialog">
-      <button type="button" class="dialog-close" (click)="cancelled.emit()" [attr.aria-label]="t('close')">✕</button>
+      <button type="button" class="dialog-close" (click)="cancelled.emit()" [attr.aria-label]="t('close')"><theia-icon name="x" /></button>
       @if (title) {
         <h3>{{ title }}</h3>
       }

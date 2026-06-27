@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ApiService } from './api.service';
 import { ButtonLabelComponent } from './button-label.component';
 import { FieldInputComponent } from './field-input.component';
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { ActionSpec } from './models';
 import { ToastService } from './toast.service';
@@ -14,11 +15,11 @@ import { ToastService } from './toast.service';
 @Component({
   selector: 'theia-action-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, FieldInputComponent, ButtonLabelComponent],
+  imports: [ReactiveFormsModule, FieldInputComponent, ButtonLabelComponent, IconComponent],
   template: `
     <div class="dialog-backdrop" (click)="closed.emit()"></div>
     <div class="dialog">
-      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')">✕</button>
+      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')"><theia-icon name="x" /></button>
       <h3>{{ action.label }}</h3>
 
       @if (errors()['__all__']; as nonField) {

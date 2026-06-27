@@ -773,9 +773,13 @@ body {
 /* Button display preference (theia-blabel), driven by <html data-btn>:
    label (default) | icon | both. The label stays in the a11y tree even when
    visually hidden, so icon-only buttons remain accessible. */
+/* inline SVG icon (theia-icon): inherits colour + font size */
+.ticon { display: inline-flex; align-items: center; }
+.ticon svg { display: block; }
+
 .bico { display: none; }
 [data-btn="icon"] .bico,
-[data-btn="both"] .bico { display: inline-block; }
+[data-btn="both"] .bico { display: inline-flex; align-items: center; vertical-align: -0.15em; }
 [data-btn="both"] .bico { margin-right: 0.4rem; }
 [data-btn="icon"] .btxt {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
