@@ -4,6 +4,22 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.22.0] — 2026-06-27
+### Added
+- **Icons reach the relation widgets.** The FK/M2M relation widget and the raw_id
+  picker buttons (View / Edit / Delete / Remove link / Delete entity / Choose) now
+  honour the per-user button display preference (label / icon / both).
+
+### Changed
+- **Dialogs use an X close control.** The textual *Cancel* button is replaced by a
+  small **✕** in the dialog's top-right corner (action, confirm, filter, relation
+  picker and the relation delete dialogs).
+- **Destructive action sits on the right.** In dialogs the delete/destructive
+  button is right-aligned while the others stay left (e.g. *Delete entity* right,
+  *Remove link* left; a confirm dialog's *Delete* goes right).
+- Localized the previously hardcoded **Add filter** title and the relation
+  picker's **Choose / N selected** header.
+
 ## [0.21.0] — 2026-06-27
 ### Added
 - **Per-user button display preference.** A new *Buttons* setting — **Label**

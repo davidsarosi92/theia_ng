@@ -2,6 +2,7 @@ import { Component, Input, OnInit, inject, output, signal } from '@angular/core'
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { FieldInputComponent } from './field-input.component';
 import { I18nService } from './i18n.service';
 import { ActionSpec } from './models';
@@ -13,10 +14,11 @@ import { ToastService } from './toast.service';
 @Component({
   selector: 'theia-action-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, FieldInputComponent],
+  imports: [ReactiveFormsModule, FieldInputComponent, ButtonLabelComponent],
   template: `
     <div class="dialog-backdrop" (click)="closed.emit()"></div>
     <div class="dialog">
+      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')">✕</button>
       <h3>{{ action.label }}</h3>
 
       @if (errors()['__all__']; as nonField) {
@@ -32,8 +34,7 @@ import { ToastService } from './toast.service';
         }
 
         <div class="confirm-actions">
-          <button type="submit" class="btn" [disabled]="running()">{{ t('run') }}</button>
-          <button type="button" (click)="closed.emit()">{{ t('cancel') }}</button>
+          <button type="submit" class="btn push-right" [disabled]="running()"><theia-blabel icon="run" [text]="t('run')" /></button>
         </div>
       </form>
     </div>

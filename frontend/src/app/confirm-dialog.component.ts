@@ -11,6 +11,7 @@ import { I18nService } from './i18n.service';
   template: `
     <div class="dialog-backdrop" (click)="cancelled.emit()"></div>
     <div class="dialog confirm-dialog">
+      <button type="button" class="dialog-close" (click)="cancelled.emit()" [attr.aria-label]="t('close')">✕</button>
       @if (title) {
         <h3>{{ title }}</h3>
       }
@@ -19,10 +20,9 @@ import { I18nService } from './i18n.service';
         <p class="section-desc">{{ hint }}</p>
       }
       <div class="confirm-actions">
-        <button type="button" class="btn" [class.danger]="danger" (click)="confirmed.emit()">
+        <button type="button" class="btn push-right" [class.danger]="danger" (click)="confirmed.emit()">
           {{ confirmLabel || t('confirm') }}
         </button>
-        <button type="button" (click)="cancelled.emit()">{{ cancelLabel || t('cancel') }}</button>
       </div>
     </div>
   `,

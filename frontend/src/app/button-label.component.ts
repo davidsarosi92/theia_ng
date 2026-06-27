@@ -11,6 +11,8 @@ const GLYPHS: Record<string, string> = {
   edit: '✎',
   view: '👁',
   delete: '🗑',
+  removeLink: '⊘',
+  deleteEntity: '🗑',
   filter: '☰',
   apply: '✓',
   ok: '✓',

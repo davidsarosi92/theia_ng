@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, inject, output, signal } from '@angular/core';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { I18nService } from './i18n.service';
 
 type Id = number | string;
@@ -13,10 +14,12 @@ type Id = number | string;
 @Component({
   selector: 'theia-relation-picker-dialog',
   standalone: true,
+  imports: [ButtonLabelComponent],
   template: `
     <div class="dialog-backdrop" (click)="closed.emit()"></div>
     <div class="dialog picker-dialog">
-      <h3>Choose @if (multi) { <span class="picker-count">({{ selected().size }} selected)</span> }</h3>
+      <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')">✕</button>
+      <h3>{{ t('choose') }} @if (multi) { <span class="picker-count">({{ t('selectedCount', { n: selected().size }) }})</span> }</h3>
 
       <input
         class="search"
@@ -62,8 +65,7 @@ type Id = number | string;
 
       @if (multi) {
         <div class="actions">
-          <button type="button" class="btn" (click)="apply()">{{ t('apply') }}</button>
-          <button type="button" (click)="closed.emit()">{{ t('cancel') }}</button>
+          <button type="button" class="btn push-right" (click)="apply()"><theia-blabel icon="apply" [text]="t('apply')" /></button>
         </div>
       }
     </div>

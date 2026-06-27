@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, Perms, RelationValue } from './models';
 import { RelationPickerDialogComponent } from './relation-picker-dialog.component';
@@ -14,7 +15,7 @@ import { cap, keyToSlug } from './util';
 @Component({
   selector: 'theia-field',
   standalone: true,
-  imports: [ReactiveFormsModule, RelationSelectComponent, RelationPickerDialogComponent],
+  imports: [ReactiveFormsModule, RelationSelectComponent, RelationPickerDialogComponent, ButtonLabelComponent],
   template: `
     <!-- A plain <div>, NOT a <label>: a <label> forwards clicks on non-control
          areas (e.g. the relation trigger) to its first form control — which for
@@ -84,9 +85,9 @@ import { cap, keyToSlug } from './util';
               <span class="raw-rel-val">{{ rawLabel() || '—' }}</span>
               @if (field.type === 'fk' && rawSingleId() !== null) {
                 @if (targetPerms()?.change) {
-                  <button type="button" class="rel-act" (click)="editRaw($event)">{{ t('edit') }}</button>
+                  <button type="button" class="rel-act" (click)="editRaw($event)"><theia-blabel icon="edit" [text]="t('edit')" /></button>
                 } @else if (targetPerms()?.view) {
-                  <button type="button" class="rel-act" (click)="viewRaw($event)">{{ t('view') }}</button>
+                  <button type="button" class="rel-act" (click)="viewRaw($event)"><theia-blabel icon="view" [text]="t('view')" /></button>
                 }
               }
               <button
@@ -94,7 +95,7 @@ import { cap, keyToSlug } from './util';
                 class="btn small secondary"
                 [disabled]="control.disabled"
                 (click)="pickerOpen.set(true)"
-              >{{ t('choose') }}</button>
+              ><theia-blabel icon="choose" [text]="t('choose')" /></button>
               @if (rawHasValue() && !control.disabled) {
                 <button type="button" class="raw-rel-clear" (click)="clearRaw()" [attr.aria-label]="t('clear')">✕</button>
               }

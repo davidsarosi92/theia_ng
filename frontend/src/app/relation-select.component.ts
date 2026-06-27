@@ -14,6 +14,7 @@ import { Router } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { I18nService } from './i18n.service';
 import { Choice, FieldSpec, ListResponse, Perms, RelationValue } from './models';
 import { keyToSlug } from './util';
@@ -28,6 +29,7 @@ const key = (id: unknown): string => String(id);
 @Component({
   selector: 'theia-relation-select',
   standalone: true,
+  imports: [ButtonLabelComponent],
   template: `
     <div class="rel">
       <!-- M2M: selected rows shown as a table above the picker. -->
@@ -40,11 +42,11 @@ const key = (id: unknown): string => String(id);
                 <td class="rel-table-actions">
                   @if (!isReadonly()) {
                     @if (targetPerms()?.change) {
-                      <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
+                      <button type="button" class="rel-act" (click)="openEdit(s, $event)"><theia-blabel icon="edit" [text]="t('edit')" /></button>
                     } @else if (targetPerms()?.view) {
-                      <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
+                      <button type="button" class="rel-act" (click)="openView(s, $event)"><theia-blabel icon="view" [text]="t('view')" /></button>
                     }
-                    <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
+                    <button type="button" class="rel-act danger" (click)="askDelete(s, $event)"><theia-blabel icon="delete" [text]="t('delete')" /></button>
                   }
                 </td>
               </tr>
@@ -75,11 +77,11 @@ const key = (id: unknown): string => String(id);
           @if (!multi && selectedItems()[0]; as s) {
             <div class="rel-fk-actions">
               @if (targetPerms()?.change) {
-                <button type="button" class="rel-act" (click)="openEdit(s, $event)">{{ t('edit') }}</button>
+                <button type="button" class="rel-act" (click)="openEdit(s, $event)"><theia-blabel icon="edit" [text]="t('edit')" /></button>
               } @else if (targetPerms()?.view) {
-                <button type="button" class="rel-act" (click)="openView(s, $event)">{{ t('view') }}</button>
+                <button type="button" class="rel-act" (click)="openView(s, $event)"><theia-blabel icon="view" [text]="t('view')" /></button>
               }
-              <button type="button" class="rel-act danger" (click)="askDelete(s, $event)">{{ t('delete') }}</button>
+              <button type="button" class="rel-act danger" (click)="askDelete(s, $event)"><theia-blabel icon="delete" [text]="t('delete')" /></button>
             </div>
           }
         </div>
@@ -115,6 +117,7 @@ const key = (id: unknown): string => String(id);
       @if (pendingDelete(); as item) {
         <div class="confirm-backdrop" (click)="cancelDelete()">
           <div class="confirm-card" (click)="$event.stopPropagation()">
+            <button type="button" class="dialog-close" (click)="cancelDelete()" [attr.aria-label]="t('close')">✕</button>
             <p>{{ t('relRemovePrompt', { label: item.label }) }}</p>
             <ul class="confirm-help section-desc">
               <li><strong>{{ t('removeLink') }}</strong> — {{ t('removeLinkHelp') }}</li>
@@ -123,11 +126,10 @@ const key = (id: unknown): string => String(id);
               }
             </ul>
             <div class="confirm-actions">
-              <button type="button" class="btn secondary" (click)="unlink(item)">{{ t('removeLink') }}</button>
+              <button type="button" class="btn secondary" (click)="unlink(item)"><theia-blabel icon="removeLink" [text]="t('removeLink')" /></button>
               @if (targetPerms()?.delete) {
-                <button type="button" class="btn danger" (click)="deleteEntity(item)">{{ t('deleteEntity') }}</button>
+                <button type="button" class="btn danger push-right" (click)="deleteEntity(item)"><theia-blabel icon="deleteEntity" [text]="t('deleteEntity')" /></button>
               }
-              <button type="button" (click)="cancelDelete()">{{ t('cancel') }}</button>
             </div>
           </div>
         </div>

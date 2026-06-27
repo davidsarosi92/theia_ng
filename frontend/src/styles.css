@@ -193,7 +193,23 @@ body {
   max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); overflow-y: auto;
   box-shadow: 0 12px 40px rgba(0,0,0,0.45);
 }
-.dialog h3 { margin: 0 0 1rem; font-size: 1rem; }
+.dialog h3 { margin: 0 0 1rem; font-size: 1rem; padding-right: 1.6rem; }
+
+/* X close control in dialogs (replaces the textual Cancel button). `.dialog`
+   is already positioned (fixed); `.confirm-card` needs anchoring. */
+.confirm-card { position: relative; }
+.dialog-close {
+  position: absolute; top: 0.55rem; right: 0.55rem; z-index: 1;
+  width: 1.9rem; height: 1.9rem; padding: 0; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 6px;
+  color: var(--muted); font-size: 1.05rem; cursor: pointer;
+}
+.dialog-close:hover { background: var(--hover); color: var(--text); }
+/* keep the confirm-card prompt clear of the corner X (dialogs use h3 padding) */
+.confirm-card > p { padding-right: 1.4rem; }
+/* push a destructive/primary action to the right of an actions row */
+.confirm-actions .push-right, .actions .push-right { margin-left: auto; }
 
 .btn {
   background: var(--accent);
