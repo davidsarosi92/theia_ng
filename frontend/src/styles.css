@@ -450,6 +450,7 @@ body {
 .topbar-settings {
   color: var(--topbar-text); text-decoration: none; font-size: 1.15rem;
   line-height: 1; opacity: 0.85; flex: 0 0 auto;
+  display: inline-flex; align-items: center;
 }
 .topbar-settings:hover { opacity: 1; }
 /* logout: an icon button in the topbar's icon zone (like the gear) */
@@ -460,8 +461,10 @@ body {
 .topbar-logout:hover { opacity: 1; }
 
 /* brand (logo + title) shown at the top of the sidebar on small screens, where
-   the topbar title is dropped to make room for the action icons. */
-.sidebar-brand { display: none; }
+   the topbar title is dropped to make room for the action icons. Selector is
+   specific enough (.sidebar a.sidebar-brand) to beat the generic `.sidebar a`
+   rules for display/colour/hover. */
+.sidebar a.sidebar-brand { display: none; }
 .sidebar-logo { height: 1.6rem; max-width: 9rem; width: auto; object-fit: contain; }
 
 /* Settings page cards */
@@ -721,12 +724,17 @@ body {
   /* drop the topbar title/logo so the action icons fit; the brand moves into
      the sidebar drawer (below) instead. */
   .username, .topbar-greet, .topbar-version, .topbar-title { display: none; }
-  .sidebar-brand {
+  /* a single bar across the drawer's top, matching the (now-hidden) sticky
+     topbar's background so it reads as the same chrome. Negative margins pull it
+     out to the sidebar's padded edges. The brand is inert: hover never changes
+     its background or text colour. */
+  .sidebar a.sidebar-brand {
     display: flex; align-items: center; gap: 0.5rem;
-    font-weight: 700; color: var(--text); text-decoration: none;
-    padding: 0 0.2rem 0.75rem; margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
+    margin: -1rem -1rem 0.85rem; padding: 0.65rem 1rem;
+    background: var(--topbar-bg); color: var(--topbar-text);
+    font-weight: 700; text-decoration: none;
   }
+  .sidebar a.sidebar-brand:hover { background: var(--topbar-bg); color: var(--topbar-text); }
   /* view picker collapses to an icon-only button on narrow screens */
   .topbar-viewbtn .vb-label { display: none; }
   .topbar-viewbtn .vb-icon { display: inline; }

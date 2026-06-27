@@ -67,7 +67,7 @@ const THEIA_APP = 'theia_ng';
               <span class="topbar-busy" [class.active]="loading.active()" aria-hidden="true" [title]="t('working')">
                 <span class="spinner"></span>
               </span>
-              <a class="topbar-settings" routerLink="/settings" (click)="onNav()" [title]="t('settings')" [attr.aria-label]="t('settings')">⚙</a>
+              <a class="topbar-settings" routerLink="/settings" (click)="onNav()" [title]="t('settings')" [attr.aria-label]="t('settings')"><theia-icon name="settings" /></a>
               <button class="link-btn topbar-logout" (click)="logout()" [title]="t('signOut')" [attr.aria-label]="t('signOut')"><theia-icon name="logout" /></button>
             </div>
           </header>

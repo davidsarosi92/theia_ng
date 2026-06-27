@@ -4,6 +4,21 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.25.0] — 2026-06-27
+### Changed
+- **Sidebar brand bar (small screens).** The drawer's top brand (logo + title)
+  is now a single bar matching the sticky topbar's background and text colour, so
+  it reads as the same chrome. It only ever appears in one place at a time — the
+  topbar on wide screens, the sidebar on narrow ones.
+- **Topbar settings is an SVG icon** (a gear from the icon set) instead of a
+  unicode glyph, so it lines up and sizes identically with the logout icon.
+
+### Fixed
+- The small-screen sidebar brand no longer leaked onto wide screens (it showed in
+  both the topbar and the sidebar), no longer turns its background white on hover,
+  and its title now uses the topbar text colour — all were generic `.sidebar a`
+  rules winning on specificity.
+
 ## [0.24.0] — 2026-06-27
 ### Changed
 - **Hierarchy buttons follow the button display preference.** The compact tree
