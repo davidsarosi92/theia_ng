@@ -7,6 +7,7 @@ from .models import Category, House, Space, Stock
 
 @theia_ng.register(Stock)
 class StockAdmin(theia_ng.ModelAdmin):
+    description = "Stock items held in a house."
     list_display = ["name", "category", "house__name", "quantity", "is_active"]
     list_filter = ["category", "is_active", "house__name", "created_at"]
     list_editable = ["quantity", "is_active"]

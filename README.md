@@ -239,6 +239,18 @@ class ArticleAdmin(theia_ng.ModelAdmin):
   searchable picker. Relations whose target model isn't registered fall back to
   this automatically.
 
+### Descriptions & hints
+
+Set **`description`** for a short blurb shown under the title on a model's list
+and detail pages; field-level `help_text` from the model renders as a small hint
+under each field:
+
+```python
+@theia_ng.register(Article)
+class ArticleAdmin(theia_ng.ModelAdmin):
+    description = "Public articles, drafted then published by editors."
+```
+
 ## Fieldsets
 
 Group form fields into sections (django-admin's `fieldsets`). A `"collapse"`

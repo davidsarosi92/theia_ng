@@ -66,6 +66,7 @@ interface FieldsetGroup {
           <button type="button" class="btn secondary" (click)="back()">{{ t('backArrow') }}</button>
         </div>
       </header>
+      @if (s.description) { <p class="model-desc">{{ s.description }}</p> }
 
       <!-- custom object actions below the title, wrapping onto new rows -->
       @if (!isNew && detailActions().length) {

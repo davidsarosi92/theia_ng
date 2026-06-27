@@ -56,6 +56,7 @@ import { ViewService } from './view.service';
           }
         </div>
       </header>
+      @if (s.description) { <p class="model-desc">{{ s.description }}</p> }
 
       @if (s.list.search_fields.length) {
         <input

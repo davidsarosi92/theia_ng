@@ -189,6 +189,8 @@ export interface ModelSchema {
   schema_version: string;
   key: string;
   verbose_name: string;
+  /** Optional human description (ModelAdmin.description), shown under the title. */
+  description?: string;
   perms: Perms;
   endpoints: { list: string; detail: string };
   list: ListConfig;

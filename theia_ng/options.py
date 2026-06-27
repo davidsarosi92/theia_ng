@@ -108,6 +108,10 @@ class ModelAdmin:
             search_fields = ["name"]
     """
 
+    # Optional human description of the model, shown under the title on its list
+    # and detail pages. (Django admin has no model-level description; this is ours.)
+    description: str = ""
+
     # --- list view ---------------------------------------------------------
     list_display: list[str] = []          # real fields + read-only properties (v1)
     list_filter: list[str] = []

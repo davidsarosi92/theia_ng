@@ -580,6 +580,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "key": key,
         "verbose_name": str(model._meta.verbose_name),
+        "description": str(admin.description or ""),
         "endpoints": {
             "list": f"data/{key}/",
             "detail": f"data/{key}/{{pk}}/",

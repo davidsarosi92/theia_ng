@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "theia_ng"
-version = "0.25.0"
+version = "0.26.0"
 description = "Theia NG — a dynamic Angular admin for Django, generated from your models."
 readme = "README.md"
 license = "MIT"

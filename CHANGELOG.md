@@ -4,6 +4,13 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.26.0] — 2026-06-27
+### Added
+- **`ModelAdmin.description`** — an optional per-model description, shown as a
+  muted line under the title on the model's list and detail pages. (Django admin
+  has no model-level description; this is theia's own.) Field-level `help_text`
+  from the model already renders as a small hint under each field.
+
 ## [0.25.0] — 2026-06-27
 ### Changed
 - **Sidebar brand bar (small screens).** The drawer's top brand (logo + title)
