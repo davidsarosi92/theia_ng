@@ -45,6 +45,14 @@ import { ToastService } from './toast.service';
         </select>
       </label>
       <label class="field">
+        <span class="field-label">{{ t('buttonStyle') }}</span>
+        <select [ngModel]="settings.buttonStyle()" (ngModelChange)="settings.setButtonStyle($event)">
+          <option value="label">{{ t('buttonStyleLabel') }}</option>
+          <option value="icon">{{ t('buttonStyleIcon') }}</option>
+          <option value="both">{{ t('buttonStyleBoth') }}</option>
+        </select>
+      </label>
+      <label class="field">
         <span class="field-label">{{ t('timezoneLabel') }}</span>
         <input
           type="text"

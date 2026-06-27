@@ -5,6 +5,7 @@ import { Subscription, forkJoin } from 'rxjs';
 
 import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { I18nService } from './i18n.service';
@@ -31,6 +32,7 @@ import { ViewService } from './view.service';
     FilterDialogComponent,
     ActionDialogComponent,
     ConfirmDialogComponent,
+    ButtonLabelComponent,
   ],
   template: `
     @if (schema(); as s) {
@@ -47,10 +49,10 @@ import { ViewService } from './view.service';
             <button class="btn secondary" (click)="openAction(a)">{{ actionLabel(a) }}</button>
           }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
-            <button class="btn secondary" (click)="showFilter.set(true)">+ {{ t('filter') }}</button>
+            <button class="btn secondary" (click)="showFilter.set(true)"><theia-blabel icon="filter" [text]="t('filter')" /></button>
           }
           @if (s.perms.add) {
-            <a class="btn" [routerLink]="['/', slug, 'new']">+ {{ t('add') }}</a>
+            <a class="btn" [routerLink]="['/', slug, 'new']"><theia-blabel icon="add" [text]="t('add')" /></a>
           }
         </div>
       </header>

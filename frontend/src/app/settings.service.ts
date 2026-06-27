@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 
 import { ApiService } from './api.service';
-import { LanguageOption, ThemePref, UserSettings } from './models';
+import { ButtonStylePref, LanguageOption, ThemePref, UserSettings } from './models';
 import { getConfig } from './theia-config';
 
 /** localStorage key for the resolved theme, mirrored so the inline bootstrap in
@@ -23,6 +23,7 @@ export class SettingsService {
   readonly language = signal<string>(this.cfg.defaultLanguage);
   readonly timezone = signal<string>(this.cfg.defaultTimezone);
   readonly theme = signal<ThemePref>('auto');
+  readonly buttonStyle = signal<ButtonStylePref>('label');
   readonly navAppOrder = signal<string[]>([]);
   readonly navOrder = signal<string[]>([]);
   readonly availableLanguages = signal<LanguageOption[]>([]);
@@ -36,6 +37,7 @@ export class SettingsService {
       this.mql.addEventListener('change', () => this.applyTheme());
     }
     this.applyTheme();
+    this.applyButtonStyle();
   }
 
   /** Load the signed-in user's settings (call on boot / login). Pass false on
@@ -45,9 +47,11 @@ export class SettingsService {
       this.language.set(this.cfg.defaultLanguage);
       this.timezone.set(this.cfg.defaultTimezone);
       this.theme.set('auto');
+      this.buttonStyle.set('label');
       this.navAppOrder.set([]);
       this.navOrder.set([]);
       this.applyTheme();
+      this.applyButtonStyle();
       return;
     }
     this.api.getSettings().subscribe({
@@ -62,12 +66,26 @@ export class SettingsService {
     this.language.set(s.language || this.cfg.defaultLanguage);
     this.timezone.set(s.timezone || this.cfg.defaultTimezone);
     this.theme.set(s.theme ?? 'auto');
+    this.buttonStyle.set(s.button_style ?? 'label');
     this.navAppOrder.set(s.nav_app_order ?? []);
     this.navOrder.set(s.nav_order ?? []);
     if (s.available_languages) {
       this.availableLanguages.set(s.available_languages);
     }
     this.applyTheme();
+    this.applyButtonStyle();
+  }
+
+  setButtonStyle(style: ButtonStylePref): void {
+    this.buttonStyle.set(style);
+    this.applyButtonStyle();
+    this.persist({ button_style: style });
+  }
+
+  /** Reflect the button style on `<html data-btn>` so CSS can show/hide icon
+   *  and label per the user's choice. */
+  private applyButtonStyle(): void {
+    document.documentElement.setAttribute('data-btn', this.buttonStyle());
   }
 
   setLanguage(code: string): void {

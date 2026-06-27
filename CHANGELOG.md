@@ -4,6 +4,22 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.21.0] — 2026-06-27
+### Added
+- **Per-user button display preference.** A new *Buttons* setting — **Label**
+  (default), **Icon**, or **Label + icon** — stored per user and applied via
+  `<html data-btn>`. A curated set of buttons (Save, Save & continue, Cancel,
+  Edit, Delete, Back, Add, Filter) gained icons through the new `theia-blabel`;
+  in icon-only mode the label stays in the accessibility tree.
+  **Requires a migration** (`0008`, a `button_style` column on `UserSettings`).
+
+### Changed
+- **Larger, responsive dialogs.** The cramped confirm/relation/picker dialogs got
+  more room and now clamp to the viewport (max-width / max-height with scroll).
+- **Compact `@compact_tree` field polish.** It no longer repeats the section
+  title as a field label, and its row action button is outline like the others
+  (was filled).
+
 ## [0.20.0] — 2026-06-26
 ### Changed
 - **The compact hierarchy is now opt-in via `@compact_tree` only.** The automatic

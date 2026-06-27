@@ -16,6 +16,7 @@ import { ApiService } from './api.service';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { FieldInputComponent } from './field-input.component';
 import { I18nService } from './i18n.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { CompactTreeComponent } from './compact-tree.component';
 import { InlineEditorComponent } from './inline-editor.component';
 import { ActionSpec, FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
@@ -42,6 +43,7 @@ interface FieldsetGroup {
     InlineEditorComponent,
     ActionDialogComponent,
     CompactTreeComponent,
+    ButtonLabelComponent,
   ],
   template: `
     @if (loading()) {
@@ -96,7 +98,6 @@ interface FieldsetGroup {
               @for (field of g.fields; track field.name) {
                 @if (field.type === 'compact_tree') {
                   <div class="field compact-tree-field">
-                    <span class="field-label">{{ field.label }}</span>
                     @if (field.help_text) { <small class="help">{{ field.help_text }}</small> }
                     @if (compactTreeRef(field); as ref) {
                       <theia-compact-tree
@@ -130,20 +131,20 @@ interface FieldsetGroup {
           @if (viewMode) {
             <div class="actions-left">
               @if (s.perms.change) {
-                <button type="button" class="btn" (click)="editThis()">{{ t('edit') }}</button>
+                <button type="button" class="btn" (click)="editThis()"><theia-blabel icon="edit" [text]="t('edit')" /></button>
               }
-              <button type="button" (click)="back()">{{ t('back') }}</button>
+              <button type="button" (click)="back()"><theia-blabel icon="back" [text]="t('back')" /></button>
             </div>
           } @else {
             <div class="actions-left">
-              <button type="submit" class="btn" [disabled]="saving()">{{ t('save') }}</button>
+              <button type="submit" class="btn" [disabled]="saving()"><theia-blabel icon="save" [text]="t('save')" /></button>
               <button type="button" class="btn secondary" [disabled]="saving()" (click)="save(true)">
-                {{ t('saveContinue') }}
+                <theia-blabel icon="saveContinue" [text]="t('saveContinue')" />
               </button>
-              <button type="button" (click)="back()">{{ t('cancel') }}</button>
+              <button type="button" (click)="back()"><theia-blabel icon="cancel" [text]="t('cancel')" /></button>
             </div>
             @if (!isNew && s.perms.delete) {
-              <button type="button" class="btn danger" (click)="remove()">{{ t('delete') }}</button>
+              <button type="button" class="btn danger" (click)="remove()"><theia-blabel icon="delete" [text]="t('delete')" /></button>
             }
           }
         </div>

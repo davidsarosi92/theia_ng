@@ -41,6 +41,8 @@ export interface Registry {
 }
 
 export type ThemePref = 'auto' | 'light' | 'dark';
+/** How action buttons render: text only (default), icon only, or both. */
+export type ButtonStylePref = 'label' | 'icon' | 'both';
 
 /** Admin-editable site config (overrides settings.py THEIA_NG). */
 export interface SiteConfigValues {
@@ -71,6 +73,7 @@ export interface UserSettings {
   language: string;
   timezone: string;
   theme: ThemePref;
+  button_style: ButtonStylePref;
   /** App-group order (list of app_label). */
   nav_app_order: string[];
   /** Model order within groups (list of app_label.model_name). */

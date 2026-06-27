@@ -25,6 +25,7 @@ def test_get_returns_defaults_with_languages(admin_client):
     body = admin_client.get(URL).json()
     # Defaults sourced from Django; concrete values always present.
     assert body["theme"] == "auto"
+    assert body["button_style"] == "label"
     assert body["nav_order"] == []
     assert body["language"]  # non-empty (get_language()/LANGUAGE_CODE)
     assert body["timezone"]  # non-empty (active timezone)
@@ -72,6 +73,13 @@ def test_patch_rejects_unsupported_language(admin_client):
 
 def test_patch_rejects_unsupported_theme(admin_client):
     assert _patch(admin_client, {"theme": "neon"}).status_code == 400
+
+
+def test_button_style_roundtrips_and_validates(admin_client):
+    body = _patch(admin_client, {"button_style": "both"}).json()
+    assert body["button_style"] == "both"
+    assert admin_client.get(URL).json()["button_style"] == "both"
+    assert _patch(admin_client, {"button_style": "huge"}).status_code == 400
 
 
 def test_nav_order_dedupes_preserving_order(admin_client):

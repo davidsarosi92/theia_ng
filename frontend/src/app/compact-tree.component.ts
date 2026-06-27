@@ -45,7 +45,7 @@ interface Row {
                 @if (row.isCurrent) {
                   <span class="tree-here">{{ t('thisRecord') }}</span>
                 } @else if (row.perms!.change) {
-                  <a class="btn small" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ ret: here() }">{{ t('edit') }}</a>
+                  <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ ret: here() }">{{ t('edit') }}</a>
                 } @else if (row.perms!.view) {
                   <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ mode: 'view', ret: here() }">{{ t('view') }}</a>
                 }

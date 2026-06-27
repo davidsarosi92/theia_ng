@@ -131,6 +131,14 @@ class UserSettings(models.Model):
         (THEME_DARK, "Dark"),
     ]
 
+    # How action buttons render their icon/label.
+    BTN_LABEL, BTN_ICON, BTN_BOTH = "label", "icon", "both"
+    BUTTON_STYLES = [
+        (BTN_LABEL, "Label"),
+        (BTN_ICON, "Icon"),
+        (BTN_BOTH, "Label + icon"),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -140,6 +148,7 @@ class UserSettings(models.Model):
     language = models.CharField(max_length=16, blank=True)
     timezone = models.CharField(max_length=64, blank=True)
     theme = models.CharField(max_length=8, choices=THEMES, default=THEME_AUTO)
+    button_style = models.CharField(max_length=8, choices=BUTTON_STYLES, default=BTN_LABEL)
     # Sidebar ordering (see class docstring): app groups, then models per group.
     nav_app_order = models.JSONField(default=list, blank=True)
     nav_order = models.JSONField(default=list, blank=True)

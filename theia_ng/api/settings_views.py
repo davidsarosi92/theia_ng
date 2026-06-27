@@ -39,6 +39,7 @@ SUPPORTED_LANGUAGES: list[dict[str, str]] = [
 ]
 _LANG_CODES = {entry["code"] for entry in SUPPORTED_LANGUAGES}
 _THEMES = {"auto", "light", "dark"}
+_BUTTON_STYLES = {"label", "icon", "both"}
 
 
 def _default_language() -> str:
@@ -63,6 +64,7 @@ def _effective(user) -> dict:
         "language": (row.language if row and row.language else _default_language()),
         "timezone": (row.timezone if row and row.timezone else _default_timezone()),
         "theme": (row.theme if row else UserSettings.THEME_AUTO),
+        "button_style": (row.button_style if row else UserSettings.BTN_LABEL),
         "nav_app_order": (list(row.nav_app_order) if row and row.nav_app_order else []),
         "nav_order": (list(row.nav_order) if row and row.nav_order else []),
     }
@@ -110,6 +112,11 @@ def settings(request: HttpRequest) -> JsonResponse:
             if theme not in _THEMES:
                 return JsonResponse({"detail": f"Unsupported theme: {theme!r}"}, status=400)
             defaults["theme"] = theme
+        if "button_style" in data:
+            bs = data["button_style"]
+            if bs not in _BUTTON_STYLES:
+                return JsonResponse({"detail": f"Unsupported button_style: {bs!r}"}, status=400)
+            defaults["button_style"] = bs
         if "nav_app_order" in data:
             cleaned = _clean_str_list(data["nav_app_order"])
             if cleaned is None:
