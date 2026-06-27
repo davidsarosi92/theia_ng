@@ -2,6 +2,7 @@ import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { I18nService } from './i18n.service';
 import { FullTreeNode } from './models';
 import { cap, keyToSlug } from './util';
@@ -26,7 +27,7 @@ interface Row {
 @Component({
   selector: 'theia-compact-tree',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ButtonLabelComponent],
   template: `
     @if (loading()) {
       <div class="tree-muted">{{ t('loading') }}</div>
@@ -45,9 +46,9 @@ interface Row {
                 @if (row.isCurrent) {
                   <span class="tree-here">{{ t('thisRecord') }}</span>
                 } @else if (row.perms!.change) {
-                  <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ ret: here() }">{{ t('edit') }}</a>
+                  <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ ret: here() }"><theia-blabel icon="edit" [text]="t('edit')" /></a>
                 } @else if (row.perms!.view) {
-                  <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ mode: 'view', ret: here() }">{{ t('view') }}</a>
+                  <a class="btn small secondary" [routerLink]="['/', slug(row.key!), row.pk]" [queryParams]="{ mode: 'view', ret: here() }"><theia-blabel icon="view" [text]="t('view')" /></a>
                 }
               </span>
             </div>

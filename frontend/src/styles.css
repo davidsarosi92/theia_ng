@@ -452,6 +452,17 @@ body {
   line-height: 1; opacity: 0.85; flex: 0 0 auto;
 }
 .topbar-settings:hover { opacity: 1; }
+/* logout: an icon button in the topbar's icon zone (like the gear) */
+.topbar-logout {
+  text-decoration: none; opacity: 0.85; font-size: 1.15rem; line-height: 1;
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+}
+.topbar-logout:hover { opacity: 1; }
+
+/* brand (logo + title) shown at the top of the sidebar on small screens, where
+   the topbar title is dropped to make room for the action icons. */
+.sidebar-brand { display: none; }
+.sidebar-logo { height: 1.6rem; max-width: 9rem; width: auto; object-fit: contain; }
 
 /* Settings page cards */
 .settings-card {
@@ -707,7 +718,15 @@ body {
 /* ── responsive: phones & narrow viewports ───────────────────────────── */
 @media (max-width: 768px) {
   .topbar { padding: 0.5rem 0.8rem; }
-  .username, .topbar-greet, .topbar-version { display: none; }
+  /* drop the topbar title/logo so the action icons fit; the brand moves into
+     the sidebar drawer (below) instead. */
+  .username, .topbar-greet, .topbar-version, .topbar-title { display: none; }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-weight: 700; color: var(--text); text-decoration: none;
+    padding: 0 0.2rem 0.75rem; margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
   /* view picker collapses to an icon-only button on narrow screens */
   .topbar-viewbtn .vb-label { display: none; }
   .topbar-viewbtn .vb-icon { display: inline; }

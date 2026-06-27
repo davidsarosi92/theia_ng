@@ -18,6 +18,7 @@ const ICONS: Record<string, string> = {
   play: '<path d="M6 3v18l15-9z"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   'circle-slash': '<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 };
 
 /** Renders one icon from the built-in set by `name`, sized to the current font

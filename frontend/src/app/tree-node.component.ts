@@ -2,6 +2,7 @@ import { Component, Input, OnInit, WritableSignal, inject, signal } from '@angul
 import { RouterLink } from '@angular/router';
 
 import { ApiService } from './api.service';
+import { ButtonLabelComponent } from './button-label.component';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { I18nService } from './i18n.service';
 import { ChildGroup, TreeNode } from './models';
@@ -25,19 +26,19 @@ interface GroupState {
 @Component({
   selector: 'theia-tree-node',
   standalone: true,
-  imports: [RouterLink, ConfirmDialogComponent],
+  imports: [RouterLink, ConfirmDialogComponent, ButtonLabelComponent],
   template: `
     <div class="tree-row" [class.tree-current]="isCurrent()" [style.paddingLeft.rem]="depth * 1.3">
       <span class="tree-type">{{ cap(node.model_label) }}</span>
       <span class="tree-name">{{ node.label }}</span>
       <span class="tree-acts">
         @if (node.perms.change) {
-          <a class="btn small" [routerLink]="link()" [queryParams]="{ ret: ret }">{{ t('edit') }}</a>
+          <a class="btn small" [routerLink]="link()" [queryParams]="{ ret: ret }"><theia-blabel icon="edit" [text]="t('edit')" /></a>
         } @else if (node.perms.view) {
-          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }">{{ t('view') }}</a>
+          <a class="btn small secondary" [routerLink]="link()" [queryParams]="{ mode: 'view', ret: ret }"><theia-blabel icon="view" [text]="t('view')" /></a>
         }
         @if (node.perms.delete) {
-          <button type="button" class="btn small danger" (click)="remove()">{{ t('delete') }}</button>
+          <button type="button" class="btn small danger" (click)="remove()"><theia-blabel icon="delete" [text]="t('delete')" /></button>
         }
       </span>
     </div>

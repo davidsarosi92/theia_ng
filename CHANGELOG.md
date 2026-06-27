@@ -4,6 +4,17 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.24.0] — 2026-06-27
+### Changed
+- **Hierarchy buttons follow the button display preference.** The compact tree
+  and lazy hierarchy row actions (Edit / View / Delete) now go through
+  `theia-blabel`, so they honour label / icon / both like the rest.
+- **Logout is an icon button** in the topbar (with a tooltip), matching the
+  settings gear; added a `logout` icon to the set.
+- **Small-screen header.** On narrow viewports the topbar title/logo is dropped
+  (so the action icons fit) and the brand (logo + title) is shown at the top of
+  the sidebar drawer instead.
+
 ## [0.23.1] — 2026-06-27
 ### Fixed
 - **Responsive tabular inlines.** On narrower viewports (≤900px) a tabular inline

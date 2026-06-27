@@ -12,6 +12,7 @@ import { ApiService } from './api.service';
 import { BrandService } from './brand.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
+import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { LoadingService } from './loading.service';
 import { LoginComponent } from './login.component';
@@ -37,6 +38,7 @@ const THEIA_APP = 'theia_ng';
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
+    IconComponent,
   ],
   template: `
     @if (ready()) {
@@ -66,11 +68,15 @@ const THEIA_APP = 'theia_ng';
                 <span class="spinner"></span>
               </span>
               <a class="topbar-settings" routerLink="/settings" (click)="onNav()" [title]="t('settings')" [attr.aria-label]="t('settings')">⚙</a>
-              <button class="link-btn" (click)="logout()">{{ t('signOut') }}</button>
+              <button class="link-btn topbar-logout" (click)="logout()" [title]="t('signOut')" [attr.aria-label]="t('signOut')"><theia-icon name="logout" /></button>
             </div>
           </header>
           <div class="layout">
             <aside class="sidebar" [class.collapsed]="!sidebarOpen()">
+              <a class="sidebar-brand" routerLink="/" (click)="onNav()">
+                @if (brand.logo()) { <img class="sidebar-logo" [src]="brand.logo()" alt="" /> }
+                <span>{{ brand.title() }}</span>
+              </a>
               <div class="nav-top">
                 <a routerLink="/" class="nav-link" (click)="onNav()" [title]="t('home')">
                   <span class="nav-ini">⌂</span><span class="nav-lbl">{{ t('home') }}</span>
