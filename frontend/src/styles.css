@@ -744,6 +744,28 @@ body {
   .tree-row .tree-name { flex: 1 1 100%; order: -1; }
 }
 
+/* Tabular inlines stack on narrower viewports so their columns wrap below each
+   other instead of overflowing — important for M2M cells (a relation widget +
+   chips), which are much wider than a normal column. A generous breakpoint
+   because an inline row carries several columns plus the wide M2M cell. */
+@media (max-width: 900px) {
+  .inline-grid thead { display: none; }
+  .inline-grid,
+  .inline-grid tbody,
+  .inline-grid tr,
+  .inline-grid td { display: block; width: auto; }
+  .inline-grid tr {
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.5rem 0.85rem; margin-bottom: 0.75rem; background: var(--panel);
+  }
+  .inline-grid td { border: none; padding: 0.3rem 0; }
+  /* re-show the per-field label (hidden in the wide table) so each stacked
+     cell is identified, and give the field a little breathing room. */
+  .inline-grid theia-field .field-label { display: block; margin-bottom: 0.2rem; }
+  .inline-grid theia-field .field { gap: 0.2rem; }
+  .inline-del-col { width: auto; text-align: left; padding-top: 0.4rem; }
+}
+
 /* ---- Tier 1: fieldsets, list_editable, inlines ---- */
 
 /* form sections (fieldsets) — a clean title with the fields beneath (matching

@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.23.1] — 2026-06-27
+### Fixed
+- **Responsive tabular inlines.** On narrower viewports (≤900px) a tabular inline
+  now stacks — each row becomes a labelled block with its columns laid out one
+  below another — instead of overflowing. Fixes M2M inlines, whose wide relation
+  cell (picker + chips) didn't fit a table column; each stacked cell shows its
+  field label.
+
 ## [0.23.0] — 2026-06-27
 ### Changed
 - **Proper SVG icon set.** Button, relation-widget and dialog icons now come from
