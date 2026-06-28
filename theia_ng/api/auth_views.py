@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 
@@ -64,3 +66,31 @@ def logout_view(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"detail": "Method not allowed"}, status=405)
     logout(request)
     return JsonResponse({"authenticated": False, "username": None, "can_access": False})
+
+
+def change_password(request: HttpRequest) -> JsonResponse:
+    """Self-service: the signed-in user changes their own password, verifying the
+    current one first. Keeps the session valid (``update_session_auth_hash``) and
+    runs the project's configured password validators on the new value."""
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+    if not request.user.is_authenticated or not has_access(request):
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"detail": "Invalid JSON body"}, status=400)
+
+    user = request.user
+    current = data.get("current_password") or ""
+    new = data.get("new_password") or ""
+    if not user.check_password(current):
+        return JsonResponse({"detail": "Current password is incorrect."}, status=400)
+    try:
+        validate_password(new, user=user)
+    except DjangoValidationError as exc:
+        return JsonResponse({"detail": " ".join(exc.messages)}, status=400)
+    user.set_password(new)
+    user.save()
+    update_session_auth_hash(request, user)  # keep the user signed in
+    return JsonResponse({"ok": True})

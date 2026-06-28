@@ -4,6 +4,16 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.27.0] — 2026-06-28
+### Added
+- **Self-service password change.** A *Change password* section on the Settings
+  page lets a signed-in user change their own password — it verifies the current
+  one, runs the project's configured password validators, and keeps the session
+  alive. Backed by a new `change-password/` endpoint.
+- **`password` field widget.** `ActionField(..., widget="password")` (and any
+  field with `widget="password"`) renders a masked input, so host projects can
+  build *Set password* style actions.
+
 ## [0.26.0] — 2026-06-27
 ### Added
 - **`ModelAdmin.description`** — an optional per-model description, shown as a

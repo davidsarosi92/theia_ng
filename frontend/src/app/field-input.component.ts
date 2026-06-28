@@ -215,6 +215,10 @@ export class FieldInputComponent implements OnInit {
     if (this.field.widget === 'multiselect' || this.field.widget === 'model_field_select') {
       return this.field.widget;
     }
+    // A password field is a plain (masked) text input — see inputType().
+    if (this.field.widget === 'password') {
+      return 'input';
+    }
     return widgetFor(this.field.type);
   }
 
@@ -256,6 +260,9 @@ export class FieldInputComponent implements OnInit {
   }
 
   inputType(): string {
+    if (this.field.widget === 'password') {
+      return 'password';
+    }
     return inputTypeFor(this.field.type);
   }
 

@@ -63,6 +63,31 @@ import { ToastService } from './toast.service';
       </label>
     </section>
 
+    <!-- self-service: change own password -->
+    <section class="settings-card">
+      <h3 class="settings-title">{{ t('changePassword') }}</h3>
+      <label class="field">
+        <span class="field-label">{{ t('currentPassword') }}</span>
+        <input type="password" autocomplete="current-password"
+               [ngModel]="pwCurrent()" (ngModelChange)="pwCurrent.set($event)" />
+      </label>
+      <label class="field">
+        <span class="field-label">{{ t('newPassword') }}</span>
+        <input type="password" autocomplete="new-password"
+               [ngModel]="pwNew()" (ngModelChange)="pwNew.set($event)" />
+      </label>
+      <label class="field">
+        <span class="field-label">{{ t('confirmPassword') }}</span>
+        <input type="password" autocomplete="new-password"
+               [ngModel]="pwConfirm()" (ngModelChange)="pwConfirm.set($event)" />
+      </label>
+      <div class="actions">
+        <button type="button" class="btn" [disabled]="pwSaving()" (click)="changePassword()">
+          {{ t('changePassword') }}
+        </button>
+      </div>
+    </section>
+
     @if (isSuperuser()) {
       @if (cfg(); as c) {
         <!-- admin: override settings.py THEIA_NG -->
@@ -122,6 +147,12 @@ export class SettingsPageComponent implements OnInit {
   saving = signal(false);
   clearing = signal(false);
   tzDraft = signal<string>('');
+
+  // self-service password change
+  pwCurrent = signal('');
+  pwNew = signal('');
+  pwConfirm = signal('');
+  pwSaving = signal(false);
 
   // site-config edit fields (override values; empty = use the settings.py default)
   siteTitle = signal('');
@@ -193,6 +224,33 @@ export class SettingsPageComponent implements OnInit {
       error: () => {
         this.saving.set(false);
         this.toast.error(this.t('couldNotSave'));
+      },
+    });
+  }
+
+  changePassword(): void {
+    const current = this.pwCurrent();
+    const next = this.pwNew();
+    if (!current || !next) {
+      this.toast.error(this.t('passwordRequired'));
+      return;
+    }
+    if (next !== this.pwConfirm()) {
+      this.toast.error(this.t('passwordMismatch'));
+      return;
+    }
+    this.pwSaving.set(true);
+    this.api.changePassword(current, next).subscribe({
+      next: () => {
+        this.pwSaving.set(false);
+        this.pwCurrent.set('');
+        this.pwNew.set('');
+        this.pwConfirm.set('');
+        this.toast.success(this.t('passwordChanged'));
+      },
+      error: (err) => {
+        this.pwSaving.set(false);
+        this.toast.error(err?.error?.detail || this.t('actionFailed'));
       },
     });
   }

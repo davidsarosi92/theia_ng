@@ -41,6 +41,7 @@ api_patterns = [
     path("me/", auth_views.me, name="me"),
     path("login/", auth_views.login_view, name="login"),
     path("logout/", auth_views.logout_view, name="logout"),
+    path("change-password/", auth_views.change_password, name="change-password"),
     path("favorites/", favorites_views.favorites, name="favorites"),
     path("settings/", settings_views.settings, name="settings"),
     path("site-config/", siteconfig_views.site_config, name="site-config"),

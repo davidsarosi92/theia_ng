@@ -45,6 +45,12 @@ ROOT_URLCONF = "tests.testproject.urls"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Exercise the change-password endpoint's validate_password() path.
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+     "OPTIONS": {"min_length": 6}},
+]
+
 THEIA_NG = {
     "SITE_TITLE": "Test Admin",
 }

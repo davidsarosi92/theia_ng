@@ -42,6 +42,14 @@ export class ApiService {
     return this.http.post<AuthState>(this.url('logout/'), {});
   }
 
+  /** Self-service: change the signed-in user's own password. */
+  changePassword(currentPassword: string, newPassword: string): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(this.url('change-password/'), {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  }
+
   getRegistry(): Observable<Registry> {
     return this.http.get<Registry>(this.url('schema/'));
   }
