@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.27.1] — 2026-06-28
+### Fixed
+- **Action domain errors are surfaced.** An action handler that reports a problem
+  via an ``{ "error": "..." }`` result (HTTP 200) is now shown as an error toast —
+  and a parameterized action's dialog stays open — instead of a misleading
+  "done" success. Affects every action (e.g. a *Set password* action rejected by
+  the password validators no longer looks like it succeeded).
+
 ## [0.27.0] — 2026-06-28
 ### Added
 - **Self-service password change.** A *Change password* section on the Settings

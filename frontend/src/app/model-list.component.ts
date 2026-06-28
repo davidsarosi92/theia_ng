@@ -13,7 +13,7 @@ import { MessageKey } from './i18n/messages';
 import { inputTypeFor } from './field-widgets';
 import { ActionSpec, FieldSpec, ModelSchema } from './models';
 import { ToastService } from './toast.service';
-import { cap, slugToKey } from './util';
+import { actionResultError, cap, slugToKey } from './util';
 
 /** Built-in (theia-shipped) bulk action keys → i18n key. Lets us translate their
  *  server-provided English labels in the UI; unlisted (custom) actions fall back
@@ -414,7 +414,12 @@ export class ModelListComponent implements OnInit, OnDestroy {
       ? { all: true, filters: this.filterParams() }
       : { ids: [...this.selected()] as (number | string)[] };
     this.api.runAction(action.endpoint, body).subscribe({
-      next: () => {
+      next: (res) => {
+        const err = actionResultError(res);
+        if (err) {
+          this.toast.error(err);
+          return;
+        }
         this.toast.success(this.t('actionDoneToast', { action: this.actionLabel(action) }));
         this.clearSelection();
         this.load();

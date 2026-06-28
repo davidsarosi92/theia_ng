@@ -7,6 +7,14 @@ export const slugToKey = (slug: string): string => slug.replace('-', '.');
 /** Capitalize the first letter — used for menu and breadcrumb labels. */
 export const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
+/** An action endpoint returns HTTP 200 even when its handler reports a domain
+ *  error via an ``{ error: "..." }`` result. Pull that message out so the UI can
+ *  surface it as a failure instead of a misleading success. */
+export const actionResultError = (res: unknown): string | null => {
+  const e = (res as { error?: unknown } | null)?.error;
+  return typeof e === 'string' && e ? e : null;
+};
+
 /** A stable light pastel per key, so each home/app card gets its own colour. */
 export const cardColor = (key: string): string => {
   let hue = 0;

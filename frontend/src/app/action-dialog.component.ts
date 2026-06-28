@@ -8,6 +8,7 @@ import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { ActionSpec } from './models';
 import { ToastService } from './toast.service';
+import { actionResultError } from './util';
 
 /** A modal form for a parameterized action: builds inputs from the action's
  *  fields (reusing theia-field, so it gets relation pickers etc. for free),
@@ -76,6 +77,14 @@ export class ActionDialogComponent implements OnInit {
     this.api.runAction(this.action.endpoint, { ids: this.ids, params: this.form.value }).subscribe({
       next: (res) => {
         this.running.set(false);
+        const err = actionResultError(res);
+        if (err) {
+          // The handler ran (HTTP 200) but reported a domain error — surface it
+          // and keep the dialog open so the input can be fixed.
+          this.errors.set({ __all__: [err] });
+          this.toast.error(err);
+          return;
+        }
         this.toast.success(this.action.label + ' — done.');
         this.done.emit(res);
       },

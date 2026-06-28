@@ -21,7 +21,7 @@ import { CompactTreeComponent } from './compact-tree.component';
 import { InlineEditorComponent } from './inline-editor.component';
 import { ActionSpec, FieldSpec, InlineConfig, ModelSchema, RelationValue } from './models';
 import { ToastService } from './toast.service';
-import { cap, slugToKey } from './util';
+import { actionResultError, cap, slugToKey } from './util';
 import { ViewService } from './view.service';
 
 /** A resolved form section: its heading + the FieldSpecs it contains. */
@@ -250,8 +250,13 @@ export class ModelDetailComponent implements OnInit, OnDestroy {
     this.pendingDetailAction.set(null);
     this.runningAction.set(true);
     this.api.runAction(a.endpoint, { ids: [this.pk] }).subscribe({
-      next: () => {
+      next: (res) => {
         this.runningAction.set(false);
+        const err = actionResultError(res);
+        if (err) {
+          this.toast.error(err);
+          return;
+        }
         this.toast.success(this.t('actionDoneToast', { action: cap(a.label) }));
         this.reload();
       },
