@@ -8,10 +8,14 @@ export const slugToKey = (slug: string): string => slug.replace('-', '.');
 export const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 /** An action endpoint returns HTTP 200 even when its handler reports a domain
- *  error via an ``{ error: "..." }`` result. Pull that message out so the UI can
- *  surface it as a failure instead of a misleading success. */
+ *  error via an ``{ error: "..." }`` result. The view wraps the handler's return
+ *  under ``result`` (``{ detail: "ok", result: { error } }``), so look there
+ *  first (and fall back to a top-level ``error``). Returns the message so the UI
+ *  can surface it as a failure instead of a misleading success. */
 export const actionResultError = (res: unknown): string | null => {
-  const e = (res as { error?: unknown } | null)?.error;
+  const r = (res ?? {}) as { result?: unknown; error?: unknown };
+  const inner = r.result && typeof r.result === 'object' ? (r.result as { error?: unknown }) : null;
+  const e = (inner ? inner.error : undefined) ?? r.error;
   return typeof e === 'string' && e ? e : null;
 };
 

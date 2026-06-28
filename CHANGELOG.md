@@ -4,6 +4,14 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.27.2] — 2026-06-28
+### Fixed
+- **Action error surfacing now reads the right field.** The view wraps a handler's
+  return under ``result`` (``{ detail: "ok", result: { error } }``); 0.27.1 looked
+  at a top-level ``error`` and so still showed success. It now reads
+  ``result.error``, so e.g. a *Set password* rejected by the validators is shown
+  as the actual error.
+
 ## [0.27.1] — 2026-06-28
 ### Fixed
 - **Action domain errors are surfaced.** An action handler that reports a problem
