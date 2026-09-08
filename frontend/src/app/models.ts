@@ -22,6 +22,9 @@ export interface RegistryModel {
   app_label: string;
   app_verbose_name: string;
   perms: Perms;
+  /** Whether the assistant is available for this model (used by the omnibox to
+   *  offer only models where a request could actually be answered). */
+  assist?: boolean;
 }
 
 /** An admin-defined sidebar view: a named subset of model keys (already

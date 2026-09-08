@@ -5,13 +5,14 @@ import {
   CdkDropList,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 import { ApiService } from './api.service';
 import { BrandService } from './brand.service';
 import { FavoritesService } from './favorites.service';
 import { AppGroup, groupByApp } from './grouping';
+import { AssistOmniboxComponent } from './assist-omnibox.component';
 import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { LoadingService } from './loading.service';
@@ -39,6 +40,7 @@ const THEIA_APP = 'theia_ng';
     CdkDrag,
     CdkDragHandle,
     IconComponent,
+    AssistOmniboxComponent,
   ],
   template: `
     @if (ready()) {
@@ -67,6 +69,12 @@ const THEIA_APP = 'theia_ng';
               <span class="topbar-busy" [class.active]="loading.active()" aria-hidden="true" [title]="t('working')">
                 <span class="spinner"></span>
               </span>
+              @if (assistAnywhere()) {
+                <button class="link-btn topbar-assist" (click)="omnibox()?.launch()"
+                        [title]="t('assistOmniboxTip')" [attr.aria-label]="t('assistTitle')">
+                  <theia-icon name="search" />
+                </button>
+              }
               <a class="topbar-settings" routerLink="/settings" (click)="onNav()" [title]="t('settings')" [attr.aria-label]="t('settings')"><theia-icon name="settings" /></a>
               <button class="link-btn topbar-logout" (click)="logout()" [title]="t('signOut')" [attr.aria-label]="t('signOut')"><theia-icon name="logout" /></button>
             </div>
@@ -175,6 +183,10 @@ const THEIA_APP = 'theia_ng';
             </main>
           </div>
 
+          <!-- Cmd/Ctrl+K from anywhere. Renders nothing until opened, and hides
+               itself entirely when no model has the assistant available. -->
+          <theia-assist-omnibox />
+
           @if (viewPickerOpen()) {
             <div class="dialog-backdrop" (click)="viewPickerOpen.set(false)"></div>
             <div class="dialog view-dialog">
@@ -210,6 +222,9 @@ export class AppComponent implements OnInit {
   cap = cap;
   slug = keyToSlug;
   models = signal<RegistryModel[]>([]);
+  protected omnibox = viewChild(AssistOmniboxComponent);
+  /** Hide the entry point entirely when no visible model can answer. */
+  assistAnywhere = computed(() => this.models().some((m) => m.assist && m.perms.view));
   ready = signal(false);
   canAccess = signal(false);
   username = signal<string | null>(null);

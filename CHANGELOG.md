@@ -4,6 +4,34 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.29.0] — 2026-09-08
+### Added
+- **Assistant omnibox — ⌘K / Ctrl+K, or the magnifier in the top bar.** Ask from
+  anywhere instead of navigating to a list first. It preselects the model of the
+  page you are on (so the common case is pure typing) and otherwise offers a
+  filterable list of models where the assistant is actually available. Applying
+  navigates to the list with the state in the query string, which the list
+  already knows how to restore.
+  Both entry points ship: the shortcut is fast once you know it, the button is
+  the half anyone can find. Neither renders when no visible model can answer.
+- **The omnibox only ever applies a filter.** A delete or create proposal is
+  handed to the list page's Assistant panel, so the irreversible path — with its
+  real-queryset confirmation — lives in exactly one place.
+
+### Fixed
+- **The assistant entry point appeared on every model**, including ones where the
+  endpoint would refuse: availability was a single global flag. It is now
+  reported per model (schema and registry), computed outside the IR cache so it
+  follows a config change immediately instead of lagging by `SCHEMA_TTL`.
+- **`temperature` is no longer sent by the `anthropic` provider.** The sampling
+  parameters were removed on the current Claude models, which reject the request
+  with a 400.
+
+### Removed
+- **`DENY_MODELS`.** It duplicated `ModelAdmin.assist = False` at a different
+  level; "all except a few" is expressed by opting those few out. `ALLOW_MODELS`
+  stays as the deploy-level rollout gate that host code cannot override.
+
 ## [0.28.0] — 2026-09-08
 ### Added
 - **Natural-language assistant (optional).** Describe what you want — "a múlt heti
@@ -618,6 +646,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.29.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.29.0
 [0.28.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.28.0
 [0.27.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.2
 [0.27.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.1

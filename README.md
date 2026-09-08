@@ -617,6 +617,12 @@ cancelled sheets from last week" — and turns it into a filter on the list. It 
 also propose a delete or a create, which the user confirms against the real
 queryset before anything happens.
 
+Two ways in: an **Assistant** panel on any list page, and a **global omnibox**
+(the magnifier in the top bar, or **⌘K / Ctrl+K**) that works from anywhere — it
+preselects the model of the page you are on, or lets you filter for one. The
+omnibox only ever applies a filter; a delete or create is handed to the list's
+panel, so the irreversible path lives in exactly one place.
+
 **Off unless configured**, and it adds **no Python dependency**: the built-in
 providers speak HTTP through the standard library, so pointing Theia at Ollama,
 vLLM, OpenAI or Anthropic is a settings change.
@@ -652,6 +658,9 @@ THEIA_NG = {
 
         # Seconds to wait for the model. Default 20. A request holds a worker for
         # this long, so keep it tight; the UI degrades to "unavailable" on timeout.
+        # Watch out for cold starts: a self-hosted model that has been unloaded
+        # pays its full load time on the next request. Keep it resident (Ollama's
+        # OLLAMA_KEEP_ALIVE=-1) rather than raising this a lot.
         "TIMEOUT": 20,
 
         # Retries after a reply fails validation. Default 1 (so 2 attempts total).

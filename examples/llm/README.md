@@ -88,8 +88,14 @@ Two counter-intuitive results worth respecting:
 The last column matters most: a model that invents an answer for a request it
 cannot express is disqualified, whatever its other numbers.
 
-Sizing: ~5 GB disk, and the model stays resident (`OLLAMA_KEEP_ALIVE`). 1.6 s is
-on an Apple M2 Pro — **measure on your server**, especially without a GPU.
+Sizing: ~5 GB disk. 1.6 s is on an Apple M2 Pro — **measure on your server**,
+especially without a GPU.
+
+**Cold starts are the gotcha.** `OLLAMA_KEEP_ALIVE` (10 minutes here) decides how
+long the model stays resident; after that the next request pays the reload of
+~5 GB, which can easily exceed Theia's `TIMEOUT` and surface as "the assistant is
+unavailable". For anything but a toy deployment set `OLLAMA_KEEP_ALIVE=-1` to
+keep it loaded, or raise `TIMEOUT` enough to cover a reload.
 
 ## Other providers
 

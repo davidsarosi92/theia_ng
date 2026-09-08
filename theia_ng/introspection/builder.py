@@ -69,7 +69,13 @@ def build_registry(site: TheiaSite, request: HttpRequest) -> dict[str, Any]:
         perms = _perms(admin, request)
         if not perms["view"]:
             continue
-        models_out.append({**entry, "perms": perms})
+        # Computed here rather than cached with the structure: the LLM config can
+        # change at runtime, and the omnibox picks from this list.
+        models_out.append({
+            **entry,
+            "perms": perms,
+            "assist": _assist_available(entry["key"], admin),
+        })
     return {
         "schema_version": SCHEMA_VERSION,
         # version/logo here (a live API call) as well as in the injected index

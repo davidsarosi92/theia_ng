@@ -471,3 +471,19 @@ def test_logging_never_breaks_the_request(client_with_access, db, monkeypatch):
     monkeypatch.setattr(audit_mod, "record", boom)
     with override_settings(THEIA_NG=LLM_ON):
         assert _post(client_with_access).status_code == 200
+
+
+def test_registry_reports_per_model_availability(db, client_with_access):
+    """The omnibox picks from the registry, so each entry must say whether the
+    assistant would actually answer for that model."""
+    from theia_ng.introspection import build_registry
+
+    request = type("R", (), {"user": User.objects.get(username="root")})()
+    with override_settings(THEIA_NG=LLM_ON):
+        entries = {m["key"]: m for m in build_registry(site, request)["models"]}
+        assert entries["sampleapp.stock"]["assist"] is True
+        # The assistant's own tables opt out, so it cannot be steered through itself.
+        assert entries["theia_ng.assisthint"]["assist"] is False
+    # No LLM configured: nothing is offered anywhere.
+    entries = {m["key"]: m for m in build_registry(site, request)["models"]}
+    assert all(m["assist"] is False for m in entries.values())

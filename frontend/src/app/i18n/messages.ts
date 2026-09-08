@@ -174,6 +174,12 @@ const en = {
   assistClearConfirm: 'Clear this conversation?',
   assistClearHint: 'Only clears it from your screen. The record of what was asked is kept in the activity log.',
   assistNotHere: 'The assistant is not enabled for this model.',
+  assistOmniboxPickModel: 'Which records? Start typing a model name…',
+  assistOmniboxNoModels: 'The assistant is not available for any model you can see.',
+  assistOmniboxChange: 'Change model',
+  assistOmniboxGo: 'Show these',
+  assistOmniboxUseThePanel: 'Deleting or creating is done from the Assistant on the list page, where you can check it first.',
+  assistOmniboxTip: 'Ask the assistant (⌘K / Ctrl+K)',
 };
 
 export type MessageKey = keyof typeof en;
@@ -333,6 +339,12 @@ const hu: Catalog = {
   assistClearConfirm: 'Töröljük ezt a beszélgetést?',
   assistClearHint: 'Csak a képernyőről törli. Az, hogy mit kértél, megmarad a naplóban.',
   assistNotHere: 'Ehhez a modellhez nincs bekapcsolva az asszisztens.',
+  assistOmniboxPickModel: 'Milyen rekordok? Kezdd el gépelni a modell nevét…',
+  assistOmniboxNoModels: 'Egyik látható modellhez sincs elérhető asszisztens.',
+  assistOmniboxChange: 'Modell váltása',
+  assistOmniboxGo: 'Mutasd ezeket',
+  assistOmniboxUseThePanel: 'A törlés és a létrehozás a lista oldali Asszisztensből megy, ahol előbb ellenőrizni tudod.',
+  assistOmniboxTip: 'Kérdezd az asszisztenst (⌘K / Ctrl+K)',
 };
 
 const de: Catalog = {
@@ -489,6 +501,12 @@ const de: Catalog = {
   assistClearConfirm: 'Diese Unterhaltung löschen?',
   assistClearHint: 'Entfernt sie nur von Ihrem Bildschirm. Was angefragt wurde, bleibt im Protokoll.',
   assistNotHere: 'Der Assistent ist für dieses Modell nicht aktiviert.',
+  assistOmniboxPickModel: 'Welche Datensätze? Modellnamen eingeben…',
+  assistOmniboxNoModels: 'Für kein sichtbares Modell ist der Assistent verfügbar.',
+  assistOmniboxChange: 'Modell wechseln',
+  assistOmniboxGo: 'Diese anzeigen',
+  assistOmniboxUseThePanel: 'Löschen und Anlegen laufen über den Assistenten auf der Listenseite, wo Sie es vorher prüfen können.',
+  assistOmniboxTip: 'Assistent fragen (⌘K / Strg+K)',
 };
 
 const fr: Catalog = {
@@ -645,6 +663,12 @@ const fr: Catalog = {
   assistClearConfirm: 'Effacer cette conversation ?',
   assistClearHint: 'Efface uniquement de votre écran. Ce qui a été demandé reste dans le journal.',
   assistNotHere: 'L’assistant n’est pas activé pour ce modèle.',
+  assistOmniboxPickModel: 'Quels enregistrements ? Saisissez un nom de modèle…',
+  assistOmniboxNoModels: 'L’assistant n’est disponible pour aucun modèle visible.',
+  assistOmniboxChange: 'Changer de modèle',
+  assistOmniboxGo: 'Afficher',
+  assistOmniboxUseThePanel: 'La suppression et la création passent par l’assistant de la page de liste, où vous pouvez vérifier d’abord.',
+  assistOmniboxTip: 'Demander à l’assistant (⌘K / Ctrl+K)',
 };
 
 const zh: Catalog = {
@@ -801,6 +825,12 @@ const zh: Catalog = {
   assistClearConfirm: '要清除此对话吗？',
   assistClearHint: '仅从您的屏幕上清除。所提出的请求仍保留在活动日志中。',
   assistNotHere: '此模型未启用助手。',
+  assistOmniboxPickModel: '哪些记录？开始输入模型名称…',
+  assistOmniboxNoModels: '您可见的模型均未启用助手。',
+  assistOmniboxChange: '更换模型',
+  assistOmniboxGo: '显示这些',
+  assistOmniboxUseThePanel: '删除和创建请在列表页的助手中操作，可以先行核对。',
+  assistOmniboxTip: '询问助手（⌘K / Ctrl+K）',
 };
 
 const ko: Catalog = {
@@ -957,6 +987,12 @@ const ko: Catalog = {
   assistClearConfirm: '이 대화를 지울까요?',
   assistClearHint: '화면에서만 지웁니다. 요청 내용은 활동 로그에 남습니다.',
   assistNotHere: '이 모델에는 어시스턴트가 활성화되어 있지 않습니다.',
+  assistOmniboxPickModel: '어떤 레코드인가요? 모델 이름을 입력하세요…',
+  assistOmniboxNoModels: '볼 수 있는 모델 중 어시스턴트를 사용할 수 있는 것이 없습니다.',
+  assistOmniboxChange: '모델 변경',
+  assistOmniboxGo: '보기',
+  assistOmniboxUseThePanel: '삭제와 생성은 목록 페이지의 어시스턴트에서 진행하며, 먼저 확인할 수 있습니다.',
+  assistOmniboxTip: '어시스턴트에게 질문 (⌘K / Ctrl+K)',
 };
 
 const ru: Catalog = {
@@ -1113,6 +1149,12 @@ const ru: Catalog = {
   assistClearConfirm: 'Очистить эту переписку?',
   assistClearHint: 'Убирает её только с вашего экрана. Запись о запросах остаётся в журнале.',
   assistNotHere: 'Ассистент не включён для этой модели.',
+  assistOmniboxPickModel: 'Какие записи? Начните вводить название модели…',
+  assistOmniboxNoModels: 'Ассистент недоступен ни для одной доступной вам модели.',
+  assistOmniboxChange: 'Сменить модель',
+  assistOmniboxGo: 'Показать',
+  assistOmniboxUseThePanel: 'Удаление и создание выполняются в ассистенте на странице списка, где это можно сначала проверить.',
+  assistOmniboxTip: 'Спросить ассистента (⌘K / Ctrl+K)',
 };
 
 const es: Catalog = {
@@ -1269,6 +1311,12 @@ const es: Catalog = {
   assistClearConfirm: '¿Borrar esta conversación?',
   assistClearHint: 'Solo la borra de su pantalla. Lo que se pidió queda en el registro de actividad.',
   assistNotHere: 'El asistente no está habilitado para este modelo.',
+  assistOmniboxPickModel: '¿Qué registros? Empiece a escribir un nombre de modelo…',
+  assistOmniboxNoModels: 'El asistente no está disponible para ningún modelo visible.',
+  assistOmniboxChange: 'Cambiar de modelo',
+  assistOmniboxGo: 'Mostrar',
+  assistOmniboxUseThePanel: 'Eliminar y crear se hacen desde el asistente de la página de lista, donde puede comprobarlo antes.',
+  assistOmniboxTip: 'Preguntar al asistente (⌘K / Ctrl+K)',
 };
 
 const tr: Catalog = {
@@ -1425,6 +1473,12 @@ const tr: Catalog = {
   assistClearConfirm: 'Bu konuşma temizlensin mi?',
   assistClearHint: 'Yalnızca ekranınızdan siler. Ne istendiği etkinlik günlüğünde kalır.',
   assistNotHere: 'Bu model için asistan etkin değil.',
+  assistOmniboxPickModel: 'Hangi kayıtlar? Bir model adı yazmaya başlayın…',
+  assistOmniboxNoModels: 'Görebildiğiniz hiçbir modelde asistan kullanılamıyor.',
+  assistOmniboxChange: 'Modeli değiştir',
+  assistOmniboxGo: 'Bunları göster',
+  assistOmniboxUseThePanel: 'Silme ve oluşturma, önce kontrol edebileceğiniz liste sayfasındaki asistandan yapılır.',
+  assistOmniboxTip: 'Asistana sor (⌘K / Ctrl+K)',
 };
 
 export const MESSAGES: Record<string, Catalog> = { en, hu, de, fr, zh, ko, ru, es, tr };

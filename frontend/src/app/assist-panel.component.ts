@@ -142,11 +142,11 @@ interface Turn {
     @if (confirming(); as turn) {
       <div class="dialog-backdrop assist-confirm-backdrop" (click)="confirming.set(null)"></div>
       <div class="assist-confirm dialog">
-        <h3>{{ turn.state?.intent === 'delete' ? t('assistConfirmDelete') : t('assistConfirmCreate') }}</h3>
+        <h3>{{ turn.state!.intent === 'delete' ? t('assistConfirmDelete') : t('assistConfirmCreate') }}</h3>
 
         <p class="assist-final">{{ t('assistFinalWarning') }}</p>
 
-        @if (turn.state?.intent === 'delete') {
+        @if (turn.state!.intent === 'delete') {
           <p class="assist-count">{{ t('assistDeleteCount', { count: turn.preview?.count ?? 0 }) }}</p>
           <div class="assist-rows">
             <ul>
@@ -161,8 +161,8 @@ interface Turn {
           </div>
           <table class="filters-table">
             <tbody>
-              @if (turn.state?.search) {
-                <tr><td class="f-key">{{ t('search') }}</td><td>{{ turn.state?.search }}</td></tr>
+              @if (turn.state!.search) {
+                <tr><td class="f-key">{{ t('search') }}</td><td>{{ turn.state!.search }}</td></tr>
               }
               @for (f of turn.filters; track f.field) {
                 <tr><td class="f-key">{{ f.label }}</td><td>{{ f.display }}</td></tr>
