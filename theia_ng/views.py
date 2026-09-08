@@ -45,6 +45,16 @@ def _resolve_bundle_file(asset_path: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def _assist_enabled() -> bool:
+    """Never let a config problem break the SPA — the assistant is optional."""
+    try:
+        from theia_ng import llm
+
+        return llm.is_enabled()
+    except Exception:
+        return False
+
+
 def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
     if not _INDEX.exists():
         return HttpResponse(
@@ -65,6 +75,10 @@ def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
         "siteTitle": conf.get("SITE_TITLE", "Theia NG Admin"),
         "schemaVersion": "1.0",
         "version": theia_ng.__version__,
+        # Whether the natural-language assistant is configured. With it false the
+        # SPA renders no entry point at all, so a deployment without an LLM has
+        # no assistant surface (the endpoint 404s to match).
+        "assistEnabled": _assist_enabled(),
         # Brand logo shown before the title (optional, static path resolved).
         # Aspect ratio preserved within a fixed slot in the topbar.
         "logoUrl": theia_logo_url(),
@@ -84,7 +98,13 @@ def _render_index(request: HttpRequest, asset_path: str) -> HttpResponse:
         html = html.replace("<head>", "<head>" + base_tag, 1)
 
     script = f"<script>window.__THEIA_NG_CONFIG__ = {json.dumps(config)};</script>"
-    html = html.replace("</head>", script + "</head>", 1)
+    # Insert before the LAST </head>: index.html carries a comment that mentions
+    # "</head>" literally, and replacing the first match buried the config script
+    # inside that comment, where it never ran (getConfig() then silently returned
+    # its fallback for everything).
+    close = "</head>"
+    cut = html.rfind(close)
+    html = (html[:cut] + script + html[cut:]) if cut != -1 else html + script
     return HttpResponse(html)
 
 

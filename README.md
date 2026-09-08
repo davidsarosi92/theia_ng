@@ -89,6 +89,10 @@ ships inside the wheel.
   their model cards; sticky top bar with a settings gear and sign-out
 - Optional **admin.py discovery** — reuse existing `django.contrib.admin`
   registrations (incl. **fieldsets, list_editable, inlines**) via `DISCOVER_ADMIN_FILES`
+- Optional **natural-language assistant** — describe what you want and it builds
+  the filter; deletes and creates are proposed, shown against the real queryset,
+  and confirmed by you. Swappable provider (Ollama / OpenAI / Anthropic / your
+  own) and **no new dependency**
 - Optional **DRF delegation** (use your serializers) and **OpenAPI enrichment** —
   both lazy, so the core never imports DRF
 
@@ -182,6 +186,10 @@ THEIA_NG = {
     # Optional fast list path — a swappable provider that serializes list pages
     # in bulk instead of per row. Unset = generic per-instance path (default).
     # "LIST_PROVIDER": "fastberry.list_provider.ListProvider",
+    # Optional natural-language assistant. Absent => the feature does not exist:
+    # no endpoint, no button. See "Natural-language assistant" below.
+    # "LLM": {"PROVIDER": "openai_compatible",
+    #         "BASE_URL": "http://localhost:11434/v1", "MODEL": "qwen2.5:7b"},
 }
 ```
 
@@ -601,6 +609,138 @@ columns, `SimpleListFilter` classes, `actions`, custom widgets, `date_hierarchy`
 `autocomplete_fields`, etc. A discovered model renders with safe defaults rather
 than broken columns. Explicit `theia.py` registrations always win, and one broken
 `admin.py` never breaks the rest.
+
+## Natural-language assistant (optional)
+
+Lets someone *describe* what they want instead of navigating to it — "the
+cancelled sheets from last week" — and turns it into a filter on the list. It can
+also propose a delete or a create, which the user confirms against the real
+queryset before anything happens.
+
+**Off unless configured**, and it adds **no Python dependency**: the built-in
+providers speak HTTP through the standard library, so pointing Theia at Ollama,
+vLLM, OpenAI or Anthropic is a settings change.
+
+A ready-to-run local model stack is in [`examples/llm/`](examples/llm/) —
+`docker compose up -d` and you have a free, self-hosted model.
+
+### Settings
+
+```python
+THEIA_NG = {
+    # ... the rest of your config ...
+    "LLM": {
+        # Which provider implementation to use:
+        #   "openai_compatible" — anything exposing POST /v1/chat/completions:
+        #                         Ollama, llama.cpp server, vLLM, LM Studio,
+        #                         OpenRouter, Groq, Together, OpenAI itself.
+        #   "anthropic"         — the Anthropic Messages API.
+        #   "myapp.llm.MyProvider" — a dotted path to your own subclass of
+        #                         theia_ng.llm.LLMProvider.
+        "PROVIDER": "openai_compatible",
+
+        # Base URL up to and including /v1. Required for openai_compatible;
+        # optional for anthropic (defaults to https://api.anthropic.com/v1).
+        "BASE_URL": "http://localhost:11434/v1",
+
+        # Model name as the endpoint knows it. Required.
+        "MODEL": "qwen2.5:7b",
+
+        # Sent as a Bearer token (or x-api-key for anthropic). Leave empty for a
+        # local model. Read it from the environment — never commit a key.
+        "API_KEY": os.getenv("THEIA_LLM_API_KEY", ""),
+
+        # Seconds to wait for the model. Default 20. A request holds a worker for
+        # this long, so keep it tight; the UI degrades to "unavailable" on timeout.
+        "TIMEOUT": 20,
+
+        # Retries after a reply fails validation. Default 1 (so 2 attempts total).
+        "MAX_RETRIES": 1,
+
+        # Rollout gate. Empty/absent = every registered model. List model keys to
+        # enable it for those only. This is deploy-level and cannot be overridden
+        # by host code; to opt ONE model out, prefer `assist = False` on its
+        # ModelAdmin, which lives next to that model's other configuration.
+        "ALLOW_MODELS": [],
+
+        # anthropic only:
+        # "MAX_TOKENS": 512,
+        # "ANTHROPIC_VERSION": "2023-06-01",
+    },
+}
+```
+
+Per-model opt-out, in code:
+
+```python
+@theia_ng.register(Payroll)
+class PayrollAdmin(theia_ng.ModelAdmin):
+    assist = False   # never offer the assistant here
+```
+
+### Provider examples
+
+```python
+# Local Ollama (see examples/llm/). From another container use
+# http://host.docker.internal:11434/v1 on Docker Desktop.
+"LLM": {"PROVIDER": "openai_compatible",
+        "BASE_URL": "http://localhost:11434/v1", "MODEL": "qwen2.5:7b"}
+
+# OpenAI
+"LLM": {"PROVIDER": "openai_compatible", "BASE_URL": "https://api.openai.com/v1",
+        "MODEL": "gpt-4o-mini", "API_KEY": os.getenv("OPENAI_API_KEY")}
+
+# Anthropic. The key comes from the Anthropic Console (console.anthropic.com)
+# and is billed per token — a Claude.ai chat subscription is a separate product
+# and does not provide one.
+"LLM": {"PROVIDER": "anthropic", "MODEL": "claude-opus-5",
+        "API_KEY": os.getenv("ANTHROPIC_API_KEY")}
+```
+
+### What it is allowed to do
+
+**The model proposes; it never executes.** It returns a filter state; if it
+proposes a delete or a create, the user is shown the real queryset (exact count
+plus sample rows) and must confirm. The confirmed action then runs through the
+*existing* endpoints — `delete_selected` and the ordinary create view — so
+permission checks, `full_clean()` and the audit entry apply exactly as they would
+without the assistant.
+
+- **Permissions first.** Theia access *and* the model's view permission; a delete
+  proposal additionally needs delete permission or it is downgraded to a filter.
+- **Only schema metadata leaves your server** — the filterable fields and their
+  allowed values, with labels. **Never row data.** Relations and traversals are
+  not described at all, since setting one would mean guessing a primary key.
+- **Everything the model returns is re-validated** against that same slice.
+  Anything not provably allowed is dropped and reported, never trusted.
+- **An unqualified delete is refused**, not proposed: with no filter it would
+  match the whole table, and that has to be deliberate.
+- **Every prompt is audited** (`LogEntry` action `assist`) with the user, the
+  sentence, the interpreted intent and the match count — including prompts that
+  were refused. The write that follows a confirmation is audited separately, so
+  the instruction and the effect stay distinct events.
+
+**Privacy:** field names, choice labels and the user's typed sentence go to
+whatever endpoint you configure, and the sentence may contain customer names.
+That is an argument for a local model in production, and the reason the provider
+is swappable.
+
+### Optional: hints, dictionary and examples
+
+Two admin-editable tables (`Assistant hints`, `Assistant examples`) can add
+material to the prompt: a model description, per-field explanations, a dictionary
+of terms your users say, and worked examples.
+
+**They ship empty on purpose.** On a local 7B model, added prompt prose made the
+assistant measurably *worse* on unseen sentences — 82% → 73% for plain field
+descriptions, and 59% when a hint listed trigger words. Small models drift toward
+answering instead of refusing as the prompt grows. See
+[`docs/llm-eval/RESULTS.md`](docs/llm-eval/RESULTS.md) for the full measurement.
+
+If you add hints, treat it as an experiment: write short *descriptions* of what a
+field means, never lists of trigger words, and use the examples table as a
+regression set to check that an edit actually helped. A per-deployment character
+budget caps how much can reach the prompt.
 
 ## Optional: DRF delegation
 

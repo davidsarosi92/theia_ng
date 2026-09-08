@@ -409,6 +409,16 @@ def _actions_ir(model: type[Model], admin: ModelAdmin) -> list[dict[str, Any]]:
     return actions
 
 
+def _assist_available(key: str, admin: ModelAdmin) -> bool:
+    """Never let a config problem break schema building — the assistant is optional."""
+    try:
+        from theia_ng import llm
+
+        return bool(llm.is_enabled() and llm.model_allowed(key, admin))
+    except Exception:
+        return False
+
+
 def _fieldsets_ir(admin: ModelAdmin) -> list[dict[str, Any]]:
     """Form sections from ``ModelAdmin.fieldsets``. Field rows that group several
     fields on one line (Django allows ``("a", "b")``) are flattened — the SPA
@@ -616,5 +626,11 @@ def build_model_detail(
     structure = cached_structure(
         f"model:{_model_key(model)}", lambda: _model_structure(model, admin)
     )
-    # Merge per-user perms fresh (never cached).
-    return {**structure, "perms": _perms(admin, request)}
+    # Merged fresh, never cached: perms are per-user, and `assist` follows the
+    # LLM config, which an admin can change at runtime (SiteConfig overrides) —
+    # a cached flag would leave the entry point lying for up to SCHEMA_TTL.
+    return {
+        **structure,
+        "perms": _perms(admin, request),
+        "assist": _assist_available(_model_key(model), admin),
+    }

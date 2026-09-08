@@ -5,13 +5,14 @@ import { Subscription, forkJoin } from 'rxjs';
 
 import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
+import { AssistPanelComponent } from './assist-panel.component';
 import { ButtonLabelComponent } from './button-label.component';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { I18nService } from './i18n.service';
 import { MessageKey } from './i18n/messages';
 import { inputTypeFor } from './field-widgets';
-import { ActionSpec, FieldSpec, ModelSchema } from './models';
+import { ActionSpec, AssistState, FieldSpec, ModelSchema } from './models';
 import { ToastService } from './toast.service';
 import { actionResultError, cap, slugToKey } from './util';
 
@@ -30,6 +31,7 @@ import { ViewService } from './view.service';
     RouterLink,
     FormsModule,
     FilterDialogComponent,
+    AssistPanelComponent,
     ActionDialogComponent,
     ConfirmDialogComponent,
     ButtonLabelComponent,
@@ -50,6 +52,9 @@ import { ViewService } from './view.service';
           }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
             <button class="btn secondary" (click)="showFilter.set(true)"><theia-blabel icon="filter" [text]="t('filter')" /></button>
+          }
+          @if (s.assist) {
+            <button class="btn secondary" (click)="showAssist.set(true)">{{ t('assistTitle') }}</button>
           }
           @if (s.perms.add) {
             <a class="btn" [routerLink]="['/', slug, 'new']"><theia-blabel icon="add" [text]="t('add')" /></a>
@@ -227,6 +232,16 @@ import { ViewService } from './view.service';
         <button [disabled]="page() >= numPages()" (click)="go(page() + 1)">{{ t('next') }}</button>
       </footer>
 
+      @if (showAssist()) {
+        <theia-assist-panel
+          [schema]="s"
+          [modelKey]="s.key"
+          (applied)="applyAssist($event)"
+          (executed)="runAssistProposal($event)"
+          (closed)="showAssist.set(false)"
+        />
+      }
+
       @if (showFilter()) {
         <theia-filter-dialog
           [schema]="s"
@@ -283,6 +298,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
   ordering = signal<string | null>(null);
   filters = signal<AppliedFilter[]>([]);
   showFilter = signal(false);
+  showAssist = signal(false);
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
   /** Placeholder rows shown while a page loads (skeleton). */
@@ -567,6 +583,80 @@ export class ModelListComponent implements OnInit, OnDestroy {
     this.searchTerm.set(term);
     this.page.set(1);
     this.load();
+  }
+
+  /** Apply a state the assistant proposed. Replaces search/filters/sort in one
+   *  step (rather than merging) so what the user confirmed is exactly what runs. */
+  applyAssist(state: { search: string; filters: AppliedFilter[]; ordering: string | null }): void {
+    this.searchTerm.set(state.search);
+    this.filters.set(state.filters);
+    if (state.ordering) {
+      this.ordering.set(state.ordering);
+    }
+    this.page.set(1);
+    this.load();
+  }
+
+  /** Carry out a proposal the user confirmed in the assistant's modal.
+   *
+   *  Deliberately routed through the SAME endpoints the manual UI uses:
+   *  `delete_selected` with "select all matching" for a delete, and the ordinary
+   *  create view for a create. Permission checks, `full_clean()` and the audit
+   *  entry therefore apply exactly as they would without the assistant — the LLM
+   *  never gained a privileged path. */
+  runAssistProposal(ev: {
+    kind: 'delete' | 'create';
+    turn: AssistState;
+    filters: AppliedFilter[];
+    done: (ok: boolean) => void;
+  }): void {
+    if (ev.kind === 'delete') {
+      const params: Record<string, string | number> = {};
+      if (ev.turn.search) {
+        params['search'] = ev.turn.search;
+      }
+      for (const f of ev.filters) {
+        params[f.field] = f.value as string | number;
+      }
+      this.api
+        .runAction(`action/${this.modelKey}/delete_selected/`, { all: true, filters: params })
+        .subscribe({
+          next: (res) => {
+            const err = actionResultError(res);
+            if (err) {
+              this.toast.error(err);
+              ev.done(false);
+              return;
+            }
+            this.toast.success(this.t('deleted'));
+            ev.done(true);
+            this.load();
+          },
+          error: () => {
+            this.toast.error(this.t('actionFailed'));
+            ev.done(false);
+          },
+        });
+      return;
+    }
+    this.api.create(this.modelKey, ev.turn.create).subscribe({
+      next: () => {
+        this.toast.success(this.t('saved'));
+        ev.done(true);
+        this.load();
+      },
+      error: (err: { error?: { detail?: string; errors?: Record<string, string[]> } }) => {
+        // Model validation lives in the create view; surface what it said rather
+        // than a generic failure, so a bad proposal is diagnosable.
+        const fieldErr = err?.error?.errors
+          ? Object.entries(err.error.errors)
+              .map(([k, v]) => `${k}: ${(v as string[]).join(', ')}`)
+              .join('; ')
+          : '';
+        this.toast.error(fieldErr || err?.error?.detail || this.t('actionFailed'));
+        ev.done(false);
+      },
+    });
   }
 
   addFilter(filter: AppliedFilter): void {

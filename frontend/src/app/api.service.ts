@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map, shareReplay } from 'rxjs';
 
 import {
+  AssistResponse,
   AuthState,
   FullTreeResponse,
   ListResponse,
@@ -48,6 +49,12 @@ export class ApiService {
       current_password: currentPassword,
       new_password: newPassword,
     });
+  }
+
+  /** Natural language -> a proposed list state. Read-only: the server never
+   *  mutates anything here, it only interprets. */
+  assist(modelKey: string, prompt: string): Observable<AssistResponse> {
+    return this.http.post<AssistResponse>(this.url(`assist/${modelKey}/`), { prompt });
   }
 
   getRegistry(): Observable<Registry> {

@@ -154,3 +154,239 @@ injected files. ibar `core/settings.py` and `goods/theia.py` ARE bind-mounted
   `goods/theia.py` (7 occurrences) and `structure/theia.py` (4) is redundant since
   theia ≥0.11.1 — column-scoping + auto-select_related handle it. Safe to trim,
   ideally one app at a time with a look at the list queries afterwards.
+
+---
+
+## F. LLM assistant — natural-language list filtering (design, not started)
+
+**Goal.** The user *describes* what they want instead of navigating to it:
+"töröld ki az inventory-headerből a tavalyi lezártakat" → the list is filtered to
+those rows and a delete button appears. Motivation: on a wide admin, describing a
+target is easier than clicking your way to it.
+
+**Core principle: the LLM builds a query, it never executes anything.** It emits a
+*list state* (the same shape the filter UI produces); the user sees the matching
+rows and confirms. Deletion then runs through the existing `delete_selected` with
+its normal permission checks and `audit.record`. Worst case for a misread prompt
+is a wrong list, never a wrong delete.
+
+### F1. What the model must produce
+
+Theia's list state is already fully serialized into the URL query
+(`model-list.component.ts:452-469`), so the LLM's whole job is to fill in a small
+JSON object — no SQL, no ORM, no new result rendering:
+
+- `search` — free text, matched against the admin's `search_fields`
+- `filters` — `AppliedFilter[]` = `{field, label, value, display}`
+- `ordering` — an optional sort column
+
+**Both `search` and `filters` matter.** `list_filter` is often tiny (for
+`InventoryCountHeaderAdmin` it is just `start`, `finish`, `status`), while
+`search_fields` reaches deep relations (house / company / space / registration
+names). Filters carry the status+date dimension, search carries the "which
+customer/place" dimension. Using only one of the two would make most real
+sentences unexpressible.
+
+**Known DSL limit.** `_apply_date_filter` (`api/crud_views.py:176-203`) supports
+only a preset (`today`, `last_2_days`, `last_7_days`, `last_30_days`,
+`last_year`) or one exact calendar day — there are **no operators or ranges**. So
+"before 2026-01-01" or "during March 2025" cannot be expressed today. Decide
+early whether to (a) cap the assistant at the current DSL, or (b) extend filters
+with operators (`lt`/`gt`/`between`) — (b) is the more useful feature but it also
+touches the existing filter dialog and the URL format.
+
+### F2. Provider abstraction (must be swappable, must be optional)
+
+Follow the pattern the repo already uses for DRF/fastberry: `theia_ng/adapters/`
++ lazy imports + graceful fallback. The pyproject rule ("Core depends ONLY on
+django.contrib.auth") stays intact.
+
+```python
+THEIA_NG = {
+    "LLM": {
+        "PROVIDER": "openai_compatible",
+        "BASE_URL": "http://localhost:11434/v1",   # Ollama / llama.cpp / vLLM / hosted
+        "MODEL": "llama3.1:8b",
+        "API_KEY": os.getenv("THEIA_LLM_KEY", ""),  # empty for local
+        "TIMEOUT": 20,
+    },
+}
+```
+
+**No new Python dependency.** An OpenAI-compatible `/v1/chat/completions` call is
+stdlib `urllib.request` + `json`. One HTTP contract covers Ollama, llama.cpp
+server, vLLM, OpenRouter, Groq and the commercial APIs — swapping provider is a
+`BASE_URL` change, not a code change. Optional extras are only ever for
+convenience SDKs, never required.
+
+**Never run the model in-process.** Weights are GB-scale (8B Q4 ≈ 5 GB, 3B ≈ 2 GB),
+gunicorn forks workers, and `torch`/`llama-cpp-python` are exactly the kind of
+dependency this package refuses to carry. The model is always a separate process
+behind HTTP — for ibar, one more compose service alongside redis/celery.
+
+### F3. Making a small/free model work
+
+A local 3–8B model can do this **only** if the task is kept narrow:
+
+*Measured, not assumed — see `docs/llm-eval/RESULTS.md`.*
+
+1. **Thin schema slice.** Send only the one model's filterable fields + choices,
+   never the whole IR. Deep chains (`space__house__company__registration__
+   integration`) invite hallucinated field names.
+2. **Per-field value enums, not just a JSON schema.** Measurement 1 showed a plain
+   JSON schema does *not* stop hallucination — it constrains the shape, and
+   `{"type":"string"}` still accepts `field: "space"`. Encoding the vocabulary as
+   `oneOf` variants (`field: {const}` + `value: {enum}`) made invalid output
+   structurally undecodable and drove HALLUCINATED to 0. This belongs in the
+   adapter: it is the only hard guarantee available.
+3. **Ship the localized labels in the schema slice.** Sending
+   `"cancelled" = megszakított / törölt` instead of bare `cancelled` was worth
+   ~9 points on Hungarian input, and costs nothing — Django choice labels and
+   `verbose_name` are already translated in a localized project. Quote the value
+   and mark the gloss with `=`; the natural `cancelled (megszakított)` format made
+   models emit the whole string as the value.
+4. **No value guessing.** The model must not invent PKs; it emits names and
+   theia resolves them (or routes them into `search`).
+5. **Reward staying silent.** The residual failure of small models is precision,
+   not vocabulary: they attach a spurious filter to a pure name search and fill in
+   an answer for unsupported requests rather than flagging them. The contract needs
+   an explicit, encouraged "empty filters + unsupported[]" escape hatch.
+
+### F4. Not breaking anything
+
+- **`THEIA_NG["LLM"]` absent ⇒ the feature does not exist.** The flag rides the
+  existing SPA config injection (`views.py:62`, next to `logoUrl`); with it off
+  there is no route, no endpoint, no UI. Zero change for existing installs.
+- **No migration in v1** — the conversation lives in frontend memory only, so
+  `models.py` is untouched (`0008` stays the last migration).
+- **The endpoint is read-only** — NL in, validated list state out. It never writes.
+- **`has_access` gating on the schema slice too**, or it leaks field names of
+  models the user may not see.
+- **Hard timeout + fallback** to the normal filter dialog; the manual path must
+  always stay available and must never become AI-only.
+- **Worker blocking:** a multi-second sync call holds a gunicorn worker. Low QPS
+  makes this survivable, but the timeout has to be strict.
+
+### F5. Privacy
+
+The schema field names and the user's typed text (which may contain customer
+names) go to whatever endpoint is configured. For a host like ibar that is a real
+constraint and an argument for local Ollama or a deliberately chosen provider in
+production — another reason the provider must be swappable.
+
+### F6. UI sketch
+
+Two panes, not three — the "feedback" *is* a chat turn, and splitting it from the
+conversation makes the user look in two places at the moment that matters most
+(checking the interpretation before a delete):
+
+- left (~380px): the conversation; each answer renders an interpretation card
+  ("Inventory header · status = uploaded · start ≥ … → 47 rows") whose chips are
+  editable `AppliedFilter`s, with the delete button on the card
+- right: the existing `ModelListComponent`, reused, not a new table
+
+**Implemented as a side panel on the list page** rather than a separate route:
+the list behind it *is* the result surface, so it stays visible while the request
+is refined. The entry point appears only when `assistEnabled` reaches the SPA.
+A trash control in the panel header clears the session's conversation — screen
+only; the audit trail of what was asked is untouched, and the confirm dialog says
+so. The prompt bubble appears the moment you ask, not when the answer lands (the
+model can take 5-20 s).
+
+Still open: a Cmd+K omnibox from anywhere, which is what would deliver "just type
+it" outside the list page.
+
+**Every prompt is audited** (`LogEntry.ASSIST`, migration `0010`) with the user,
+the sentence, the interpreted intent, the filters and the match count — including
+prompts that were downgraded or refused, or "what did they try to do" would have
+a hole in it. The write that follows a confirmation is audited separately by the
+endpoint performing it, so instruction and effect stay distinct events.
+
+### F6b. Editable LLM hints — measured, and rejected
+
+An admin-editable table of prompt hints was proposed and measured against a
+**held-out** set of 22 new sentences (`docs/llm-eval/cases-holdout.json`). Both
+variants improved the set they were written against and made the model **worse**
+on fresh input: no hints **82%**, descriptive hints 73%, keyword-list hints 59%.
+Run-to-run variance is zero (`temperature: 0`), so the gap is reproducible, not
+noise.
+
+**Built anyway, deliberately** (`AssistHint` + `AssistExample`, migration `0009`).
+The measurement covers one model family at one size; whether a stronger model
+benefits from nuanced instructions is not something a 7B result can settle. So
+the tables exist and ship **empty**, with the finding written into the admin
+page's own description, and a hard `MAX_HINT_CHARS` budget so a deployment cannot
+grow the prompt without bound.
+
+Three kinds in one table — model description, per-field explanation, dictionary
+term — plus `AssistExample` for worked examples. Examples are `in_prompt=False`
+by default: an example is useful as a **regression case** even when it is not
+few-shot material, and that is the point. Any hint edit can be replayed against
+them, which is the only way a well-meant hint that quietly costs 20 points gets
+caught instead of shipped.
+
+Both admins set `assist = False` — the assistant must not be steerable through
+itself.
+
+### F6c. Delete and create (implemented)
+
+The assistant classifies a request as `filter`, `delete` or `create` and returns
+a **proposal**; an irreversible one goes to a modal showing the real queryset
+(exact count + sample rows, built with the same `apply_list_filters` the delete
+will use) and an explicit warning that it cannot be undone.
+
+**The LLM still executes nothing.** A confirmed proposal is carried out by the
+endpoints that already exist — `delete_selected` with select-all-matching, and
+`POST data/` — so permission checks, `full_clean()` and the audit entry apply
+exactly as they would without the assistant. No privileged path was added.
+
+Four downgrades turn an unsafe proposal back into a harmless filter: a delete
+with no filter (it would match the whole table — that has to be deliberate, not a
+misparse), no delete permission, zero matching rows, and a create with no usable
+values. Create excludes relations: setting an FK means guessing an identity, and
+an incomplete create beats one silently attached to the wrong parent.
+
+### F7. Open question driving everything
+
+**How small a model suffices?** Harness and full write-up in `docs/llm-eval/`
+(`run.py` is stdlib-only and provider-agnostic — every backend is a `--base-url`).
+
+**Measured 2026-09-08 (local Ollama, M2 Pro). There is a capability cliff between
+3B and 7B, and the answer is 7B.**
+
+| model | OK | HALLUC | median | unsupported flagged |
+|---|---|---|---|---|
+| **qwen2.5:7b** | **77%** | 0 | **1.6 s** | **5/5** |
+| qwen3:8b | 77% | 0 | 11.2 s (max 40.8) | 3/5 |
+| llama3.1:8b | 45% | 0 | 1.3 s | 2/5 |
+| qwen2.5:3b | 36% | 0 | 0.7 s | 1/5 |
+| llama3.2:3b | unusable — hung past 120 s, invented field names | | | |
+
+**Pick `qwen2.5:7b`. Two traps to avoid when choosing a model:**
+- **Do not shop by parameter count.** `llama3.1:8b` is *bigger* than the 7B and
+  scored 45% against its 77%; the llama family failed at 3B too. Family and
+  training dominate size on this task.
+- **Do not use a reasoning model.** `qwen3:8b` made the fewest hard errors of all
+  (91% OK+PARTIAL) but costs **11.2 s median, 40.8 s worst case** — it thinks
+  before answering. Unusable for a box the user types into.
+
+The decisive column is the last one. The 3B tier does not know **when to refuse**:
+it invents a filter state for requests the DSL cannot express. That disqualifies
+it from a delete flow regardless of its other numbers. The 7B flagged all five.
+
+**Latency is not the constraint** (1.6 s, ~430-token prompt) — on an M2 Pro. A
+server without a GPU must be measured separately before committing.
+
+**77% is under the 80% bar and is not rounded up.** All four residual failures are
+the same `start` vs `finish` confusion; better field labels would probably fix
+them, but with only 22 cases, tuning against those four would be overfitting.
+
+**Before building, two things:** (1) confirm on a strong hosted model that the
+ceiling is ≥90% — otherwise the design, not the model, is the problem; (2) expand
+the case set well beyond 22 and re-measure the 7B on it.
+
+**Also learned, and it belongs in the adapter:** Ollama's grammar honours `enum`
+but not a nested `anyOf`/`pattern`, so exact `YYYY-MM-DD` values cannot be
+constrained structurally there. **Server-side validation + retry is therefore
+mandatory, not an optimization** — no runtime's grammar can be assumed to cover
+the whole value space.

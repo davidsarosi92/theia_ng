@@ -1,0 +1,89 @@
+[
+  {"id": 101, "cat": "status", "expressible": true,
+   "text": "melyek azok, amiket még nem töltöttek le a telefonra?",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "not_downloaded"}], "ordering": null}},
+
+  {"id": 102, "cat": "status", "expressible": true,
+   "text": "épp feltöltés alatt állók",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "uploading"}], "ordering": null}},
+
+  {"id": 103, "cat": "status", "expressible": true,
+   "text": "amiket visszavontak",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "cancelled"}], "ordering": null}},
+
+  {"id": 104, "cat": "date-start", "expressible": true,
+   "text": "tegnap óta megkezdett munkák",
+   "expect": {"search": "", "filters": [{"field": "start", "value": "last_2_days"}], "ordering": null}},
+
+  {"id": 105, "cat": "date-start", "expressible": true,
+   "text": "az idei évben nekiálltak",
+   "expect": {"search": "", "filters": [{"field": "start", "value": "last_year"}], "ordering": null}},
+
+  {"id": 106, "cat": "date-finish", "expressible": true,
+   "text": "a ma véglegesített ívek",
+   "expect": {"search": "", "filters": [{"field": "finish", "value": "today"}], "ordering": null}},
+
+  {"id": 107, "cat": "date-finish", "expressible": true,
+   "text": "az elmúlt hónapban lezárt leltárak",
+   "expect": {"search": "", "filters": [{"field": "finish", "value": "last_30_days"}], "ordering": null}},
+
+  {"id": 108, "cat": "date-finish", "expressible": true,
+   "text": "amiknek a befejezése az elmúlt két napra esik",
+   "expect": {"search": "", "filters": [{"field": "finish", "value": "last_2_days"}], "ordering": null}},
+
+  {"id": 109, "cat": "date+status", "expressible": true,
+   "text": "a héten elkezdett, de még le nem zárt ívek",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "in_progress"}, {"field": "start", "value": "last_7_days"}], "ordering": null}},
+
+  {"id": 110, "cat": "date+status", "expressible": true,
+   "text": "ma lezárt és feltöltött leltárak",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "uploaded"}, {"field": "finish", "value": "today"}], "ordering": null}},
+
+  {"id": 111, "cat": "search", "expressible": true,
+   "text": "a Duna Bisztró leltárai",
+   "expect": {"search": "Duna Bisztró", "filters": [], "ordering": null}},
+
+  {"id": 112, "cat": "search", "expressible": true,
+   "text": "amit Szabó Anna kezdett el",
+   "expect": {"search": "Szabó Anna", "filters": [], "ordering": null}},
+
+  {"id": 113, "cat": "search+status", "expressible": true,
+   "text": "a Fő téri egység megszakított ívei",
+   "expect": {"search": "Fő tér", "filters": [{"field": "status", "value": "cancelled"}], "ordering": null}},
+
+  {"id": 114, "cat": "search+date", "expressible": true,
+   "text": "a Retro Söröző ezen a héten indított leltárai",
+   "expect": {"search": "Retro Söröző", "filters": [{"field": "start", "value": "last_7_days"}], "ordering": null}},
+
+  {"id": 115, "cat": "ordering", "expressible": true,
+   "text": "rendezd a legkorábbi kezdés szerint",
+   "expect": {"search": "", "filters": [], "ordering": "start"}},
+
+  {"id": 116, "cat": "ordering+status", "expressible": true,
+   "text": "a folyamatban lévők, legutóbb indítottal kezdve",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "in_progress"}], "ordering": "-start"}},
+
+  {"id": 117, "cat": "trap-range", "expressible": false,
+   "text": "amik tavaly október és december között indultak",
+   "note": "Range — no operators in the DSL."},
+
+  {"id": 118, "cat": "trap-range", "expressible": false,
+   "text": "a 2024-nél régebbi leltárak",
+   "note": "'older than' needs an operator."},
+
+  {"id": 119, "cat": "trap-field", "expressible": false,
+   "text": "amit utoljára módosítottak",
+   "note": "modified/modified_by is not in list_filter and not searchable."},
+
+  {"id": 120, "cat": "trap-field", "expressible": false,
+   "text": "a hordós sör kategóriájú ívek",
+   "note": "inventory_category is neither filterable nor searchable."},
+
+  {"id": 121, "cat": "trap-value", "expressible": false,
+   "text": "a jóváhagyásra váró leltárak",
+   "note": "'awaiting approval' is not a status choice; must not be mapped onto a real one."},
+
+  {"id": 122, "cat": "trap-value", "expressible": false,
+   "text": "a lezáratlan, elfelejtett ívek",
+   "note": "'forgotten' is not a concept the schema has."}
+]

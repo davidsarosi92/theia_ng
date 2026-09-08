@@ -1,0 +1,4 @@
+__pycache__/
+results-*.json
+res-*.json
+rep[0-9]-*.json

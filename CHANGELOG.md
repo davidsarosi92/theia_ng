@@ -4,6 +4,51 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.28.0] — 2026-09-08
+### Added
+- **Natural-language assistant (optional).** Describe what you want — "a múlt heti
+  megszakított ívek" — and the list is filtered. The model can also propose a
+  **delete** or a **create**, shown in a modal against the *real* queryset (exact
+  count plus sample rows) with an explicit "this cannot be undone" warning and
+  Yes / Cancel. **The model proposes; it never executes:** a confirmed proposal
+  runs through the existing `delete_selected` and create views, so permission
+  checks, `full_clean()` and the audit entry apply exactly as without it.
+  Off unless `THEIA_NG["LLM"]` is configured, and it adds **no new Python
+  dependency** — providers speak HTTP through the standard library.
+- **Swappable providers** — `openai_compatible` (Ollama, llama.cpp, vLLM,
+  LM Studio, OpenRouter, Groq, OpenAI), `anthropic`, or a dotted path to your own
+  `LLMProvider`. Switching is a settings change. A ready-to-run local model stack
+  is in `examples/llm/`.
+- **Guardrails**, each covered by a test: theia access *and* the model's view
+  permission (delete additionally needs delete permission); an `ALLOW_MODELS`
+  rollout gate plus `ModelAdmin.assist = False`; only `list_filter` fields and
+  their allowed values leave the server — **never row data**, and relations are
+  not described at all since setting one would mean guessing a primary key;
+  everything the model returns is re-validated against that slice and anything
+  not provably allowed is dropped and reported; an unqualified delete (no filter,
+  so it would match the whole table) is refused rather than proposed.
+- **Assistant hints & examples** — two admin-editable tables (model descriptions,
+  per-field explanations, a dictionary of terms, and worked examples). They ship
+  **empty on purpose**: measured on a local 7B, added prompt prose made the
+  assistant *worse* on held-out sentences (82% → 73%, and 59% when a hint listed
+  trigger words). The examples table doubles as a regression set. See
+  `docs/llm-eval/`. **Requires migrations** (`0009`, `0010`).
+- **Assistant audit trail** — every prompt is recorded (`LogEntry` action
+  `assist`) with the user, the sentence, the interpreted intent and the match
+  count, including prompts that were refused. The write that follows a
+  confirmation is audited separately, so instruction and effect stay distinct.
+
+### Fixed
+- **The injected SPA config never ran.** `index.html` carries a comment
+  mentioning `</head>` literally, and the config `<script>` was inserted before
+  the *first* match — i.e. inside that comment — so `window.__THEIA_NG_CONFIG__`
+  was undefined and `getConfig()` silently returned its fallback for everything.
+  Mostly masked (the site-config API supplies the title and logo, and the default
+  mount prefix happened to match), but `defaultLanguage` / `defaultTimezone` had
+  been falling back to `en` / `UTC` regardless of the deployment.
+- **Disabled buttons looked enabled.** `.btn` had no `:disabled` styling at all,
+  so a disabled Save / Apply / send button kept full colour and a pointer cursor.
+
 ## [0.27.2] — 2026-06-28
 ### Fixed
 - **Action error surfacing now reads the right field.** The view wraps a handler's

@@ -1,0 +1,89 @@
+[
+  {"id": 1,  "cat": "status", "expressible": true,
+   "text": "mutasd a feltöltött leltáríveket",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "uploaded"}], "ordering": null}},
+
+  {"id": 2,  "cat": "status", "expressible": true,
+   "text": "melyik leltár van most folyamatban?",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "in_progress"}], "ordering": null}},
+
+  {"id": 3,  "cat": "status", "expressible": true,
+   "text": "a megszakított ívek kellenek",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "cancelled"}], "ordering": null}},
+
+  {"id": 4,  "cat": "status", "expressible": true,
+   "text": "függőben lévők",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "pending"}], "ordering": null}},
+
+  {"id": 5,  "cat": "date", "expressible": true,
+   "text": "ma indított leltárak",
+   "expect": {"search": "", "filters": [{"field": "start", "value": "today"}], "ordering": null}},
+
+  {"id": 6,  "cat": "date", "expressible": true,
+   "text": "az elmúlt egy hétben elkezdett ívek",
+   "expect": {"search": "", "filters": [{"field": "start", "value": "last_7_days"}], "ordering": null}},
+
+  {"id": 7,  "cat": "date", "expressible": true,
+   "text": "amit az elmúlt 30 napban fejeztek be",
+   "expect": {"search": "", "filters": [{"field": "finish", "value": "last_30_days"}], "ordering": null}},
+
+  {"id": 8,  "cat": "date", "expressible": true,
+   "text": "tavaly óta indult leltárak",
+   "expect": {"search": "", "filters": [{"field": "start", "value": "last_year"}], "ordering": null}},
+
+  {"id": 9,  "cat": "date+status", "expressible": true,
+   "text": "a mai befejezetlen, még folyamatban lévő leltárak",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "in_progress"}, {"field": "start", "value": "today"}], "ordering": null}},
+
+  {"id": 10, "cat": "date+status", "expressible": true,
+   "text": "töröld ki a múlt heti megszakított íveket",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "cancelled"}, {"field": "start", "value": "last_7_days"}], "ordering": null}},
+
+  {"id": 11, "cat": "search", "expressible": true,
+   "text": "a Kossuth utcai raktár leltárai",
+   "expect": {"search": "Kossuth utca", "filters": [], "ordering": null}},
+
+  {"id": 12, "cat": "search", "expressible": true,
+   "text": "keresd a Bar Central nevű céghez tartozókat",
+   "expect": {"search": "Bar Central", "filters": [], "ordering": null}},
+
+  {"id": 13, "cat": "search+status", "expressible": true,
+   "text": "a Kovács Kft. feltöltött leltárai",
+   "expect": {"search": "Kovács Kft.", "filters": [{"field": "status", "value": "uploaded"}], "ordering": null}},
+
+  {"id": 14, "cat": "search+date", "expressible": true,
+   "text": "a Pipacs söröző mai leltárai",
+   "expect": {"search": "Pipacs söröző", "filters": [{"field": "start", "value": "today"}], "ordering": null}},
+
+  {"id": 15, "cat": "ordering", "expressible": true,
+   "text": "a legrégebbi leltárak elöl",
+   "expect": {"search": "", "filters": [], "ordering": "start"}},
+
+  {"id": 16, "cat": "ordering+status", "expressible": true,
+   "text": "feltöltött ívek, a legfrissebb legyen elöl",
+   "expect": {"search": "", "filters": [{"field": "status", "value": "uploaded"}], "ordering": "-start"}},
+
+  {"id": 17, "cat": "ambiguity", "expressible": true,
+   "text": "amit ma zártak le",
+   "expect": {"search": "", "filters": [{"field": "finish", "value": "today"}], "ordering": null}},
+
+  {"id": 18, "cat": "trap-range", "expressible": false,
+   "text": "a 2025 márciusa előtt indított leltárak",
+   "note": "No operators in the DSL — a range/'before' cannot be expressed. Model should report it as unsupported, not invent an operator."},
+
+  {"id": 19, "cat": "trap-range", "expressible": false,
+   "text": "ami január és március között fejeződött be",
+   "note": "Range, unsupported. Must not fabricate a 'between' filter."},
+
+  {"id": 20, "cat": "trap-field", "expressible": false,
+   "text": "amit Nagy Péter hozott létre",
+   "note": "created_by is NOT filterable (list_filter is start/finish/status) and is not in search_fields either; only started_by's name is searchable. Acceptable: route to search, or report unsupported. Must not invent a created_by filter."},
+
+  {"id": 21, "cat": "trap-field", "expressible": false,
+   "text": "a Konyha kategóriájú ívek",
+   "note": "inventory_category is not filterable and not in search_fields. Must not invent a filter field."},
+
+  {"id": 22, "cat": "trap-value", "expressible": false,
+   "text": "az archivált leltárak",
+   "note": "'archived' is not a valid status choice. Model must not map it onto an unrelated existing choice; should report unknown value."}
+]

@@ -224,6 +224,16 @@ body {
   font-size: 0.9rem;
 }
 .btn.danger { background: #e03131; }
+/* A disabled .btn had no styling at all, so every disabled button in the app
+   still looked (and hovered) like a live one. Applies to the assistant's send
+   button while the model is working, the bulk Apply button, dialog confirms. */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+  /* Kill the pointer affordance and any hover treatment on the disabled state. */
+  pointer-events: none;
+}
 /* bare (unclassed) buttons in form actions and dialogs — themed so they don't
    fall back to the browser's light default in dark mode */
 .actions button:not(.btn),
@@ -883,3 +893,93 @@ body {
 .row-deleted { opacity: 0.5; }
 .inline-grid tr.row-deleted td { text-decoration: line-through; }
 .inline-add { margin-top: 0.25rem; }
+
+/* --- LLM assistant panel -------------------------------------------------
+   A side panel rather than a centred dialog: the list behind it IS the result
+   surface, so it must stay visible while the user refines the request. */
+.assist-panel {
+  position: fixed; z-index: 31; top: 0; right: 0; bottom: 0;
+  width: 400px; max-width: 100vw;
+  display: flex; flex-direction: column;
+  background: var(--panel); color: var(--text);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.28);
+}
+.assist-head {
+  position: relative; flex: none;
+  padding: 1rem 3rem 1rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.assist-head h3 { margin: 0; font-size: 1rem; }
+
+.assist-turns { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; }
+.assist-hint { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0 0 1rem; }
+.assist-turn { margin-bottom: 1.5rem; }
+.assist-prompt {
+  margin: 0 0 0.6rem; padding: 0.5rem 0.75rem; border-radius: 8px;
+  background: var(--hover); font-size: 0.9rem;
+}
+/* The interpretation card: the chips are the filters that will be applied, so
+   they read like the filter table they become. */
+.assist-card {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  padding: 0.6rem; margin-bottom: 0.6rem;
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.assist-chip {
+  display: inline-flex; align-items: baseline; gap: 0.35rem;
+  padding: 0.2rem 0.55rem; border-radius: 999px;
+  background: var(--chip-bg); font-size: 0.82rem;
+}
+.assist-chip .k { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+.assist-warn { margin: 0 0 0.6rem; font-size: 0.82rem; color: var(--muted); }
+.assist-warn em { font-style: normal; color: var(--text); }
+.assist-error { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); }
+
+.assist-form {
+  flex: none; display: flex; gap: 0.5rem; align-items: center;
+  padding: 0.85rem 1.25rem; border-top: 1px solid var(--border);
+}
+.assist-form .search { flex: 1; margin: 0; }
+
+@media (max-width: 700px) {
+  .assist-panel { width: 100%; border-left: none; }
+}
+
+/* Assistant confirmation: an irreversible proposal shown against the real
+   queryset. Wider than a plain confirm because the row sample is the point. */
+/* Above the side panel (which is also z-index 31) — the confirmation, and the
+   backdrop that dims the panel behind it, must never end up underneath the thing
+   that opened them. */
+.assist-confirm-backdrop { z-index: 32; }
+.assist-confirm { width: 560px; z-index: 33; }
+.assist-final {
+  margin: 0 0 0.9rem; padding: 0.6rem 0.75rem; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--hover);
+  font-size: 0.88rem; line-height: 1.45;
+}
+.assist-count { margin: 0 0 0.5rem; font-weight: 600; }
+.assist-rows {
+  max-height: 220px; overflow-y: auto; margin-bottom: 0.9rem;
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.5rem 0.5rem 0;
+}
+.assist-rows ul { margin: 0; padding-left: 1.6rem; }
+.assist-rows li { font-size: 0.85rem; line-height: 1.5; }
+.assist-more { margin: 0.4rem 0 0 1.6rem; font-size: 0.82rem; color: var(--muted); }
+
+/* Clear-conversation control, left of the panel's close X. */
+.assist-clear {
+  position: absolute; top: 0.55rem; right: 2.6rem; z-index: 1;
+  width: 1.9rem; height: 1.9rem; padding: 0; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 6px;
+  color: var(--muted); cursor: pointer;
+}
+.assist-clear:hover { background: var(--hover); color: var(--text); }
+
+/* The model is unreachable — a state, not a passing message, so it stays until
+   a call succeeds. */
+.assist-down {
+  margin: 0; padding: 0.6rem 1.25rem;
+  background: var(--hover); border-bottom: 1px solid var(--border);
+  color: var(--muted); font-size: 0.85rem;
+}

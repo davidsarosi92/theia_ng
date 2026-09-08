@@ -7,6 +7,16 @@ import { IconComponent } from './icon.component';
 import { I18nService } from './i18n.service';
 import { CustomFilter, FieldSpec, ModelSchema } from './models';
 
+/** Relative date presets (mirrors the server's `_DATE_PRESETS`). Shared with the
+ *  assistant panel so both render a preset the same way. */
+export const DATE_PRESETS = [
+  { key: 'today', label: 'Today' },
+  { key: 'last_2_days', label: 'Last 2 days' },
+  { key: 'last_7_days', label: 'Last 7 days' },
+  { key: 'last_30_days', label: 'Last 30 days' },
+  { key: 'last_year', label: 'Last year' },
+];
+
 export interface AppliedFilter {
   /** Query-param key: a field name, or a custom filter's param. */
   field: string;
@@ -98,14 +108,7 @@ export class FilterDialogComponent {
   selectedKey = signal('');
   valueControl = new FormControl<unknown>(null);
 
-  /** Relative date presets (mirrors the server's `_DATE_PRESETS`). */
-  readonly datePresets = [
-    { key: 'today', label: 'Today' },
-    { key: 'last_2_days', label: 'Last 2 days' },
-    { key: 'last_7_days', label: 'Last 7 days' },
-    { key: 'last_30_days', label: 'Last 30 days' },
-    { key: 'last_year', label: 'Last year' },
-  ];
+  readonly datePresets = DATE_PRESETS;
   /** 'specific' = pick a date; otherwise a preset key. */
   datePreset = signal('specific');
 

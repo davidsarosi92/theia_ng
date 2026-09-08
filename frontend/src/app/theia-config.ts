@@ -17,6 +17,8 @@ export interface TheiaNgConfig {
   defaultLanguage: string;
   /** Django's active timezone name, used until per-user settings load. */
   defaultTimezone: string;
+  /** Whether THEIA_NG["LLM"] is configured. False => no assistant UI at all. */
+  assistEnabled: boolean;
 }
 
 declare global {
@@ -34,6 +36,7 @@ const FALLBACK: TheiaNgConfig = {
   logoUrl: '',
   defaultLanguage: 'en',
   defaultTimezone: 'UTC',
+  assistEnabled: false,
 };
 
 export function getConfig(): TheiaNgConfig {

@@ -53,14 +53,23 @@ class LogEntry(models.Model):
     One row per create / update / delete / custom action. ``changes`` holds the
     field-level diff (``{field: [old, new]}``) for create/update. ``username`` is
     snapshotted so the trail survives the user being deleted.
+
+    ``assist`` rows record what someone *asked* the natural-language assistant,
+    not what happened as a result: the assistant only ever produces a proposal,
+    and if the user then confirms a delete or a create, that write is audited
+    separately by the endpoint that performs it. Keeping both means the trail
+    shows the instruction and the effect as distinct events.
     """
 
-    CREATE, UPDATE, DELETE, ACTION = "create", "update", "delete", "action"
+    CREATE, UPDATE, DELETE, ACTION, ASSIST = (
+        "create", "update", "delete", "action", "assist"
+    )
     ACTIONS = [
         (CREATE, "Create"),
         (UPDATE, "Update"),
         (DELETE, "Delete"),
         (ACTION, "Action"),
+        (ASSIST, "Assistant"),
     ]
 
     user = models.ForeignKey(
@@ -191,3 +200,87 @@ class SiteConfig(models.Model):
 
     def __str__(self) -> str:
         return "Theia NG site config"
+
+
+class AssistHint(models.Model):
+    """Editable prompt material for the natural-language assistant.
+
+    One table covers three kinds of help, distinguished by ``kind``:
+
+    * ``model``  — what a model *is*, in the users' own words
+    * ``field``  — what one field means (``field_name`` required)
+    * ``term``   — a dictionary entry: a word users say, and what it maps to
+
+    **Measured caveat, and the reason this ships empty.** On a local 7B model,
+    added prompt prose made the assistant *worse* on held-out sentences (82% →
+    73% for plain descriptions, → 59% when the hint listed trigger words); see
+    ``docs/llm-eval/RESULTS.md``. Small models drift toward answering instead of
+    refusing when the prompt grows. Stronger models may well behave differently —
+    that is exactly what :class:`AssistExample` is for: measure, don't assume.
+    """
+
+    KIND_MODEL = "model"
+    KIND_FIELD = "field"
+    KIND_TERM = "term"
+    KIND_CHOICES = [
+        (KIND_MODEL, "Model description"),
+        (KIND_FIELD, "Field explanation"),
+        (KIND_TERM, "Dictionary term"),
+    ]
+
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_FIELD)
+    # Empty => applies to every model (a site-wide dictionary entry).
+    model_key = models.CharField(
+        max_length=100, blank=True, help_text="app_label.modelname — blank applies to all models"
+    )
+    field_name = models.CharField(max_length=100, blank=True, help_text="For 'field' hints")
+    term = models.CharField(max_length=100, blank=True, help_text="For 'term' entries: the word")
+    text = models.TextField(help_text="Keep it short and descriptive. Do NOT list trigger words.")
+    enabled = models.BooleanField(default=True)
+    modified = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Assistant hint"
+        verbose_name_plural = "Assistant hints"
+        ordering = ["model_key", "kind", "field_name", "term"]
+
+    def __str__(self) -> str:
+        target = self.field_name or self.term or self.model_key or "all models"
+        return f"{self.get_kind_display()}: {target}"
+
+
+class AssistExample(models.Model):
+    """A worked example: a sentence and the list state it should produce.
+
+    Two jobs, and the second is the important one:
+
+    1. Few-shot material for the prompt (when ``in_prompt``).
+    2. **A regression set.** Any change to hints, prompt, model or provider can be
+       replayed against these and scored, so a well-meant hint that quietly costs
+       20 points is caught instead of shipped. Nothing else in the feature can
+       tell you whether an edit helped or hurt.
+
+    ``expected`` holds the same shape ``validate()`` produces, e.g.::
+
+        {"intent": "filter", "search": "", "ordering": null,
+         "filters": [{"field": "status", "value": "cancelled"}]}
+    """
+
+    model_key = models.CharField(max_length=100, help_text="app_label.modelname")
+    prompt = models.CharField(max_length=500, help_text="What a user would type")
+    expected = models.JSONField(help_text="The list state this prompt should produce")
+    # Few-shot examples cost prompt space and can bias a small model; keeping this
+    # off leaves the example usable purely as a test.
+    in_prompt = models.BooleanField(
+        default=False, help_text="Include as a few-shot example in the prompt"
+    )
+    enabled = models.BooleanField(default=True)
+    modified = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Assistant example"
+        verbose_name_plural = "Assistant examples"
+        ordering = ["model_key", "prompt"]
+
+    def __str__(self) -> str:
+        return f"{self.model_key}: {self.prompt[:60]}"

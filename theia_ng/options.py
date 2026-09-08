@@ -112,6 +112,11 @@ class ModelAdmin:
     # and detail pages. (Django admin has no model-level description; this is ours.)
     description: str = ""
 
+    # Opt this model out of the natural-language assistant, even when
+    # THEIA_NG["LLM"] is configured. Off here wins over any allowlist — use it for
+    # models whose field names or choice labels should not leave the deployment.
+    assist: bool = True
+
     # --- list view ---------------------------------------------------------
     list_display: list[str] = []          # real fields + read-only properties (v1)
     list_filter: list[str] = []

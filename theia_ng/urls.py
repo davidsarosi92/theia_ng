@@ -21,6 +21,7 @@ from theia_ng.api import (
     settings_views,
     siteconfig_views,
 )
+from theia_ng.api.assist_views import AssistView
 from theia_ng.api.crud_views import (
     ActionView,
     DataDetailView,
@@ -64,6 +65,8 @@ api_patterns = [
     re_path(rf"^data/{_KEY}/$", DataListView.as_view(), name="data-list"),
     re_path(rf"^data/{_KEY}/(?P<pk>[^/]+)/$", DataDetailView.as_view(), name="data-detail"),
     re_path(rf"^action/{_KEY}/(?P<action_key>[a-zA-Z0-9_]+)/$", ActionView.as_view(), name="action"),
+    # Natural-language -> list state. 404s unless THEIA_NG["LLM"] is configured.
+    re_path(rf"^assist/{_KEY}/$", AssistView.as_view(), name="assist"),
 ]
 
 urlpatterns = [

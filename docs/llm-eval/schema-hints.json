@@ -1,0 +1,79 @@
+{
+  "model_key": "goods.inventorycountheader",
+  "verbose_name": "Inventory count header",
+  "description": "A single stocktake sheet within a catalog: the count of one Space/category. Its individual counted lines are the InventoryCounts.",
+  "filter_fields": [
+    {
+      "name": "status",
+      "label": "Állapot",
+      "type": "choice",
+      "choices": [
+        "pending",
+        "not_downloaded",
+        "in_progress",
+        "uploaded",
+        "cancelled",
+        "uploading"
+      ],
+      "choice_labels": {
+        "pending": "függőben",
+        "not_downloaded": "nincs letöltve",
+        "in_progress": "folyamatban",
+        "uploaded": "feltöltött / kész",
+        "cancelled": "megszakított / törölt",
+        "uploading": "feltöltés alatt"
+      },
+      "hint": "A leltárív aktuális állapota a folyamatban."
+    },
+    {
+      "name": "start",
+      "label": "Kezdés (mikor indították)",
+      "type": "datetime",
+      "presets": [
+        "today",
+        "last_2_days",
+        "last_7_days",
+        "last_30_days",
+        "last_year"
+      ],
+      "preset_labels": {
+        "today": "ma",
+        "last_2_days": "utóbbi 2 nap",
+        "last_7_days": "utóbbi 7 nap / múlt hét",
+        "last_30_days": "utóbbi 30 nap / múlt hónap",
+        "last_year": "utóbbi év / tavaly óta"
+      },
+      "hint": "Mikor KEZDTÉK EL a leltározást. Ide tartozik minden „indított”, „elkezdett”, „nekiálltak”, „megkezdett” megfogalmazás."
+    },
+    {
+      "name": "finish",
+      "label": "Befejezés (mikor zárták le)",
+      "type": "datetime",
+      "presets": [
+        "today",
+        "last_2_days",
+        "last_7_days",
+        "last_30_days",
+        "last_year"
+      ],
+      "preset_labels": {
+        "today": "ma",
+        "last_2_days": "utóbbi 2 nap",
+        "last_7_days": "utóbbi 7 nap / múlt hét",
+        "last_30_days": "utóbbi 30 nap / múlt hónap",
+        "last_year": "utóbbi év / tavaly óta"
+      },
+      "hint": "Mikor FEJEZTÉK BE / zárták le a leltározást. Ide tartozik minden „lezárt”, „befejezett”, „véglegesített”, „kész” megfogalmazás."
+    }
+  ],
+  "search_description": "Free text is matched against: the starting user's name and their integration name, external_key1, external_key2, and the space / house / company / registration names. (magyarul: helyszín, ház, cég, regisztráció neve, vagy a leltárt indító személy neve)",
+  "ordering_fields": [
+    "pk",
+    "start",
+    "finish",
+    "status",
+    "started_by"
+  ],
+  "model_hint": "A leltárív (röviden „ív”) egy helyiség egyszeri leltározása. A felhasználók „leltár”, „ív”, „leltárív” és „munka” néven is hivatkoznak rá.",
+  "search_hint": "Helyszínek, cégek, egységek és személyek nevei ide tartoznak, nem szűrőbe."
+}

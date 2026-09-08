@@ -191,6 +191,9 @@ export interface ModelSchema {
   verbose_name: string;
   /** Optional human description (ModelAdmin.description), shown under the title. */
   description?: string;
+  /** Whether the assistant is available for THIS model (the global config flag is
+   *  not enough — allow/deny lists and ModelAdmin.assist gate it per model). */
+  assist?: boolean;
   perms: Perms;
   endpoints: { list: string; detail: string };
   list: ListConfig;
@@ -322,4 +325,47 @@ export interface LogResponse {
   num_pages: number;
   results: LogEntry[];
   is_superuser: boolean;
+}
+
+/** One filter as the assistant returns it (label/display are added client-side
+ *  from the schema — the server only commits to field + value). */
+export interface AssistFilter {
+  field: string;
+  value: string;
+}
+
+/** What the user was asking for. Only `filter` is harmless; the other two end in
+ *  a confirmation modal because they cannot be undone. */
+export type AssistIntent = 'filter' | 'delete' | 'create';
+
+/** The state the assistant proposes. Never carried out without the user acting. */
+export interface AssistState {
+  intent: AssistIntent;
+  search: string;
+  filters: AssistFilter[];
+  ordering: string | null;
+  /** Field values for a create proposal (relations are never included). */
+  create: Record<string, string>;
+  /** Parts of the request the filter DSL cannot express. */
+  unsupported: string[];
+}
+
+/** The real queryset behind a delete proposal: exact count plus a sample, so the
+ *  user confirms against reality rather than against a description. */
+export interface AssistPreview {
+  count: number;
+  shown: number;
+  rows: Record<string, unknown>[];
+}
+
+export interface AssistResponse {
+  model_key: string;
+  state: AssistState;
+  unsupported: string[];
+  /** Anything the server refused to trust (hallucinated field/value). Non-empty
+   *  means the proposal is narrower than what was asked — the UI must say so. */
+  rejected: string[];
+  /** Present only for a delete proposal. */
+  preview: AssistPreview | null;
+  llm_model: string;
 }
