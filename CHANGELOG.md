@@ -618,6 +618,22 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.28.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.28.0
+[0.27.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.2
+[0.27.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.1
+[0.27.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.0
+[0.26.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.26.0
+[0.25.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.25.0
+[0.24.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.24.0
+[0.23.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.23.1
+[0.23.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.23.0
+[0.22.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.22.0
+[0.21.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.21.0
+[0.20.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.20.0
+[0.19.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.19.0
+[0.18.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.18.0
+[0.17.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.17.1
+[0.17.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.17.0
 [0.16.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.2
 [0.16.1]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.1
 [0.16.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.16.0
