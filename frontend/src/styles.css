@@ -150,6 +150,26 @@ body {
 .nav-drag:hover { opacity: 1; }
 .nav-drag:active { cursor: grabbing; }
 
+/* List column chooser: a checkbox per column, drag handle to reorder. */
+.col-hint { margin: -0.5rem 0 0.75rem; }
+.col-list {
+  display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 1rem;
+  max-height: 55vh; overflow-y: auto;
+}
+.col-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.35rem 0.5rem; border-radius: 6px; cursor: pointer;
+  background: var(--panel);
+}
+.col-item:hover { background: var(--hover); }
+.col-item .col-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.col-drag {
+  flex: 0 0 auto; cursor: grab; color: var(--muted); opacity: 0.6;
+  touch-action: none; user-select: none; line-height: 1; padding: 0 0.2rem;
+}
+.col-drag:hover { opacity: 1; }
+.col-drag:active { cursor: grabbing; }
+
 /* "Reset order" — restores the default sidebar ordering; shown only when the
    user has a custom order, hidden in the compact rail. */
 .nav-reset {

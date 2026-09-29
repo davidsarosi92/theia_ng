@@ -19,6 +19,7 @@ const ICON_FOR: Record<string, string> = {
   deleteEntity: 'trash',
   removeLink: 'circle-slash',
   filter: 'funnel',
+  columns: 'columns',
   run: 'play',
   choose: 'search',
 };

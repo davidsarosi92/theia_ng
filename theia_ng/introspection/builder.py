@@ -230,6 +230,20 @@ def _resolve_lookup_field(model: type[Model], path: str) -> Field | None:
     return field
 
 
+def list_column_pool(model: type[Model], admin: ModelAdmin) -> list[str]:
+    """Every column a list may show, in offer order: ``list_display`` (shown by
+    default), then ``list_display_optional`` (declared, hidden by default), then
+    the model's own fields.
+
+    This is the allowlist for the list endpoint's ``columns=`` and ``ordering=``
+    and for a user's saved column choice. A name outside it is dropped, so a
+    request can never make the server evaluate an arbitrary attribute — before
+    this, ``?columns=delete`` called ``obj.delete()`` on every listed row."""
+    names = [*admin.list_display, *admin.list_display_optional]
+    names += [f.name for f in [*model._meta.concrete_fields, *model._meta.many_to_many]]
+    return list(dict.fromkeys(n for n in names if isinstance(n, str)))
+
+
 def _path_label(path: str) -> str:
     """`house__company__name` -> `House Company Name`."""
     return path.replace("__", " ").replace("_", " ").title()
@@ -567,7 +581,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
     # Synthetic descriptors for relation-spanning lookups (`a__b`) used as
     # list_display columns or field filters, so the SPA can label and filter them.
     existing = {f["name"] for f in fields}
-    for path in [*admin.list_display, *_field_filters]:
+    for path in [*admin.list_display, *admin.list_display_optional, *_field_filters]:
         if isinstance(path, str) and "__" in path and path not in existing:
             desc = _lookup_field_descriptor(model, admin, path)
             if desc is not None:
@@ -592,6 +606,7 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         })
         existing.add(name)
 
+    pool = list_column_pool(model, admin)
     return {
         "schema_version": SCHEMA_VERSION,
         "key": key,
@@ -603,7 +618,11 @@ def _model_structure(model: type[Model], admin: ModelAdmin) -> dict[str, Any]:
         },
         "list": {
             "display": list(admin.list_display),
-            "labels": {name: _column_label(model, admin, name) for name in admin.list_display},
+            # Columns a user may switch on/off and reorder (``display`` first),
+            # and whether this model offers that choice at all.
+            "available": pool,
+            "customizable": admin.list_customizable,
+            "labels": {name: _column_label(model, admin, name) for name in pool},
             "filters": _field_filters,
             "custom_filters": _custom_filters,
             "search_fields": list(admin.search_fields),

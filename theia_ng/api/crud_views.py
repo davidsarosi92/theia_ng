@@ -47,6 +47,7 @@ from theia_ng.api.serialization import (
     serialize_option,
 )
 from theia_ng.api.list_optimize import select_related_paths
+from theia_ng.introspection.builder import list_column_pool
 from theia_ng.permissions import has_access
 from theia_ng.registry import site
 
@@ -313,14 +314,37 @@ def _relation_paths_for(admin, columns) -> list[str]:
     return paths
 
 
-def _requested_columns(request: HttpRequest, admin) -> list[str]:
+def _requested_columns(request: HttpRequest, model, admin) -> list[str]:
     """Columns to serialize for this list request: the client's ``columns=``
-    (a saved view's fields) if present, else the admin's ``list_display``. Limits
-    the row to what's shown instead of every field — a much narrower query."""
+    (a view's or the user's chosen fields) if present, else the admin's
+    ``list_display``. Limits the row to what's shown instead of every field — a
+    much narrower query.
+
+    Client names are intersected with :func:`list_column_pool`: a column is
+    resolved with ``getattr`` (and called, if callable), so an unchecked name
+    would let any viewer run a model method such as ``delete``."""
     raw = request.GET.get("columns")
     if raw:
-        return [c for c in raw.split(",") if c]
+        allowed = {*list_column_pool(model, admin), "pk"}
+        cols = [c for c in dict.fromkeys(raw.split(",")) if c in allowed]
+        if cols:
+            return cols
     return list(admin.list_display)
+
+
+def _requested_ordering(request: HttpRequest, model, admin) -> list[str]:
+    """The client's ``ordering=`` terms that name an allowed column (optionally
+    ``-``-prefixed); anything else is dropped. Ordering by an arbitrary lookup
+    (``owner__password``) would leak values of fields the list never shows."""
+    raw = request.GET.get("ordering")
+    if not raw:
+        return []
+    allowed = {
+        *(c for c in list_column_pool(model, admin) if not callable(getattr(admin, c, None))),
+        *(o.lstrip("-") for o in admin.ordering),
+        "pk",
+    }
+    return [t for t in raw.split(",") if t and t.lstrip("-") in allowed]
 
 
 class _BaseModelView(View):
@@ -346,7 +370,7 @@ class DataListView(_BaseModelView):
         if not self.admin.has_view_permission(request):
             return _forbidden()
 
-        columns = _requested_columns(request, self.admin)
+        columns = _requested_columns(request, self.model, self.admin)
         cols = set(columns)
         fk_names, m2m_names = relation_field_names(serializable_fields(self.model))
         qs = self.admin.get_queryset(request)
@@ -373,9 +397,9 @@ class DataListView(_BaseModelView):
             qs = apply_list_filters(qs, self.model, self.admin, request.GET, request)
 
             # ordering
-            ordering = request.GET.get("ordering")
+            ordering = _requested_ordering(request, self.model, self.admin)
             if ordering:
-                qs = qs.order_by(*ordering.split(","))
+                qs = qs.order_by(*ordering)
             elif self.admin.ordering:
                 qs = qs.order_by(*self.admin.ordering)
             else:

@@ -56,6 +56,11 @@ menu views, favorites, audit log, **i18n (9 languages) + locale/TZ dates**,
 pagination/sort/loaders, column-scoped list serialization, fast list provider
 (fastberry), IR cache.
 
+**Personal list columns** shipped in 0.30.0 (per-user column pick/order over a
+code-defined pool; `list_display_optional`, `list_customizable`; migration
+`0011`) together with the `?columns=` / `?ordering=` allowlist security fix.
+Possible follow-ups: per-user form-field hiding, per-user `list_per_page`.
+
 **Tier 1 — all cleared.** Inlines, i18n, fieldsets and list_editable all shipped
 in 0.13.0. The next-biggest gaps are now the Tier 2 items below.
 

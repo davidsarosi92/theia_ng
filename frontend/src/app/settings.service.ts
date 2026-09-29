@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 
 import { ApiService } from './api.service';
-import { ButtonStylePref, LanguageOption, ThemePref, UserSettings } from './models';
+import { ButtonStylePref, LanguageOption, ThemePref, UserSettings, UserSettingsPatch } from './models';
 import { getConfig } from './theia-config';
 
 /** localStorage key for the resolved theme, mirrored so the inline bootstrap in
@@ -26,6 +26,8 @@ export class SettingsService {
   readonly buttonStyle = signal<ButtonStylePref>('label');
   readonly navAppOrder = signal<string[]>([]);
   readonly navOrder = signal<string[]>([]);
+  /** The user's own list columns per model (missing = the model's default). */
+  readonly listColumns = signal<Record<string, string[]>>({});
   readonly availableLanguages = signal<LanguageOption[]>([]);
 
   private mql?: MediaQueryList;
@@ -50,6 +52,7 @@ export class SettingsService {
       this.buttonStyle.set('label');
       this.navAppOrder.set([]);
       this.navOrder.set([]);
+      this.listColumns.set({});
       this.applyTheme();
       this.applyButtonStyle();
       return;
@@ -69,6 +72,7 @@ export class SettingsService {
     this.buttonStyle.set(s.button_style ?? 'label');
     this.navAppOrder.set(s.nav_app_order ?? []);
     this.navOrder.set(s.nav_order ?? []);
+    this.listColumns.set(s.list_columns ?? {});
     if (s.available_languages) {
       this.availableLanguages.set(s.available_languages);
     }
@@ -127,6 +131,18 @@ export class SettingsService {
     this.persist({ nav_app_order: [], nav_order: [] });
   }
 
+  /** Save the user's columns for one model (null restores the default). */
+  setListColumns(modelKey: string, columns: string[] | null): void {
+    const next = { ...this.listColumns() };
+    if (columns && columns.length) {
+      next[modelKey] = columns;
+    } else {
+      delete next[modelKey];
+    }
+    this.listColumns.set(next);
+    this.persist({ list_columns: { [modelKey]: columns } });
+  }
+
   /** Whether the user has a custom sidebar order (so a Reset control can show). */
   hasCustomNavOrder(): boolean {
     return this.navAppOrder().length > 0 || this.navOrder().length > 0;
@@ -153,7 +169,7 @@ export class SettingsService {
     }
   }
 
-  private persist(patch: Partial<UserSettings>): void {
+  private persist(patch: UserSettingsPatch): void {
     this.api.saveSettings(patch).subscribe({
       next: (s) => this.apply(s),
       error: () => {

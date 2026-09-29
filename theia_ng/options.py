@@ -119,6 +119,13 @@ class ModelAdmin:
 
     # --- list view ---------------------------------------------------------
     list_display: list[str] = []          # real fields + read-only properties (v1)
+    # Extra columns (computed ``@display`` methods, ``a__b`` lookups, properties)
+    # a user may switch on from the list's column chooser; hidden by default.
+    # The model's own fields are always offered, so list only what isn't a field.
+    list_display_optional: list[str] = []
+    # Whether users may pick, hide and reorder this model's list columns for
+    # themselves (saved per user). False pins the list to ``list_display``.
+    list_customizable: bool = True
     list_filter: list[str] = []
     search_fields: list[str] = []
     ordering: list[str] = []

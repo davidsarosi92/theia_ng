@@ -4,6 +4,48 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.30.0] — 2026-09-29
+### Security
+- **A list request could run model methods.** The list endpoint resolved each
+  name in `?columns=` with `getattr` and called it if callable, so
+  `GET …/data/<model>/?columns=delete` ran `obj.delete()` on every row of the
+  page — for any user with *view* permission, over a plain GET (no CSRF token),
+  and with no audit entry. Requested columns are now intersected with the
+  model's column pool (see below); anything else is dropped. **Upgrade.**
+- **`?ordering=` is limited to the same pool** (plus the admin's `ordering`), so
+  sorting by an arbitrary lookup (`owner__password`) can no longer be used to
+  infer values the list never shows. A disallowed term is ignored, not an error.
+
+### Added
+- **Personal list columns.** A **Columns** button on the list lets each user
+  tick which columns show and drag them into order; the choice is saved per user
+  and model (`UserSettings.list_columns`, migration `0011`) and follows them
+  across devices. **Reset to default** drops it. The code stays the source of
+  truth: `list_display` (from `theia.py` or a discovered `admin.py`) is the
+  default, and a user can only choose within the model's *column pool* —
+  `list_display`, then the new **`list_display_optional`**, then the model's own
+  fields. Precedence on screen: the user's columns, then the active menu view's
+  fields, then `list_display`.
+- **`ModelAdmin.list_display_optional`** — computed `@display` columns, `a__b`
+  lookups or properties a user may switch on, hidden by default.
+- **`ModelAdmin.list_customizable = False`** pins a model's list to
+  `list_display` (no Columns button; a saved choice is ignored and not stored).
+- The schema's `list` now carries `available` (the pool) and `customizable`, and
+  `labels` covers every pooled column.
+
+### Fixed
+- **Switching the menu view left the rows without the new columns' data** until
+  the next page load; the list now refetches whenever its shown columns change.
+
+### Upgrade notes
+- Run `migrate` (adds `0011_usersettings_list_columns`).
+- The cached schema lacks the new keys until it expires (`SCHEMA_TTL`) or is
+  flushed; use **Settings → Clear schema cache** (or bump `CACHE_VERSION`) to
+  get the Columns button immediately.
+- A MenuView field or a `columns=` name that is neither in `list_display` /
+  `list_display_optional` nor a model field (e.g. a model property) is no longer
+  served; add it to `list_display_optional`.
+
 ## [0.29.0] — 2026-09-08
 ### Added
 - **Assistant omnibox — ⌘K / Ctrl+K, or the magnifier in the top bar.** Ask from
@@ -646,6 +688,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.30.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.30.0
 [0.29.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.29.0
 [0.28.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.28.0
 [0.27.2]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.27.2

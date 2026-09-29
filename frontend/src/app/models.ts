@@ -81,8 +81,17 @@ export interface UserSettings {
   nav_app_order: string[];
   /** Model order within groups (list of app_label.model_name). */
   nav_order: string[];
+  /** The user's own list columns per model ({app.model -> columns, in order});
+   *  a missing model uses its default. */
+  list_columns?: Record<string, string[]>;
   available_languages?: LanguageOption[];
 }
+
+/** A settings PATCH body. `list_columns` is merged per model server-side; a
+ *  null (or empty list) drops that model's choice. */
+export type UserSettingsPatch = Partial<Omit<UserSettings, 'list_columns'>> & {
+  list_columns?: Record<string, string[] | null>;
+};
 
 export interface Choice {
   value: string | number;
@@ -131,7 +140,14 @@ export interface CustomFilter {
 }
 
 export interface ListConfig {
+  /** Default columns (ModelAdmin.list_display). */
   display: string[];
+  /** Every column the list may show, in offer order (display first, then the
+   *  admin's optional columns, then the model's own fields). The server drops
+   *  any requested column outside this. */
+  available?: string[];
+  /** Whether users may pick and reorder their own columns for this model. */
+  customizable?: boolean;
   /** Column name -> header label (fields humanized, computed columns' short_description). */
   labels: Record<string, string>;
   filters: string[];

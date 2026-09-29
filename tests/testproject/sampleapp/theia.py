@@ -11,6 +11,8 @@ class StockAdmin(theia_ng.ModelAdmin):
     list_display = ["name", "category", "house__name", "quantity", "is_active"]
     list_filter = ["category", "is_active", "house__name", "created_at"]
     list_editable = ["quantity", "is_active"]
+    # Offered in the user's column chooser, hidden by default.
+    list_display_optional = ["category__name", "shout"]
     search_fields = ["name"]
     ordering = ["name"]
     fieldsets = [
@@ -29,6 +31,10 @@ class StockAdmin(theia_ng.ModelAdmin):
 
     def deactivate(self, request, queryset):
         return {"updated": queryset.update(is_active=False)}
+
+    @theia_ng.display(description="Shout")
+    def shout(self, obj):
+        return obj.name.upper()
 
     # Object action (detail page), dangerous, no params.
     @theia_ng.action(label="Archive", detail=True, dangerous=True)
@@ -88,6 +94,7 @@ class HouseAdmin(theia_ng.ModelAdmin):
 @theia_ng.register(Space)
 class SpaceAdmin(theia_ng.ModelAdmin):
     list_display = ["name", "house"]
+    list_customizable = False  # users can't change this list's columns
     search_fields = ["name"]
     tree_parent = "house"
 

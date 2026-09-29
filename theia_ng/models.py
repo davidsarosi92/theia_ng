@@ -131,6 +131,10 @@ class UserSettings(models.Model):
     (a list of ``app_label`` strings), and ``nav_order`` orders the model links
     *within* their group (a list of ``app_label.model_name`` keys). Unknown/stale
     entries are ignored and anything missing falls back to natural (name) order.
+
+    ``list_columns`` is the user's own column set per model: the code
+    (``theia.py`` / discovered ``admin.py``) defines the default and what may be
+    chosen, the user picks and orders within that.
     """
 
     THEME_AUTO, THEME_LIGHT, THEME_DARK = "auto", "light", "dark"
@@ -161,6 +165,10 @@ class UserSettings(models.Model):
     # Sidebar ordering (see class docstring): app groups, then models per group.
     nav_app_order = models.JSONField(default=list, blank=True)
     nav_order = models.JSONField(default=list, blank=True)
+    # Per-model list columns the user picked, in order: {"app.model": [col, ...]}.
+    # A missing key means the model's default (the active view's fields, else
+    # ``list_display``). Validated against the model's column pool on save.
+    list_columns = models.JSONField(default=dict, blank=True)
 
     class Meta:
         verbose_name = "User settings"

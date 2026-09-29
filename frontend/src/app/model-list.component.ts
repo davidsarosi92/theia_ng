@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, forkJoin } from 'rxjs';
@@ -7,12 +7,14 @@ import { ActionDialogComponent } from './action-dialog.component';
 import { ApiService } from './api.service';
 import { AssistPanelComponent } from './assist-panel.component';
 import { ButtonLabelComponent } from './button-label.component';
+import { ColumnChooserDialogComponent } from './column-chooser-dialog.component';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 import { AppliedFilter, FilterDialogComponent } from './filter-dialog.component';
 import { I18nService } from './i18n.service';
 import { MessageKey } from './i18n/messages';
 import { inputTypeFor } from './field-widgets';
 import { ActionSpec, AssistState, FieldSpec, ModelSchema } from './models';
+import { SettingsService } from './settings.service';
 import { ToastService } from './toast.service';
 import { actionResultError, cap, slugToKey } from './util';
 
@@ -34,6 +36,7 @@ import { ViewService } from './view.service';
     AssistPanelComponent,
     ActionDialogComponent,
     ConfirmDialogComponent,
+    ColumnChooserDialogComponent,
     ButtonLabelComponent,
   ],
   template: `
@@ -49,6 +52,9 @@ import { ViewService } from './view.service';
         <div class="list-actions">
           @for (a of toolbarActions(); track a.key) {
             <button class="btn secondary" (click)="openAction(a)">{{ actionLabel(a) }}</button>
+          }
+          @if (s.list.customizable) {
+            <button class="btn secondary" (click)="showColumns.set(true)"><theia-blabel icon="columns" [text]="t('columns')" /></button>
           }
           @if (s.list.filters.length || s.list.custom_filters?.length) {
             <button class="btn secondary" (click)="showFilter.set(true)"><theia-blabel icon="filter" [text]="t('filter')" /></button>
@@ -242,6 +248,17 @@ import { ViewService } from './view.service';
         />
       }
 
+      @if (showColumns()) {
+        <theia-column-chooser-dialog
+          [schema]="s"
+          [current]="columns()"
+          [customized]="hasOwnColumns()"
+          (saved)="saveColumns($event)"
+          (reset)="saveColumns(null)"
+          (closed)="showColumns.set(false)"
+        />
+      }
+
       @if (showFilter()) {
         <theia-filter-dialog
           [schema]="s"
@@ -277,6 +294,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewService = inject(ViewService);
+  private settings = inject(SettingsService);
   private toast = inject(ToastService);
   private i18n = inject(I18nService);
   protected t = this.i18n.t;
@@ -298,6 +316,9 @@ export class ModelListComponent implements OnInit, OnDestroy {
   ordering = signal<string | null>(null);
   filters = signal<AppliedFilter[]>([]);
   showFilter = signal(false);
+  showColumns = signal(false);
+  /** The columns the rows on screen were fetched with (see the constructor). */
+  private loadedColumns: string | null = null;
   showAssist = signal(false);
   activeAction = signal<ActionSpec | null>(null);
   loading = signal(false);
@@ -491,8 +512,46 @@ export class ModelListComponent implements OnInit, OnDestroy {
     });
   }
 
+  constructor() {
+    // Rows only carry the columns they were fetched with, so refetch when the
+    // shown set changes without a load of its own: the user's saved columns
+    // arriving after the first page, or switching the active menu view.
+    effect(() => {
+      const cols = this.columns().join(',');
+      if (untracked(this.schema) && this.loadedColumns !== null && cols !== this.loadedColumns) {
+        untracked(() => this.load());
+      }
+    });
+  }
+
+  /** The user's own column set for this model, limited to what the model still
+   *  offers (a field may have been removed since it was saved); null if none. */
+  private ownColumns(): string[] | null {
+    const list = this.schema()?.list;
+    if (!list?.customizable) {
+      return null;
+    }
+    const pool = new Set(list.available ?? list.display);
+    const mine = (this.settings.listColumns()[this.modelKey] ?? []).filter((c) => pool.has(c));
+    return mine.length ? mine : null;
+  }
+
+  hasOwnColumns(): boolean {
+    return this.ownColumns() !== null;
+  }
+
+  saveColumns(columns: string[] | null): void {
+    this.showColumns.set(false);
+    this.settings.setListColumns(this.modelKey, columns);
+  }
+
   columns(): string[] {
-    // The active view, if any, defines the visible columns; else list_display.
+    // Most specific wins: the user's own columns, then the active view's fields,
+    // then the code-defined list_display.
+    const own = this.ownColumns();
+    if (own) {
+      return own;
+    }
     const viewFields = this.viewService.fieldsFor(this.modelKey);
     if (viewFields) {
       return viewFields;
@@ -552,9 +611,10 @@ export class ModelListComponent implements OnInit, OnDestroy {
     this.edits.set(new Map());
     // Tell the server which columns are shown so it serializes only those (a much
     // narrower query) instead of every field. Re-fetched when columns/view change.
+    this.loadedColumns = this.columns().join(',');
     const params: Record<string, string | number> = {
       page: this.page(),
-      columns: this.columns().join(','),
+      columns: this.loadedColumns,
     };
     if (this.searchTerm()) {
       params['search'] = this.searchTerm();

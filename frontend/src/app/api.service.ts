@@ -16,6 +16,7 @@ import {
   TreeChildrenResponse,
   TreeResponse,
   UserSettings,
+  UserSettingsPatch,
 } from './models';
 import { getConfig } from './theia-config';
 
@@ -76,7 +77,7 @@ export class ApiService {
   }
 
   /** Persist a subset of settings; returns the merged settings. */
-  saveSettings(patch: Partial<UserSettings>): Observable<UserSettings> {
+  saveSettings(patch: UserSettingsPatch): Observable<UserSettings> {
     return this.http.patch<UserSettings>(this.url('settings/'), patch);
   }
 

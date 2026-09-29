@@ -70,6 +70,9 @@ ships inside the wheel.
   (`tree_parent` / `tree_children`), always from the topmost ancestor. Children
   load **lazily** as searchable, paginated mini-tables (scales to thousands of
   relations), with per-row permission-aware View / Edit / Delete
+- **Personal list columns** — each user picks, hides and reorders a list's
+  columns for themselves (saved server-side); the code defines the default and
+  what may be chosen
 - **Menu views** — admin-defined, named subsets of the sidebar (which models, and
   which of their fields), switchable from the top bar; always narrowed by perms
 - **Favorites** — each user stars their own home-page shortcuts (server-side,
@@ -290,6 +293,32 @@ class StockAdmin(theia_ng.ModelAdmin):
     list_display = ["title", "quantity", "is_active"]
     list_editable = ["quantity", "is_active"]
 ```
+
+## Personal list columns
+
+Each user can choose which columns a list shows, and in what order, from the
+**Columns** button on the list; the choice is saved per user and model and
+follows them across devices (**Reset to default** drops it). Your code still
+decides: `list_display` is the default, and users choose only from the model's
+*column pool* — `list_display`, then `list_display_optional`, then the model's
+own fields:
+
+```python
+@theia_ng.register(Stock)
+class StockAdmin(theia_ng.ModelAdmin):
+    list_display = ["name", "category", "quantity"]       # the default
+    list_display_optional = ["house__name", "value"]      # offered, hidden by default
+    # list_customizable = False                           # pin to list_display
+
+    @theia_ng.display(description="Value")
+    def value(self, obj):
+        return obj.quantity * obj.unit_price
+```
+
+The pool is enforced server-side: the list endpoint serializes and sorts only by
+pooled columns, whatever the client asks for. On screen the user's own columns
+win over the active [menu view](#menu-views)'s fields, which win over
+`list_display`.
 
 ## Inlines
 

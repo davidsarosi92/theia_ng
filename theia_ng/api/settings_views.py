@@ -10,6 +10,12 @@ so the SPA always receives concrete values to apply.
 * ``PATCH settings/`` body with any subset of ``language``/``timezone``/
   ``theme``/``nav_order`` → persists and returns the merged settings
 
+``list_columns`` is patched *per model*: ``{"list_columns": {"app.model":
+[cols]}}`` replaces that model's column set and leaves the others alone;
+``null`` or ``[]`` drops it (back to the default). Columns outside the model's
+pool, unregistered models, and models with ``list_customizable = False`` are
+dropped — the stored choice can only ever narrow or reorder what the code allows.
+
 Session auth (same origin), so the PATCH carries the CSRF token like the other
 write endpoints. Gated by ``has_access``.
 """
@@ -67,6 +73,7 @@ def _effective(user) -> dict:
         "button_style": (row.button_style if row else UserSettings.BTN_LABEL),
         "nav_app_order": (list(row.nav_app_order) if row and row.nav_app_order else []),
         "nav_order": (list(row.nav_order) if row and row.nav_order else []),
+        "list_columns": (dict(row.list_columns) if row and row.list_columns else {}),
     }
 
 
@@ -76,6 +83,40 @@ def _clean_str_list(value):
         return None
     seen: set[str] = set()
     return [k for k in value if not (k in seen or seen.add(k))]
+
+
+# Upper bound on one model's saved columns; a pool is rarely a tenth of this.
+MAX_LIST_COLUMNS = 200
+
+
+def _merge_list_columns(current: dict, patch) -> dict | None:
+    """``current`` with the per-model ``patch`` applied, or None if the patch is
+    malformed. Unknown models and columns are dropped rather than rejected, so a
+    stale client (a model since unregistered, a renamed field) still saves."""
+    from theia_ng.introspection.builder import list_column_pool
+    from theia_ng.registry import site
+
+    if not isinstance(patch, dict):
+        return None
+    merged = {k: v for k, v in current.items() if isinstance(v, list)}
+    for key, cols in patch.items():
+        if cols is None or cols == []:
+            merged.pop(key, None)
+            continue
+        cleaned = _clean_str_list(cols)
+        if cleaned is None:
+            return None
+        resolved = site.get_model(key)
+        if resolved is None or not resolved[1].list_customizable:
+            merged.pop(key, None)
+            continue
+        pool = set(list_column_pool(*resolved))
+        kept = [c for c in cleaned if c in pool][:MAX_LIST_COLUMNS]
+        if kept:
+            merged[key] = kept
+        else:
+            merged.pop(key, None)
+    return merged
 
 
 def settings(request: HttpRequest) -> JsonResponse:
@@ -127,6 +168,18 @@ def settings(request: HttpRequest) -> JsonResponse:
             if cleaned is None:
                 return JsonResponse({"detail": "`nav_order` must be a list of strings"}, status=400)
             defaults["nav_order"] = cleaned
+
+        if "list_columns" in data:
+            row = UserSettings.objects.filter(user=user).first()
+            merged = _merge_list_columns(
+                dict(row.list_columns) if row and row.list_columns else {}, data["list_columns"]
+            )
+            if merged is None:
+                return JsonResponse(
+                    {"detail": "`list_columns` must map model keys to lists of strings"},
+                    status=400,
+                )
+            defaults["list_columns"] = merged
 
         if defaults:
             UserSettings.objects.update_or_create(user=user, defaults=defaults)
