@@ -150,6 +150,9 @@ body {
 .nav-drag:hover { opacity: 1; }
 .nav-drag:active { cursor: grabbing; }
 
+/* A value + action on one line inside a settings field (e.g. "Reset all"). */
+.settings-inline { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
 /* List column chooser: a checkbox per column, drag handle to reorder. */
 .col-hint { margin: -0.5rem 0 0.75rem; }
 .col-list {

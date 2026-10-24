@@ -10,11 +10,15 @@ so the SPA always receives concrete values to apply.
 * ``PATCH settings/`` body with any subset of ``language``/``timezone``/
   ``theme``/``nav_order`` → persists and returns the merged settings
 
-``list_columns`` is patched *per model*: ``{"list_columns": {"app.model":
-[cols]}}`` replaces that model's column set and leaves the others alone;
-``null`` or ``[]`` drops it (back to the default). Columns outside the model's
-pool, unregistered models, and models with ``list_customizable = False`` are
-dropped — the stored choice can only ever narrow or reorder what the code allows.
+``list_columns`` is patched *per key*: ``{"list_columns": {"app.model":
+[cols]}}`` replaces that key's column set and leaves the others alone; ``null``
+or ``[]`` drops it (back to the default), and ``"list_columns": null`` drops
+them all. A key is ``app.model`` (no menu view, or a view that doesn't narrow
+the model) or ``app.model@<view name>`` (a view that narrows the model's fields
+gets its own set). Columns outside the model's pool, models the user can't view
+or that set ``list_customizable = False``, and views that don't narrow the model
+are dropped — a stored choice can only ever narrow or reorder what the code
+allows.
 
 Session auth (same origin), so the PATCH carries the CSRF token like the other
 write endpoints. Gated by ``has_access``.
@@ -24,6 +28,7 @@ from __future__ import annotations
 
 import json
 
+from django.db import transaction
 from django.http import HttpRequest, JsonResponse
 from django.utils import timezone as django_tz
 from django.utils import translation
@@ -89,16 +94,30 @@ def _clean_str_list(value):
 MAX_LIST_COLUMNS = 200
 
 
-def _merge_list_columns(current: dict, patch) -> dict | None:
-    """``current`` with the per-model ``patch`` applied, or None if the patch is
-    malformed. Unknown models and columns are dropped rather than rejected, so a
-    stale client (a model since unregistered, a renamed field) still saves."""
+def _view_narrowed_models() -> dict[str, set[str]]:
+    """Menu view name -> the model keys it narrows to a field list."""
+    from theia_ng.models import MenuView
+
+    return {
+        v.name: {k for k, f in (v.model_fields or {}).items() if f}
+        for v in MenuView.objects.only("name", "model_fields")
+    }
+
+
+def _merge_list_columns(current: dict, patch, request: HttpRequest) -> dict | None:
+    """``current`` with the per-key ``patch`` applied, or None if the patch is
+    malformed. Unknown models, views and columns are dropped rather than
+    rejected, so a stale client (a model since unregistered, a renamed field or
+    view) still saves. ``patch=None`` clears every saved set."""
     from theia_ng.introspection.builder import list_column_pool
     from theia_ng.registry import site
 
+    if patch is None:
+        return {}
     if not isinstance(patch, dict):
         return None
     merged = {k: v for k, v in current.items() if isinstance(v, list)}
+    views: dict[str, set[str]] | None = None
     for key, cols in patch.items():
         if cols is None or cols == []:
             merged.pop(key, None)
@@ -106,10 +125,23 @@ def _merge_list_columns(current: dict, patch) -> dict | None:
         cleaned = _clean_str_list(cols)
         if cleaned is None:
             return None
-        resolved = site.get_model(key)
-        if resolved is None or not resolved[1].list_customizable:
+        model_key, _, view = key.partition("@")
+        resolved = site.get_model(model_key)
+        # Checking view permission keeps the response from echoing back which
+        # column names exist on a model the user can't see.
+        if (
+            resolved is None
+            or not resolved[1].list_customizable
+            or not resolved[1].has_view_permission(request)
+        ):
             merged.pop(key, None)
             continue
+        if view:
+            if views is None:
+                views = _view_narrowed_models()
+            if model_key not in views.get(view, ()):
+                merged.pop(key, None)
+                continue
         pool = set(list_column_pool(*resolved))
         kept = [c for c in cleaned if c in pool][:MAX_LIST_COLUMNS]
         if kept:
@@ -169,20 +201,23 @@ def settings(request: HttpRequest) -> JsonResponse:
                 return JsonResponse({"detail": "`nav_order` must be a list of strings"}, status=400)
             defaults["nav_order"] = cleaned
 
-        if "list_columns" in data:
-            row = UserSettings.objects.filter(user=user).first()
-            merged = _merge_list_columns(
-                dict(row.list_columns) if row and row.list_columns else {}, data["list_columns"]
-            )
-            if merged is None:
-                return JsonResponse(
-                    {"detail": "`list_columns` must map model keys to lists of strings"},
-                    status=400,
+        with transaction.atomic():
+            if "list_columns" in data:
+                # A per-key merge reads the stored dict: lock the row so two
+                # tabs saving different models can't overwrite each other.
+                row, _ = UserSettings.objects.select_for_update().get_or_create(user=user)
+                merged = _merge_list_columns(
+                    dict(row.list_columns or {}), data["list_columns"], request
                 )
-            defaults["list_columns"] = merged
+                if merged is None:
+                    return JsonResponse(
+                        {"detail": "`list_columns` must map model keys to lists of strings"},
+                        status=400,
+                    )
+                defaults["list_columns"] = merged
 
-        if defaults:
-            UserSettings.objects.update_or_create(user=user, defaults=defaults)
+            if defaults:
+                UserSettings.objects.update_or_create(user=user, defaults=defaults)
         return JsonResponse(_effective(user))
 
     return JsonResponse({"detail": "Method not allowed"}, status=405)

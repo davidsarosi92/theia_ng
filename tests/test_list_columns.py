@@ -6,6 +6,12 @@ import pytest
 from django.contrib.auth.models import Permission, User
 from django.test import Client
 
+from django.db.models import F
+
+from theia_ng.api import list_optimize
+from theia_ng.introspection.builder import list_column_pool
+from theia_ng.models import MenuView
+from theia_ng.registry import site
 from tests.testproject.sampleapp.models import Category, Stock
 
 LIST = "/theia/api/data/sampleapp.stock/"
@@ -15,11 +21,12 @@ SETTINGS = "/theia/api/settings/"
 
 @pytest.fixture
 def viewer(db):
-    """May see stocks, may not delete them."""
+    """May see stocks and houses, may not delete them (and can't see categories)."""
     user = User.objects.create_user("viewer", password="x")
     user.user_permissions.add(
         Permission.objects.get(codename="access", content_type__app_label="theia_ng"),
         Permission.objects.get(codename="view_stock"),
+        Permission.objects.get(codename="view_house"),
     )
     client = Client()
     client.force_login(user)
@@ -91,6 +98,46 @@ def test_ordering_drops_only_the_bad_term(viewer, stocks):
 # --- the IR ------------------------------------------------------------------
 
 
+def test_ordering_by_a_computed_pool_column_is_ignored_not_an_error(viewer, stocks):
+    resp = viewer.get(LIST, {"ordering": "shout"})
+    assert resp.status_code == 200
+
+
+def test_ordering_survives_an_expression_in_admin_ordering(viewer, stocks, monkeypatch):
+    # Regression: o.lstrip("-") on an OrderBy expression raised AttributeError -> 500.
+    admin = site.get_model("sampleapp.stock")[1]
+    monkeypatch.setattr(admin, "ordering", [F("name").asc(nulls_last=True)])
+    resp = viewer.get(LIST, {"ordering": "-name"})
+    assert resp.status_code == 200
+    assert [r["name"] for r in resp.json()["results"]] == ["wine", "beer"]
+
+
+def test_drf_admin_pool_is_the_serializers_fields(viewer, stocks, monkeypatch):
+    pytest.importorskip("rest_framework")
+    from tests.testproject.sampleapp.serializers import StockSerializer
+
+    admin = site.get_model("sampleapp.stock")[1]
+    monkeypatch.setattr(admin, "serializer_class", StockSerializer)
+    pool = list_column_pool(Stock, admin)
+    assert "notes" in pool  # emitted by the serializer
+    assert "created_at" not in pool  # a model field the serializer leaves out
+    row = viewer.get(LIST, {"columns": "name,created_at"}).json()["results"][0]
+    assert "created_at" not in row
+
+
+def test_pool_skips_auto_created_fields():
+    pool = list_column_pool(Stock, site.get_model("sampleapp.stock")[1])
+    assert "id" not in pool  # implicit AutoField, as in the MenuView field picker
+
+
+def test_column_caches_ignore_order():
+    list_optimize.reset_cache()
+    admin = site.get_model("sampleapp.stock")[1]
+    list_optimize.select_related_paths(Stock, admin, ["name", "category", "house"])
+    list_optimize.select_related_paths(Stock, admin, ["house", "name", "category"])
+    assert len(list_optimize._CACHE) == 1
+
+
 def test_schema_advertises_the_pool(viewer):
     lst = viewer.get(SCHEMA).json()["list"]
     assert lst["customizable"] is True
@@ -141,6 +188,34 @@ def test_user_columns_are_limited_to_the_pool(viewer):
 
 def test_user_columns_respect_list_customizable(viewer):
     body = _patch(viewer, {"list_columns": {"sampleapp.space": ["name"]}}).json()
+    assert body["list_columns"] == {}
+
+
+def test_user_columns_for_a_model_the_user_cannot_see_are_dropped(viewer):
+    # Echoing the kept names back would reveal which fields exist on it.
+    body = _patch(viewer, {"list_columns": {"sampleapp.category": ["name", "x"]}}).json()
+    assert body["list_columns"] == {}
+
+
+def test_user_columns_per_view(viewer):
+    MenuView.objects.create(name="Warehouse", model_fields={"sampleapp.stock": ["name", "quantity"]})
+    MenuView.objects.create(name="Houses", model_fields={"sampleapp.house": ["name"]})
+    body = _patch(viewer, {"list_columns": {
+        "sampleapp.stock@Warehouse": ["quantity", "notes"],  # the view narrows stock: kept
+        "sampleapp.stock@Houses": ["name"],  # this view doesn't narrow stock: dropped
+        "sampleapp.stock@Gone": ["name"],  # no such view: dropped
+        "sampleapp.stock": ["name"],  # the no-view set lives alongside
+    }}).json()
+    assert body["list_columns"] == {
+        "sampleapp.stock@Warehouse": ["quantity", "notes"],
+        "sampleapp.stock": ["name"],
+    }
+
+
+def test_user_columns_null_resets_everything(viewer):
+    MenuView.objects.create(name="Warehouse", model_fields={"sampleapp.stock": ["name"]})
+    _patch(viewer, {"list_columns": {"sampleapp.stock": ["name"], "sampleapp.stock@Warehouse": ["notes"]}})
+    body = _patch(viewer, {"list_columns": None}).json()
     assert body["list_columns"] == {}
 
 

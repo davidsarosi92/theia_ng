@@ -47,7 +47,7 @@ from theia_ng.api.serialization import (
     serialize_option,
 )
 from theia_ng.api.list_optimize import select_related_paths
-from theia_ng.introspection.builder import list_column_pool
+from theia_ng.introspection.builder import _resolve_lookup_field, list_column_pool
 from theia_ng.permissions import has_access
 from theia_ng.registry import site
 
@@ -333,15 +333,22 @@ def _requested_columns(request: HttpRequest, model, admin) -> list[str]:
 
 
 def _requested_ordering(request: HttpRequest, model, admin) -> list[str]:
-    """The client's ``ordering=`` terms that name an allowed column (optionally
-    ``-``-prefixed); anything else is dropped. Ordering by an arbitrary lookup
-    (``owner__password``) would leak values of fields the list never shows."""
+    """The client's ``ordering=`` terms that name a sortable pooled column — a
+    model field or ``a__b`` lookup (optionally ``-``-prefixed) — or one of the
+    admin's own ``ordering`` strings; anything else is dropped. Ordering by an
+    arbitrary lookup (``owner__password``) would leak values the list never
+    shows."""
     raw = request.GET.get("ordering")
     if not raw:
         return []
     allowed = {
-        *(c for c in list_column_pool(model, admin) if not callable(getattr(admin, c, None))),
-        *(o.lstrip("-") for o in admin.ordering),
+        *(
+            c
+            for c in list_column_pool(model, admin)
+            if not callable(getattr(admin, c, None)) and _resolve_lookup_field(model, c) is not None
+        ),
+        # Expressions (F("x").asc()) are valid admin ordering but not client terms.
+        *(o.lstrip("-") for o in admin.ordering if isinstance(o, str)),
         "pk",
     }
     return [t for t in raw.split(",") if t and t.lstrip("-") in allowed]

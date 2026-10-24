@@ -4,6 +4,48 @@ All notable changes to **Theia NG** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.31.0] — 2026-10-24
+### Security
+- **DRF-delegated admins: columns the serializer hides could be read.** The
+  column pool offered every model field, and a column missing from the
+  serializer's output was filled in with `getattr`, so `?columns=api_token`
+  returned a field the `serializer_class` leaves out. For a `serializer_class`
+  admin the pool is now the serializer's readable fields (plus `list_display` /
+  `list_display_optional`). The gap predates 0.30.0; the column chooser made it
+  visible.
+- **The settings PATCH revealed column names of models the user can't see**:
+  the kept names were echoed back. Saving columns now requires view permission
+  on the model.
+
+### Changed
+- **Personal columns are kept per menu view.** Under a view that narrows a
+  model's fields, the user's columns for that model are stored for that view
+  (`app.model@<view>`), so switching views still switches columns. A view that
+  doesn't narrow the model shares the model's own choice (`app.model`, the
+  0.30.0 key — existing choices keep working). The dialog says when a choice is
+  view-specific.
+- **The column pool skips auto-created fields** (an implicit `id`, multi-table
+  `*_ptr` links), matching the MenuView field picker. `pk` in `list_display`
+  still works.
+- **`?ordering=` accepts only real fields and `a__b` lookups** from the pool (and
+  the admin's own `ordering` strings): sorting by a computed column is ignored
+  instead of a 400.
+
+### Added
+- **Settings → List columns → Reset all** drops every saved column choice;
+  `PATCH settings/ {"list_columns": null}` does the same.
+
+### Fixed
+- **An expression in `ModelAdmin.ordering`** (`F("name").asc(nulls_last=True)`)
+  made every list request with `?ordering=` fail with a 500.
+- **Lost update when two tabs saved columns for different models at once**: the
+  merge now runs on a locked row.
+- **The fast-list and select_related caches grew with every column order**; they
+  are now keyed by the column *set* and bounded.
+- The list's shown columns are a computed signal instead of being rebuilt for
+  every row on every change detection; the table and the chooser share one
+  column-label helper.
+
 ## [0.30.0] — 2026-09-29
 ### Security
 - **A list request could run model methods.** The list endpoint resolved each
@@ -688,6 +730,7 @@ All notable changes to **Theia NG** are documented here. The format is based on
   Angular SPA; session login gated by the `theia_ng.access` permission; CI that
   publishes to PyPI on a version-tag push.
 
+[0.31.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.31.0
 [0.30.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.30.0
 [0.29.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.29.0
 [0.28.0]: https://github.com/davidsarosi92/theia_ng/releases/tag/v0.28.0

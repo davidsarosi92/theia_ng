@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 # (model, columns) -> tuple of select_related paths (cached; admins are singletons).
 _CACHE: dict[tuple, tuple[str, ...]] = {}
+_CACHE_MAX = 1024
 
 
 def reset_cache() -> None:
@@ -143,9 +144,14 @@ def select_related_paths(
     if not _enabled():
         return ()
     cols = tuple(columns) if columns is not None else tuple(getattr(admin, "list_display", []) or [])
-    key = (model, cols)
+    # Order-independent key (the result doesn't depend on column order, and users
+    # reorder columns), bounded so distinct client column sets can't grow it
+    # without limit.
+    key = (model, frozenset(cols))
     if key in _CACHE:
         return _CACHE[key]
+    if len(_CACHE) >= _CACHE_MAX:
+        _CACHE.clear()
     col_set = set(cols)
 
     paths: set[str] = set()

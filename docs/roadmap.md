@@ -1,15 +1,14 @@
 # Theia NG — roadmap & working notes
 
 Post-`/clear` start-here doc. Current released version: see `pyproject.toml`
-(latest at time of writing: **0.30.0**). Repo: `~/Projects/theia-ng`
+(latest at time of writing: **0.31.0**). Repo: `~/Projects/theia-ng`
 (default branch **main**, SSH remote `davidsarosi92/theia_ng`). The frontend is an
 Angular **22 zoneless** SPA in `frontend/` (signals drive change detection — any
 non-signal DOM binding that isn't event-driven must be made reactive via a signal;
 this bit the bulk Apply button, fixed in 0.12.1).
 
 Host project: `~/Projects/ibar-api` (Django), installs theia from PyPI
-(`requirements.txt` pin, currently `theia-ng==0.27.2` — **behind**, see E) and
-mounts it at `/theia/`.
+(`requirements.txt` pin, currently `theia-ng==0.30.0`) and mounts it at `/theia/`.
 ibar settings: `core/settings.py` → `THEIA_NG = {... "LIST_PROVIDER":
 "fastberry.list_provider.ListProvider", "SCHEMA_TTL": 300, "CACHE_VERSION":
 os.getenv("THEIA_CACHE_VERSION","1") ...}`. Note that since 0.14.0 a superuser can
@@ -18,7 +17,7 @@ Settings page (`SiteConfig` singleton, layered over `settings.py`).
 
 ---
 
-## A. Shipped since this doc was started (0.13.0 → 0.30.0)
+## A. Shipped since this doc was started (0.13.0 → 0.31.0)
 
 The original A1–A5 user-requested tasks are **all released** — nothing left there:
 
@@ -42,7 +41,7 @@ for to-many search (0.17.0), compact/eager hierarchy + `@compact_tree`
 and the `password` widget (0.27.0), action error surfacing (0.27.1/0.27.2),
 natural-language assistant (0.28.0, section F) + ⌘K omnibox (0.29.0), personal
 list columns + the `?columns=`/`?ordering=` allowlist security fix (0.30.0,
-migration `0011`).
+migration `0011`), per-view column sets + Reset all + review fixes (0.31.0).
 
 ---
 
@@ -97,8 +96,8 @@ Tag push auto-publishes to PyPI via `.github/workflows/release.yml` (OIDC truste
 publishing); the release builds the Angular bundle (Node 24). **CI (`ci.yml`) is
 tests-only — no ruff.** Steps for a release:
 
-1. Make changes; if backend, run `./.venv/bin/python -m pytest -q` (**216 tests**
-   at 0.30.0); if frontend, `cd frontend && npm run build` (must say "bundle
+1. Make changes; if backend, run `./.venv/bin/python -m pytest -q` (**224 tests**
+   at 0.31.0); if frontend, `cd frontend && npm run build` (must say "bundle
    generation complete").
 2. Bump `pyproject.toml` `version`. (Do NOT hardcode `__init__.py.__version__` — it
    reads `importlib.metadata.version("theia_ng")`, fixed in 0.11.3.)
@@ -120,7 +119,8 @@ tagging. Latest fastberry: 0.4.0 (ibar is pinned to it).
 ## D. Local container injection (test before release)
 
 The ibar web container (`ibar-api-web-1`) installs theia from PyPI; site-packages
-isn't bind-mounted, so inject to test. Container theia path:
+isn't bind-mounted, so inject to test. Container theia path (the web container's name has varied — e.g.
+`ibar_claude_web`; find it with `docker compose ps` / `docker ps`):
 `/usr/local/lib/python3.13/site-packages/theia_ng` (Python) and
 `.../theia_ng/static/theia_ng/` (the served Angular bundle).
 
@@ -158,11 +158,10 @@ injected files. ibar `core/settings.py` and `goods/theia.py` ARE bind-mounted
 ## E. Repo facts
 
 - theia tests: `cd ~/Projects/theia-ng && ./.venv/bin/python -m pytest -q`
-  (pytest-django; sample app in `tests/testproject/sampleapp`). 216 tests at 0.30.0.
+  (pytest-django; sample app in `tests/testproject/sampleapp`). 224 tests at 0.31.0.
 - frontend build: `cd frontend && npm run build` (Node 24; `node_modules` present).
-- ibar's pin is **behind**: `theia-ng==0.27.2` (latest 0.30.0 — includes a
-  security fix), `fastberry==0.4.0` is current. The local container runs injected
-  0.30.0 code with migrations through `0011` applied.
+- ibar pins `theia-ng==0.30.0` and `fastberry==0.4.0`; bump the theia pin to
+  0.31.0 once released (it carries further security fixes).
 - **ibar cleanup still pending:** the manual `list_select_related` sweep in
   `goods/theia.py` (7 occurrences) and `structure/theia.py` (4) is redundant since
   theia ≥0.11.1 — column-scoping + auto-select_related handle it. Safe to trim,

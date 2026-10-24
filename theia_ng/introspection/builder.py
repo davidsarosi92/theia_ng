@@ -12,6 +12,7 @@ it — caching lives in the api layer.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from theia_ng.introspection.types import FieldType, resolve_field_type
@@ -174,14 +175,20 @@ def _serialize_default(field: Field) -> Any:
     return None  # non-scalar default (e.g. list/dict) — let the form start empty
 
 
+def _selectable_model_fields(model: type[Model]) -> list[Field]:
+    """A model's own fields a user may pick as columns (the MenuView field picker
+    and a user's list columns share this): concrete fields + M2M, without the
+    auto-created ones (an implicit ``id``, multi-table ``*_ptr`` parent links)."""
+    return [
+        f
+        for f in [*model._meta.concrete_fields, *model._meta.many_to_many]
+        if not getattr(f, "auto_created", False)
+    ]
+
+
 def _model_field_options(model: type[Model]) -> list[dict[str, str]]:
     """Selectable fields of a model (name + label) for the per-model field picker."""
-    out: list[dict[str, str]] = []
-    for f in [*model._meta.concrete_fields, *model._meta.many_to_many]:
-        if getattr(f, "auto_created", False):
-            continue
-        out.append({"value": f.name, "label": _humanize_label(f)})
-    return out
+    return [{"value": f.name, "label": _humanize_label(f)} for f in _selectable_model_fields(model)]
 
 
 def _split_filters(admin: ModelAdmin) -> tuple[list[str], list[dict[str, Any]]]:
@@ -230,17 +237,31 @@ def _resolve_lookup_field(model: type[Model], path: str) -> Field | None:
     return field
 
 
+@lru_cache(maxsize=None)
+def _serializer_readable_fields(serializer_class: type) -> tuple[str, ...]:
+    """Names a DRF serializer emits (its non-write-only fields)."""
+    try:
+        fields = serializer_class().fields
+    except Exception:
+        return ()
+    return tuple(n for n, f in fields.items() if not getattr(f, "write_only", False))
+
+
 def list_column_pool(model: type[Model], admin: ModelAdmin) -> list[str]:
     """Every column a list may show, in offer order: ``list_display`` (shown by
     default), then ``list_display_optional`` (declared, hidden by default), then
-    the model's own fields.
+    the model's own fields — or, for a DRF-delegated admin, the fields its
+    serializer emits, so a field the serializer hides stays hidden.
 
     This is the allowlist for the list endpoint's ``columns=`` and ``ordering=``
     and for a user's saved column choice. A name outside it is dropped, so a
     request can never make the server evaluate an arbitrary attribute — before
-    this, ``?columns=delete`` called ``obj.delete()`` on every listed row."""
+    0.30.0, ``?columns=delete`` called ``obj.delete()`` on every listed row."""
     names = [*admin.list_display, *admin.list_display_optional]
-    names += [f.name for f in [*model._meta.concrete_fields, *model._meta.many_to_many]]
+    if admin.serializer_class is not None:
+        names += _serializer_readable_fields(admin.serializer_class)
+    else:
+        names += [f.name for f in _selectable_model_fields(model)]
     return list(dict.fromkeys(n for n in names if isinstance(n, str)))
 
 

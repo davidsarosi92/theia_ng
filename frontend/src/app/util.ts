@@ -1,3 +1,5 @@
+import { ModelSchema } from './models';
+
 /** Model keys are `app_label.model_name`. URLs use a hyphen instead of the dot
  *  so they read cleanly (`goods.stock` -> `goods-stock`). The dot is the only
  *  separator, so the swap round-trips losslessly. */
@@ -30,3 +32,14 @@ export const cardColor = (key: string): string => {
 
 // Date/datetime/time rendering moved to I18nService.formatDate (locale + the
 // user's timezone, via Intl) — see i18n.service.ts.
+
+/** Every column a model's list may show (the server's pool; `display` on an
+ *  older cached schema without one). */
+export const columnPool = (schema: ModelSchema): string[] =>
+  schema.list.available ?? schema.list.display;
+
+/** Header label for a list column: the schema's column label, else the field's
+ *  label, else the raw name. Shared by the table and the column chooser so a
+ *  column reads the same in both. */
+export const columnLabel = (schema: ModelSchema, col: string): string =>
+  schema.list.labels?.[col] ?? schema.fields.find((f) => f.name === col)?.label ?? col;

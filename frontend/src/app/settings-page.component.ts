@@ -61,6 +61,17 @@ import { ToastService } from './toast.service';
           (blur)="saveTz()"
         />
       </label>
+      <div class="field">
+        <span class="field-label">{{ t('listColumnsLabel') }}</span>
+        <div class="settings-inline">
+          @if (settings.customListColumnsCount(); as n) {
+            <span>{{ t('customColumnsCount', { n }) }}</span>
+            <button type="button" class="btn secondary small" (click)="resetColumns()">{{ t('resetAllColumns') }}</button>
+          } @else {
+            <span class="help">{{ t('noCustomColumns') }}</span>
+          }
+        </div>
+      </div>
     </section>
 
     <!-- self-service: change own password -->
@@ -143,6 +154,11 @@ export class SettingsPageComponent implements OnInit {
   protected t = this.i18n.t;
 
   isSuperuser = signal(false);
+
+  resetColumns(): void {
+    this.settings.resetAllListColumns();
+    this.toast.success(this.t('columnsResetToast'));
+  }
   cfg = signal<SiteConfigPayload | null>(null);
   saving = signal(false);
   clearing = signal(false);

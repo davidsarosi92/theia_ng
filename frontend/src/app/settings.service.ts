@@ -131,16 +131,28 @@ export class SettingsService {
     this.persist({ nav_app_order: [], nav_order: [] });
   }
 
-  /** Save the user's columns for one model (null restores the default). */
-  setListColumns(modelKey: string, columns: string[] | null): void {
+  /** Save the user's columns under one key (`app.model` or `app.model@<view>`);
+   *  null restores that list's default. */
+  setListColumns(key: string, columns: string[] | null): void {
     const next = { ...this.listColumns() };
     if (columns && columns.length) {
-      next[modelKey] = columns;
+      next[key] = columns;
     } else {
-      delete next[modelKey];
+      delete next[key];
     }
     this.listColumns.set(next);
-    this.persist({ list_columns: { [modelKey]: columns } });
+    this.persist({ list_columns: { [key]: columns } });
+  }
+
+  /** How many lists (model, or model under a view) have the user's own columns. */
+  customListColumnsCount(): number {
+    return Object.keys(this.listColumns()).length;
+  }
+
+  /** Drop every saved column set, so all lists show their defaults again. */
+  resetAllListColumns(): void {
+    this.listColumns.set({});
+    this.persist({ list_columns: null });
   }
 
   /** Whether the user has a custom sidebar order (so a Reset control can show). */

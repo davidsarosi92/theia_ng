@@ -5,6 +5,7 @@ import { ButtonLabelComponent } from './button-label.component';
 import { I18nService } from './i18n.service';
 import { IconComponent } from './icon.component';
 import { ModelSchema } from './models';
+import { columnLabel, columnPool } from './util';
 
 interface ColumnEntry {
   name: string;
@@ -25,7 +26,10 @@ interface ColumnEntry {
     <div class="dialog">
       <button type="button" class="dialog-close" (click)="closed.emit()" [attr.aria-label]="t('close')"><theia-icon name="x" /></button>
       <h3>{{ t('columns') }}</h3>
-      <p class="help col-hint">{{ t('columnsHint') }}</p>
+      <p class="help col-hint">
+        {{ t('columnsHint') }}
+        @if (view) { {{ t('columnsViewScope', { view }) }} }
+      </p>
 
       <div class="col-list" cdkDropList cdkDropListLockAxis="y" (cdkDropListDropped)="drop($event)">
         @for (e of entries(); track e.name) {
@@ -65,8 +69,10 @@ export class ColumnChooserDialogComponent implements OnInit {
   @Input({ required: true }) schema!: ModelSchema;
   /** Columns shown right now, in order. */
   @Input({ required: true }) current: string[] = [];
-  /** Whether the user has a saved choice for this model (offers Reset). */
+  /** Whether the user has a saved choice for this list (offers Reset). */
   @Input() customized = false;
+  /** The menu view the choice is saved for, when it is view-specific. */
+  @Input() view: string | null = null;
 
   saved = output<string[]>();
   reset = output<void>();
@@ -75,21 +81,15 @@ export class ColumnChooserDialogComponent implements OnInit {
   entries = signal<ColumnEntry[]>([]);
 
   ngOnInit(): void {
-    const pool = this.schema.list.available ?? this.schema.list.display;
+    const pool = columnPool(this.schema);
     const shown = this.current.filter((c) => pool.includes(c));
     const rest = pool.filter((c) => !shown.includes(c));
-    this.entries.set([
-      ...shown.map((name) => ({ name, label: this.label(name), shown: true })),
-      ...rest.map((name) => ({ name, label: this.label(name), shown: false })),
-    ]);
-  }
-
-  private label(name: string): string {
-    return (
-      this.schema.list.labels?.[name] ??
-      this.schema.fields.find((f) => f.name === name)?.label ??
-      name
-    );
+    const entry = (name: string, on: boolean): ColumnEntry => ({
+      name,
+      label: columnLabel(this.schema, name),
+      shown: on,
+    });
+    this.entries.set([...shown.map((n) => entry(n, true)), ...rest.map((n) => entry(n, false))]);
   }
 
   shownCount(): number {

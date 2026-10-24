@@ -297,11 +297,12 @@ class StockAdmin(theia_ng.ModelAdmin):
 ## Personal list columns
 
 Each user can choose which columns a list shows, and in what order, from the
-**Columns** button on the list; the choice is saved per user and model and
-follows them across devices (**Reset to default** drops it). Your code still
+**Columns** button on the list; the choice is saved per user and follows them
+across devices. **Reset to default** in the dialog drops it for that list, and
+**Settings → List columns → Reset all** drops every one. Your code still
 decides: `list_display` is the default, and users choose only from the model's
 *column pool* — `list_display`, then `list_display_optional`, then the model's
-own fields:
+own fields (for a DRF-delegated admin, the fields its `serializer_class` emits):
 
 ```python
 @theia_ng.register(Stock)
@@ -316,9 +317,13 @@ class StockAdmin(theia_ng.ModelAdmin):
 ```
 
 The pool is enforced server-side: the list endpoint serializes and sorts only by
-pooled columns, whatever the client asks for. On screen the user's own columns
-win over the active [menu view](#menu-views)'s fields, which win over
-`list_display`.
+pooled columns, whatever the client asks for.
+
+Choices are kept **per menu view**: under a [menu view](#menu-views) that narrows
+a model's fields, the user's columns for that model are saved for that view, so
+switching views still switches columns. A view that doesn't narrow the model
+shares the model's own choice. On screen: the user's columns for the current
+scope, else the view's fields, else `list_display`.
 
 ## Inlines
 

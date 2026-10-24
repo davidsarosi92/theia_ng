@@ -102,6 +102,7 @@ class _Compiled:
 
 # (model, columns) -> compiled holder, or None when ineligible / no provider.
 _CACHE: dict[tuple, _Compiled | None] = {}
+_CACHE_MAX = 1024
 # resolved provider instance (or False once we've found there is none).
 _PROVIDER: ListProvider | None | bool = False
 
@@ -158,9 +159,14 @@ def build_fast_schema(
     """Return a cached compiled holder for the model + shown columns, or None if
     not fast-eligible. ``columns`` defaults to the admin's ``list_display``."""
     cols = tuple(columns) if columns is not None else tuple(admin.list_display)
-    key = (model, cols)
+    # Order-independent key (the result doesn't depend on column order, and users
+    # reorder columns), bounded so distinct client column sets can't grow it
+    # without limit.
+    key = (model, frozenset(cols))
     if key in _CACHE:
         return _CACHE[key]
+    if len(_CACHE) >= _CACHE_MAX:
+        _CACHE.clear()
     compiled = _try_build(model, admin, cols)
     _CACHE[key] = compiled
     return compiled

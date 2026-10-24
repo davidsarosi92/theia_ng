@@ -81,8 +81,9 @@ export interface UserSettings {
   nav_app_order: string[];
   /** Model order within groups (list of app_label.model_name). */
   nav_order: string[];
-  /** The user's own list columns per model ({app.model -> columns, in order});
-   *  a missing model uses its default. */
+  /** The user's own list columns, in order, keyed `app.model` — or
+   *  `app.model@<view name>` under a menu view that narrows that model. A missing
+   *  key uses the default. */
   list_columns?: Record<string, string[]>;
   available_languages?: LanguageOption[];
 }
@@ -90,7 +91,8 @@ export interface UserSettings {
 /** A settings PATCH body. `list_columns` is merged per model server-side; a
  *  null (or empty list) drops that model's choice. */
 export type UserSettingsPatch = Partial<Omit<UserSettings, 'list_columns'>> & {
-  list_columns?: Record<string, string[] | null>;
+  /** Per key (`app.model` or `app.model@<view>`); null drops every saved set. */
+  list_columns?: Record<string, string[] | null> | null;
 };
 
 export interface Choice {

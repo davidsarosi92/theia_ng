@@ -16,7 +16,7 @@ import { inputTypeFor } from './field-widgets';
 import { ActionSpec, AssistState, FieldSpec, ModelSchema } from './models';
 import { SettingsService } from './settings.service';
 import { ToastService } from './toast.service';
-import { actionResultError, cap, slugToKey } from './util';
+import { actionResultError, cap, columnLabel, columnPool, slugToKey } from './util';
 
 /** Built-in (theia-shipped) bulk action keys → i18n key. Lets us translate their
  *  server-provided English labels in the UI; unlisted (custom) actions fall back
@@ -253,6 +253,7 @@ import { ViewService } from './view.service';
           [schema]="s"
           [current]="columns()"
           [customized]="hasOwnColumns()"
+          [view]="columnsView()"
           (saved)="saveColumns($event)"
           (reset)="saveColumns(null)"
           (closed)="showColumns.set(false)"
@@ -304,6 +305,8 @@ export class ModelListComponent implements OnInit, OnDestroy {
   private listSub?: Subscription;
 
   modelKey = '';
+  /** modelKey as a signal, so the computed column set follows navigation. */
+  private modelKeySig = signal('');
   /** URL slug form of modelKey (`goods-stock`), for routerLinks. */
   slug = '';
   cap = cap;
@@ -469,6 +472,7 @@ export class ModelListComponent implements OnInit, OnDestroy {
     this.route.paramMap.subscribe((params) => {
       this.slug = params.get('modelKey') ?? '';
       this.modelKey = slugToKey(this.slug);
+      this.modelKeySig.set(this.modelKey);
       this.restoreFromUrl();
       // Drop any pending request from the previous model so its late response
       // can't land on (and overwrite) the new page.
@@ -524,17 +528,30 @@ export class ModelListComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** The user's own column set for this model, limited to what the model still
+  /** The active menu view, when it narrows this model's fields — then the
+   *  user's columns are saved for that view; otherwise for the model alone. */
+  columnsView = computed(() => {
+    const view = this.viewService.active();
+    return view && this.viewService.fieldsFor(this.modelKeySig()) ? view : null;
+  });
+
+  /** Settings key of the user's columns for this list (see `columnsView`). */
+  private columnsKey = computed(() => {
+    const view = this.columnsView();
+    return view ? `${this.modelKeySig()}@${view}` : this.modelKeySig();
+  });
+
+  /** The user's own column set for this list, limited to what the model still
    *  offers (a field may have been removed since it was saved); null if none. */
-  private ownColumns(): string[] | null {
-    const list = this.schema()?.list;
-    if (!list?.customizable) {
+  private ownColumns = computed(() => {
+    const s = this.schema();
+    if (!s?.list.customizable) {
       return null;
     }
-    const pool = new Set(list.available ?? list.display);
-    const mine = (this.settings.listColumns()[this.modelKey] ?? []).filter((c) => pool.has(c));
+    const pool = new Set(columnPool(s));
+    const mine = (this.settings.listColumns()[this.columnsKey()] ?? []).filter((c) => pool.has(c));
     return mine.length ? mine : null;
-  }
+  });
 
   hasOwnColumns(): boolean {
     return this.ownColumns() !== null;
@@ -542,23 +559,24 @@ export class ModelListComponent implements OnInit, OnDestroy {
 
   saveColumns(columns: string[] | null): void {
     this.showColumns.set(false);
-    this.settings.setListColumns(this.modelKey, columns);
+    this.settings.setListColumns(this.columnsKey(), columns);
   }
 
-  columns(): string[] {
-    // Most specific wins: the user's own columns, then the active view's fields,
-    // then the code-defined list_display.
+  /** Shown columns. Most specific wins: the user's own columns (for this view,
+   *  if it narrows the model), then the active view's fields, then the
+   *  code-defined list_display. A computed: the template reads it per row. */
+  columns = computed(() => {
     const own = this.ownColumns();
     if (own) {
       return own;
     }
-    const viewFields = this.viewService.fieldsFor(this.modelKey);
+    const viewFields = this.viewService.fieldsFor(this.modelKeySig());
     if (viewFields) {
       return viewFields;
     }
     const display = this.schema()?.list.display ?? [];
     return display.length ? display : ['pk'];
-  }
+  });
 
   private fieldByName(col: string): FieldSpec | undefined {
     return this.schema()?.fields.find((f) => f.name === col);
@@ -583,7 +601,8 @@ export class ModelListComponent implements OnInit, OnDestroy {
   formatDate = this.i18n.formatDate;
 
   colLabel(col: string): string {
-    return this.schema()?.list.labels?.[col] ?? this.fieldByName(col)?.label ?? col;
+    const s = this.schema();
+    return s ? columnLabel(s, col) : col;
   }
 
   sortIndicator(col: string): string {
